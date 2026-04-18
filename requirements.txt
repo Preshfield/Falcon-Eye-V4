@@ -1,6 +1,4 @@
 streamlit
-PyPDF2
 google-generativeai
 gTTS
 pandas
-st-gsheets-connection==0.0.3
