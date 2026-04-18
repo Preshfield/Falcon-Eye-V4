@@ -4,3 +4,4 @@ groq
 pandas
 st-gsheets-connection
 gTTS
+PyPDF2
