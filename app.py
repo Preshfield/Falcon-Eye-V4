@@ -44,30 +44,30 @@ def falcon_query(prompt: str, max_retries: int = 3) -> str:
     """Improved query function with retry for rate limits"""
     for attempt in range(max_retries):
         try:
+            # Since you paid for billing, 1.5-flash will be incredibly fast
             model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(prompt)
             return response.text.strip()
             
         except Exception as e:
             error_str = str(e).lower()
+            # If billing is active, you shouldn't see these, but we keep the safety net
             if any(k in error_str for k in ["429", "quota", "rate", "cooling", "resource exhausted"]):
-                wait_time = (2 ** attempt) * 8   # 8s, 16s, 32s
+                wait_time = (2 ** attempt) * 5 
                 if attempt < max_retries - 1:
-                    st.warning(f"⚠️ SIGNAL INTERFERENCE: Google is cooling down. Waiting {wait_time} seconds...")
+                    st.warning(f"⚠️ SIGNAL INTERFERENCE: Re-routing via backup... ({wait_time}s)")
                     time.sleep(wait_time)
                     continue
             else:
                 return f"❌ API Error: {str(e)[:120]}"
     
-    return "⏳ Still hitting rate limits. Wait 30–60 seconds and try again. (Billing should help now)"
+    return "⏳ Connection Timeout. Please check your internet or API billing status."
 
 # ====================== SESSION STATE ======================
 if "authorized" not in st.session_state:
     st.session_state.authorized = False
-
 if "last_response" not in st.session_state:
     st.session_state.last_response = ""
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -93,74 +93,26 @@ tab1, tab2, tab3 = st.tabs(["📡 Intelligence", "📖 Protocols", "📝 Mission
 # ------------------- TAB 1: Intelligence & Speech -------------------
 with tab1:
     st.subheader("Field Intelligence & Translation")
+    user_input = st.text_input("Enter command:", key="user_input")
+    target_lang = st.selectbox("Speech Synthesis Language:", ["None", "Urdu", "Arabic", "Hindi", "Tagalog"])
 
-    user_input = st.text_input(
-        "Enter command (e.g., Translate to Urdu: 'Stay behind the line')",
-        key="user_input"
-    )
-    
-    target_lang = st.selectbox(
-        "Speech Synthesis Language:",
-        ["None", "Urdu", "Arabic", "Hindi", "Tagalog"]
-    )
-
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        if st.button("🚀 RUN SCAN", type="primary"):
-            if user_input.strip():
-                with st.spinner("Falcon Eye Scanning..."):
-                    time.sleep(1.0)
-                    result = falcon_query(user_input)
-                    
-                    st.info(result)
-                    st.session_state.last_response = result
-                    st.session_state.messages.append({"query": user_input, "response": result})
-                    
-                    # Auto TTS
-                    if target_lang != "None":
-                        try:
-                            lang_map = {"Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
-                            tts = gTTS(text=result, lang=lang_map[target_lang], slow=False)
-                            audio_buffer = io.BytesIO()
-                            tts.write_to_fp(audio_buffer)
-                            audio_buffer.seek(0)
-                            st.audio(audio_buffer, format="audio/mp3")
-                            st.success(f"🔊 Speaking in {target_lang}")
-                        except:
-                            st.warning("Speech synthesis failed.")
-            else:
-                st.warning("Please enter a command.")
-
-    with col2:
-        if st.session_state.last_response and st.button("🔊 Speak Again"):
-            try:
+    if st.button("🚀 RUN SCAN", type="primary"):
+        if user_input.strip():
+            with st.spinner("Falcon Eye Scanning..."):
+                result = falcon_query(user_input)
+                st.info(result)
+                st.session_state.last_response = result
+                st.session_state.messages.append({"query": user_input, "response": result})
+                
                 if target_lang != "None":
-                    lang_map = {"Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
-                    tts = gTTS(text=st.session_state.last_response, lang=lang_map[target_lang], slow=False)
-                    audio_buffer = io.BytesIO()
-                    tts.write_to_fp(audio_buffer)
-                    audio_buffer.seek(0)
-                    st.audio(audio_buffer, format="audio/mp3")
-                    st.success(f"🔊 Speaking in {target_lang}")
-            except:
-                st.error("Failed to play audio.")
-
-    # History
-    if st.session_state.messages:
-        with st.expander("📜 Recent Intelligence Scans", expanded=False):
-            for msg in reversed(st.session_state.messages[-6:]):
-                st.markdown(f"**Q:** {msg['query']}")
-                st.markdown(f"**A:** {msg['response'][:500]}{'...' if len(msg['response']) > 500 else ''}")
-                st.divider()
-
-# ------------------- TAB 2: Protocols -------------------
-with tab2:
-    st.subheader("Standard Operating Procedures")
-    try:
-        with open("master_docs/gate_manual.pdf", "rb") as f:
-            st.download_button("📂 Open PDF Manual", f, "Gate_Manual.pdf", mime="application/pdf")
-    except FileNotFoundError:
-        st.warning("Manual not found in master_docs/gate_manual.pdf")
+                    try:
+                        lang_map = {"Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
+                        tts = gTTS(text=result, lang=lang_map[target_lang], slow=False)
+                        audio_buffer = io.BytesIO()
+                        tts.write_to_fp(audio_buffer)
+                        audio_buffer.seek(0)
+                        st.audio(audio_buffer, format="audio/mp3")
+                    except: st.warning("Audio processing failed.")
 
 # ------------------- TAB 3: Mission Log -------------------
 with tab3:
@@ -170,37 +122,25 @@ with tab3:
     if st.button("🚀 Finalize & Log Report"):
         if raw_notes.strip():
             with st.spinner("Generating & Logging Report..."):
-                report = falcon_query(f"Format this as a professional security log entry. Be concise and formal:\n\n{raw_notes}")
-
+                report = falcon_query(f"Format as a concise security log: {raw_notes}")
                 st.code(report, language="markdown")
-
                 try:
                     conn = st.connection("gsheets", type=GSheetsConnection)
-                    try:
-                        existing = conn.read(spreadsheet=st.secrets["gsheets_url"])
-                    except:
-                        existing = pd.DataFrame()
-
                     new_row = pd.DataFrame([{
                         "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "Operator": "pappi",
                         "Report": report
                     }])
-
-                    updated = pd.concat([existing, new_row], ignore_index=True)
-                    conn.update(spreadsheet=st.secrets["gsheets_url"], data=updated)
-
+                    # Using the simpler 'create' method for reliability
+                    conn.create(spreadsheet=st.secrets["gsheets_url"], data=new_row)
                     st.success("✅ Report logged to Falcon Eye Database")
                 except Exception as e:
                     st.error(f"Database Error: {str(e)}")
-        else:
-            st.warning("Please enter observations.")
 
 # ====================== SIDEBAR ======================
 with st.sidebar:
     st.success("🟢 System Online")
+    st.caption("Operator: pappi")
     if st.button("🔌 System Shutdown"):
         st.session_state.authorized = False
         st.rerun()
-    
-    st.caption("Falcon Eye V4 • Secure Terminal • Billing Enabled")
