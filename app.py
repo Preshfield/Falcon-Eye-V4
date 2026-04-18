@@ -81,33 +81,20 @@ with t1:
 
 import base64 # Ensure this is at the top of your app.py
 
+from streamlit_pdf_viewer import pdf_viewer # Add this to your imports at the top
+
 with t2:
     st.subheader("📖 Gate 4 Library")
     
     if os.path.exists("gate_manual.pdf"):
-        # We create a simple, clean layout
-        st.info("💡 Tip: Opening the manual will open a new tab. Swipe back to return to Falcon Eye.")
+        # This keeps the PDF inside the app window so you NEVER leave the page
+        st.info("Scroll below to read. Tap Tab 1 to return to AI Scanner.")
         
-        # This is a 'Download' button but on mobile, it usually just opens the file perfectly
-        with open("gate_manual.pdf", "rb") as f:
-            pdf_data = f.read()
-            st.download_button(
-                label="🚀 VIEW FULL MANUAL (ALL PAGES)",
-                data=pdf_data,
-                file_name="gate_manual.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+        pdf_viewer("gate_manual.pdf", height=700) 
         
         st.write("---")
-        
-        # --- NOTEBOOK LM AUDIO SECTION ---
-        st.subheader("🎧 Audio Briefing")
-        if os.path.exists("protocol_lecture.wav"):
-            with open("protocol_lecture.wav", "rb") as a:
-                st.audio(a.read(), format="audio/wav")
-        else:
-            st.caption("Upload 'protocol_lecture.wav' to GitHub to enable audio.")
-            
+        # Keep the download button as a backup
+        with open("gate_manual.pdf", "rb") as f:
+            st.download_button("📥 Download Copy to Phone", f, "gate_manual.pdf")
     else:
-        st.error("Manual 'gate_manual.pdf' not detected on the main GitHub page.")
+        st.error("Manual not found on GitHub.")
