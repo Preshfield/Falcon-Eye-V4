@@ -59,68 +59,69 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 with t1:
-    st.subheader("📡 Gate 4 Intercom")
+    st.subheader("📡 Gate 4 Global Intercom")
     
-    # Brain and Language Setup
+    # Language Categories for Dubai/Global Gate Operations
+    common_langs = {
+        "Urdu": "ur", "Hindi": "hi", "Arabic": "ar", "Tagalog": "tl", 
+        "Bengali": "bn", "Malayalam": "ml", "Pashto": "ps", "Punjabi": "pa",
+        "Tamil": "ta", "Telugu": "te", "Swahili": "sw", "Russian": "ru",
+        "Chinese": "zh-cn", "French": "fr", "Spanish": "es"
+    }
+
     col1, col2 = st.columns(2)
     with col1:
-        brain_mode = st.radio("Brain Context:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
+        brain_mode = st.radio("System Brain:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     with col2:
-        driver_lang = st.selectbox("Driver's Language:", ["Urdu", "Arabic", "Hindi", "Tagalog"])
+        # This dropdown now contains all major languages
+        driver_lang_name = st.selectbox("Select Driver Language:", list(common_langs.keys()))
+        driver_lang_code = common_langs[driver_lang_name]
 
-    # --- STEP 1: LISTEN TO DRIVER ---
-    st.write("🎤 **Step 1: Driver is speaking...**")
-    # We set this to listen in the driver's language
-    lang_map = {"Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl", "None": "en"}
+    # --- THE INTERCOM LOOP ---
+    st.write(f"🎤 **Listening for {driver_lang_name}...**")
+    
+    # Driver speaks, AI listens in THEIR language
     driver_speech = speech_to_text(
-        language=lang_map.get(driver_lang, 'en'), 
-        start_prompt="👂 Listen to Driver", 
-        stop_prompt="✅ Stop Listening", 
+        language=driver_lang_code, 
+        start_prompt=f"👂 Listen to {driver_lang_name}", 
+        stop_prompt="✅ Captured", 
         just_once=True, 
         key='driver_mic'
     )
 
     if driver_speech:
-        # Save driver's words to history
         st.session_state.chat_history.append({"role": "driver", "text": driver_speech})
-        # AI explains what the driver said in English for you
-        driver_intent = falcon_query(f"The driver said this in {driver_lang}: '{driver_speech}'. Explain what they want in English briefly.", brain_mode)
-        st.warning(f"Driver says: {driver_speech} \n\n(AI Analysis: {driver_intent})")
+        # AI explains the driver's intent to you in English
+        analysis_prompt = f"The driver said this in {driver_lang_name}: '{driver_speech}'. Briefly explain their request in English."
+        driver_intent = falcon_query(analysis_prompt, brain_mode)
+        st.warning(f"**Driver ({driver_lang_name}):** {driver_speech} \n\n**AI Translation:** {driver_intent}")
 
     st.divider()
 
-    # --- STEP 2: YOUR RESPONSE ---
-    st.write("⌨️ **Step 2: Type your response to the driver:**")
-    my_reply = st.chat_input("Type your instructions here...")
+    # --- YOUR RESPONSE ---
+    st.write("⌨️ **Type your instruction (in English):**")
+    my_reply = st.chat_input("Tell the driver what to do...")
 
     if my_reply:
-        # Save your reply to history
         st.session_state.chat_history.append({"role": "pappi", "text": my_reply})
         
-        with st.spinner("Translating & Preparing Voice..."):
-            # Translate your instruction to the driver's language
-            translated_reply = falcon_query(f"Translate this instruction to {driver_lang} clearly: {my_reply}", "Global Knowledge")
+        with st.spinner(f"Converting to {driver_lang_name}..."):
+            # Groq handles the heavy translation
+            translation_prompt = f"Translate this instruction to {driver_lang_name} perfectly and clearly: {my_reply}"
+            translated_reply = falcon_query(translation_prompt, "Global Knowledge")
             
-            # Show the translation and play it out loud
-            st.success(f"Response (translated): {translated_reply}")
+            st.success(f"**Your Reply ({driver_lang_name}):** {translated_reply}")
             
-            # Generate Audio for the driver to hear
-            tts = gTTS(text=translated_reply, lang=lang_map.get(driver_lang, 'en'))
+            # Voice out the reply
+            tts = gTTS(text=translated_reply, lang=driver_lang_code)
             rv = io.BytesIO()
             tts.write_to_fp(rv)
-            st.audio(rv.getvalue(), format="audio/mp3", autoplay=True) # Autoplay for speed!
+            st.audio(rv.getvalue(), format="audio/mp3", autoplay=True)
 
-    # --- STEP 3: THE CONVERSATION LOG ---
-    st.write("📜 **Live Conversation Log**")
+    # --- CHAT LOG ---
     for chat in reversed(st.session_state.chat_history):
-        if chat["role"] == "driver":
-            st.chat_message("user", avatar="🚚").write(chat["text"])
-        else:
-            st.chat_message("assistant", avatar="🦅").write(chat["text"])
-    
-    if st.button("🗑️ Clear Intercom"):
-        st.session_state.chat_history = []
-        st.rerun()
+        avatar = "🚚" if chat["role"] == "driver" else "🦅"
+        st.chat_message("user" if chat["role"] == "driver" else "assistant", avatar=avatar).write(chat["text"])
 # --- TAB 2: PROTOCOLS (PDF + AUDIO) ---
 with t2:
     st.subheader("📖 Gate 4 Library")
