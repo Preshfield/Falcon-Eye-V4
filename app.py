@@ -1,86 +1,100 @@
 import streamlit as st
 import google.generativeai as genai
 from groq import Groq
-from streamlit_mic_recorder import speech_to_text # New tool for the mic
+import pandas as pd
 from gtts import gTTS
 import io
 import os
 import PyPDF2
+from datetime import datetime
+from streamlit_gsheets import GSheetsConnection
+from streamlit_mic_recorder import speech_to_text # The new tool
 
 # ====================== PAGE CONFIG ======================
-st.set_page_config(page_title="Falcon Eye V6", layout="wide", page_icon="🦅")
+st.set_page_config(page_title="Falcon Eye V5", layout="wide", page_icon="🦅")
+
+# Aesthetic
 st.markdown("<style>.main { background-color: #0e1117; color: #00f2ff; }</style>", unsafe_allow_html=True)
 
-# ====================== THE BRAIN ENGINE ======================
-def falcon_query(prompt: str, brain_mode: str) -> str:
-    # (Same logic as before - reading manual for Gate 4, Global for others)
-    manual_content = ""
-    if brain_mode == "Gate 4 Protocol" and os.path.exists("gate_manual.pdf"):
-        with open("gate_manual.pdf", "rb") as f:
-            reader = PyPDF2.PdfReader(f)
-            for page in reader.pages: manual_content += page.extract_text()
+# ====================== MANUAL DIGESTION ======================
+def digest_manual():
+    if os.path.exists("gate_manual.pdf"):
+        try:
+            with open("gate_manual.pdf", "rb") as f:
+                reader = PyPDF2.PdfReader(f)
+                text = "".join([page.extract_text() for page in reader.pages])
+                return text
+        except: return ""
+    return ""
 
-    system_rules = f"Source Manual: {manual_content}\nAnswer only based on manual." if brain_mode == "Gate 4 Protocol" else "General Assistant mode."
+# ====================== THE DUAL-BRAIN ENGINE ======================
+def falcon_query(prompt: str, brain_mode: str) -> str:
+    manual_data = digest_manual() if brain_mode == "Gate 4 Protocol" else ""
     
+    if brain_mode == "Gate 4 Protocol":
+        system_rules = f"""
+        You are the Gate 4 Supervisor. 
+        YOUR ONLY SOURCE OF TRUTH IS THIS MANUAL: {manual_data}
+        If a question is NOT in the manual, say: 'This is not covered in Gate 4 protocols.'
+        The operator 'pappi' might type with errors; use your intelligence to understand his intent.
+        """
+    else:
+        system_rules = "You are a general AI assistant. Help with any topic using global knowledge."
+
+    # Primary: Gemini | Backup: Groq
     try:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
         model = genai.GenerativeModel('gemini-1.5-flash')
-        return model.generate_content(f"{system_rules}\nUser: {prompt}").text
+        response = model.generate_content(f"RULES: {system_rules}\n\nUSER: {prompt}")
+        return response.text.strip()
     except:
         client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-        return client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "system", "content": system_rules}, {"role": "user", "content": prompt}]).choices[0].message.content
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "system", "content": system_rules}, {"role": "user", "content": prompt}]
+        )
+        return completion.choices[0].message.content
 
-# ====================== AUTH ======================
+# ====================== MAIN APP ======================
 if "auth" not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
-    if st.text_input("Auth:", type="password") == "Gate4Pass2026":
-        if st.button("Login"): st.session_state.auth = True; st.rerun()
+    st.title("🦅 Falcon Eye V5")
+    if st.text_input("Code:", type="password") == "Gate4Pass2026":
+        if st.button("Access"): st.session_state.auth = True; st.rerun()
     st.stop()
 
-# ====================== COMMAND CENTER ======================
-st.title("🦅 Falcon Eye | Gate 4 Bridge")
-t1, t2, t3, t4 = st.tabs(["📡 Intelligence", "🎤 Live Bridge", "📖 Protocols", "📝 Log"])
+st.title("🦅 Falcon Eye | Gate 4 Command")
+t1, t2, t3 = st.tabs(["📡 Intelligence", "📖 Protocols", "📝 Mission Log"])
 
-# --- TAB 1 & 3 & 4 (Keep your existing code here) ---
+with t1:
+    brain = st.radio("Mode:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
+    lang = st.selectbox("Speech Language:", ["None", "Urdu", "Arabic", "Hindi", "Tagalog"])
+    
+    # New Voice Input Tool
+    st.write("🎙️ Voice Command:")
+    text_from_voice = speech_to_text(language='en', use_container_width=True, just_once=True, key='STT')
+    
+    user_input = st.text_area("Type Command:", value=text_from_voice if text_from_voice else "")
 
-# --- NEW TAB 2: LIVE BRIDGE ---
+    if st.button("🚀 RUN SCAN"):
+        if user_input:
+            with st.spinner("Analyzing against protocols..."):
+                result = falcon_query(user_input, brain)
+                st.info(result)
+                if lang != "None":
+                    v_map = {"Urdu":"ur", "Arabic":"ar", "Hindi":"hi", "Tagalog":"tl"}
+                    tts = gTTS(text=result, lang=v_map[lang])
+                    rv = io.BytesIO(); tts.write_to_fp(rv); rv.seek(0)
+                    st.audio(rv)
+
 with t2:
-    st.subheader("Interactive Voice Bridge")
-    st.write("Ask the client/driver to tap the mic and speak.")
-    
-    # 1. Select the Client's Language
-    client_lang = st.selectbox("Client speaks:", ["Arabic", "Urdu", "Hindi", "Tagalog"], key="bridge_lang")
-    lang_codes = {"Arabic": "ar-SA", "Urdu": "ur-PK", "Hindi": "hi-IN", "Tagalog": "tl-PH"}
+    if os.path.exists("gate_manual.pdf"):
+        with open("gate_manual.pdf", "rb") as f:
+            st.download_button("📂 Download Manual", f, "gate_manual.pdf")
+    else: st.error("Manual missing from GitHub.")
 
-    # 2. THE RECORDING BUTTON
-    # This listens, converts to text, and gives it back to us.
-    text_from_client = speech_to_text(
-        language=lang_codes[client_lang],
-        start_prompt="Tap to Listen (Client)",
-        stop_prompt="Processing...",
-        just_once=True,
-        key='client_speech'
-    )
-
-    if text_from_client:
-        st.warning(f"Client Said ({client_lang}): {text_from_client}")
-        
-        # Translate it for you (pappi)
-        with st.spinner("Translating for Operator..."):
-            translation_for_me = falcon_query(f"The client said '{text_from_client}' in {client_lang}. What does this mean in English?", "Global Knowledge")
-            st.success(f"Translation for you: {translation_for_me}")
-
-    st.divider()
-    
-    # 3. YOUR RESPONSE
-    my_reply = st.text_input("Your response to client (English):")
-    if st.button("Translate & Speak to Client"):
-        if my_reply:
-            reply_in_client_lang = falcon_query(f"Translate this to {client_lang}: {my_reply}", "Global Knowledge")
-            st.info(f"Speaking to client: {reply_in_client_lang}")
-            
-            # Voice output for them
-            v_map = {"Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
-            tts = gTTS(text=reply_in_client_lang, lang=v_map[client_lang])
-            rv = io.BytesIO(); tts.write_to_fp(rv); rv.seek(0)
-            st.audio(rv, autoplay=True)
+with t3:
+    notes = st.text_area("Shift Notes:")
+    if st.button("🚀 Log Report"):
+        report = falcon_query(f"Log this: {notes}", "Gate 4 Protocol")
+        st.code(report)
