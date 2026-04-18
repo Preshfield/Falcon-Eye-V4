@@ -162,8 +162,8 @@ with t3:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
                 # Instruction for the AI to format the report
-                log_prompt = f"Convert these raw notes into a formal security report including the timestamp {timestamp}. Use high-level professional security language: {raw_observations}"
-                
+                # Updated prompt to include the specific worker's name
+log_prompt = f"Convert these raw notes into a formal security report. WORKER ON DUTY: {st.session_state.current_worker}. TIMESTAMP: {timestamp}. Use high-level professional security language: {raw_observations}"
                 # Calls your existing falcon_query function
                 formatted_report = falcon_query(log_prompt, "Gate 4 Protocol")
                 
