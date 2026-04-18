@@ -8,7 +8,7 @@ from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 
 # ====================== ELITE UI CONFIG ======================
-st.set_page_config(page_title="Falcon Eye Elite", layout="wide", page_icon="🦅")
+st.set_page_config(page_title="FALCON EYE | GATE 4", layout="wide", page_icon="🦅")
 
 st.markdown("""
     <style>
