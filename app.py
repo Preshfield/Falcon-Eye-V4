@@ -114,7 +114,7 @@ with t2:
     st.subheader("Manual & Audio Briefing")
     
     # Audio Lecture Fix: Checks for .wav or .mp3
-    audio_files = ["protocol_lecture.wav", "protocol_lecture.mp3"]
+    audio_files = ["protocol_lecture.wav.mp3", "protocol_lecture.wav.mp3"]
     found_audio = None
     for f in audio_files:
         if os.path.exists(f):
