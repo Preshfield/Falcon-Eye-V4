@@ -84,29 +84,30 @@ import base64 # Ensure this is at the top of your app.py
 with t2:
     st.subheader("📖 Gate 4 Library")
     
-    # --- SECTION 1: PDF MANUAL ---
     if os.path.exists("gate_manual.pdf"):
+        # We create a simple, clean layout
+        st.info("💡 Tip: Opening the manual will open a new tab. Swipe back to return to Falcon Eye.")
+        
+        # This is a 'Download' button but on mobile, it usually just opens the file perfectly
         with open("gate_manual.pdf", "rb") as f:
-            pdf_bytes = f.read()
-            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            pdf_data = f.read()
+            st.download_button(
+                label="🚀 VIEW FULL MANUAL (ALL PAGES)",
+                data=pdf_data,
+                file_name="gate_manual.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        
+        st.write("---")
+        
+        # --- NOTEBOOK LM AUDIO SECTION ---
+        st.subheader("🎧 Audio Briefing")
+        if os.path.exists("protocol_lecture.wav"):
+            with open("protocol_lecture.wav", "rb") as a:
+                st.audio(a.read(), format="audio/wav")
+        else:
+            st.caption("Upload 'protocol_lecture.wav' to GitHub to enable audio.")
             
-        # Clean button for mobile
-        pdf_link = f'<a href="data:application/pdf;base64,{b64_pdf}" target="_blank" style="text-decoration: none;"><div style="background-color: #00f2ff; color: black; padding: 12px; border-radius: 10px; text-align: center; font-weight: bold; margin-bottom: 20px;">📖 OPEN MANUAL (FULL SCREEN)</div></a>'
-        st.markdown(pdf_link, unsafe_allow_html=True)
     else:
-        st.error("Manual PDF missing from GitHub.")
-
-    st.write("---")
-
-    # --- SECTION 2: NOTEBOOK LM AUDIO ---
-    st.subheader("🎧 Audio Briefing")
-    audio_file = "protocol_lecture.wav" # Make sure this matches your filename on GitHub
-    
-    if os.path.exists(audio_file):
-        st.info("Listen to the AI-generated overview of Gate 4 protocols:")
-        with open(audio_file, "rb") as a:
-            audio_bytes = a.read()
-            st.audio(audio_bytes, format="audio/wav")
-        st.caption("Powered by NotebookLM Intelligence")
-    else:
-        st.warning("No audio lecture found. Upload 'protocol_lecture.wav' to GitHub to activate this feature.")
+        st.error("Manual 'gate_manual.pdf' not detected on the main GitHub page.")
