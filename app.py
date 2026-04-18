@@ -31,30 +31,22 @@ def digest_manual():
 def falcon_query(prompt: str, brain_mode: str) -> str:
     manual_data = digest_manual() if brain_mode == "Gate 4 Protocol" else ""
     
+    # Strictly defining the "Source of Truth"
     if brain_mode == "Gate 4 Protocol":
-        system_rules = f"""
-        You are the Gate 4 Supervisor. 
-        YOUR ONLY SOURCE OF TRUTH IS THIS MANUAL: {manual_data}
-        If a question is NOT in the manual, say: 'This is not covered in Gate 4 protocols.'
-        The operator 'pappi' might type with errors; use your intelligence to understand his intent.
-        """
+        system_rules = f"You are the Gate 4 Supervisor. Use ONLY this manual: {manual_data}. If not in manual, say so."
     else:
-        system_rules = "You are a general AI assistant. Help with any topic using global knowledge."
+        system_rules = "You are a general assistant."
 
-    # Primary: Gemini | Backup: Groq
-    try:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(f"RULES: {system_rules}\n\nUSER: {prompt}")
-        return response.text.strip()
-    except:
-        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": system_rules}, {"role": "user", "content": prompt}]
-        )
-        return completion.choices[0].message.content
-
+    # Direct Groq Pipeline (No Google timeout)
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system_rules},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return completion.choices[0].message.content
 # ====================== MAIN APP ======================
 if "auth" not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
