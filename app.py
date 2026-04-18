@@ -40,28 +40,29 @@ if "GOOGLE_API_KEY" not in st.secrets:
 
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
-def falcon_query(prompt: str, max_retries: int = 3) -> str:
-    """Improved query function with retry for rate limits"""
-    for attempt in range(max_retries):
-        try:
-            # Since you paid for billing, 1.5-flash will be incredibly fast
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(prompt)
-            return response.text.strip()
-            
-        except Exception as e:
-            error_str = str(e).lower()
-            # If billing is active, you shouldn't see these, but we keep the safety net
-            if any(k in error_str for k in ["429", "quota", "rate", "cooling", "resource exhausted"]):
-                wait_time = (2 ** attempt) * 5 
-                if attempt < max_retries - 1:
-                    st.warning(f"⚠️ SIGNAL INTERFERENCE: Re-routing via backup... ({wait_time}s)")
-                    time.sleep(wait_time)
-                    continue
-            else:
-                return f"❌ API Error: {str(e)[:120]}"
+from groq import Groq  # Add this at the very top with your other imports
+
+def falcon_query(prompt: str) -> str:
+    # --- ENGINE 1: GOOGLE (Primary) ---
+    try:
+        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        # We give Google 5 seconds. If it's slower than that, we switch.
+        response = model.generate_content(prompt, request_options={"timeout": 5})
+        return response.text.strip()
     
-    return "⏳ Connection Timeout. Please check your internet or API billing status."
+    except Exception:
+        # --- ENGINE 2: GROQ (The High-Speed Backup) ---
+        try:
+            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+            # Using Llama 3.3 70B - it's smart and lightning fast
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return completion.choices[0].message.content
+        except Exception as e:
+            return f"❌ TOTAL SIGNAL LOSS: {str(e)}"
 
 # ====================== SESSION STATE ======================
 if "authorized" not in st.session_state:
