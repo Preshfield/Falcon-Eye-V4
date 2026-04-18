@@ -87,18 +87,34 @@ with t1:
                     rv = io.BytesIO(); tts.write_to_fp(rv); rv.seek(0)
                     st.audio(rv)
 
+import base64 # Ensure this is at the top of your app.py
+
 with t2:
-    st.subheader("Manual & Procedures")
+    st.subheader("📖 Gate 4 Library")
+    
+    # --- SECTION 1: PDF MANUAL ---
     if os.path.exists("gate_manual.pdf"):
         with open("gate_manual.pdf", "rb") as f:
             pdf_bytes = f.read()
-            base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
             
-        # This creates a "Magic Link" that opens in a fresh, clean tab
-        pdf_link = f'<a href="data:application/pdf;base64,{base64_pdf}" target="_blank" style="text-decoration: none;"><div style="background-color: #00f2ff; color: black; padding: 10px 20px; border-radius: 10px; text-align: center; font-weight: bold;">📖 OPEN FULL MANUAL IN NEW TAB</div></a>'
-        
+        # Clean button for mobile
+        pdf_link = f'<a href="data:application/pdf;base64,{b64_pdf}" target="_blank" style="text-decoration: none;"><div style="background-color: #00f2ff; color: black; padding: 12px; border-radius: 10px; text-align: center; font-weight: bold; margin-bottom: 20px;">📖 OPEN MANUAL (FULL SCREEN)</div></a>'
         st.markdown(pdf_link, unsafe_allow_html=True)
-        st.write("---")
-        st.download_button("📥 Or Download to Device", pdf_bytes, "gate_manual.pdf")
     else:
-        st.error("Manual missing from GitHub root.")
+        st.error("Manual PDF missing from GitHub.")
+
+    st.write("---")
+
+    # --- SECTION 2: NOTEBOOK LM AUDIO ---
+    st.subheader("🎧 Audio Briefing")
+    audio_file = "protocol_lecture.wav" # Make sure this matches your filename on GitHub
+    
+    if os.path.exists(audio_file):
+        st.info("Listen to the AI-generated overview of Gate 4 protocols:")
+        with open(audio_file, "rb") as a:
+            audio_bytes = a.read()
+            st.audio(audio_bytes, format="audio/wav")
+        st.caption("Powered by NotebookLM Intelligence")
+    else:
+        st.warning("No audio lecture found. Upload 'protocol_lecture.wav' to GitHub to activate this feature.")
