@@ -95,10 +95,10 @@ with t2:
     
     # NOTEBOOK LM AUDIO STATION
     st.subheader("🎧 Audio Training")
-    audio_path = "protocol_lecture.wav"
+    audio_path = "protocol_lecture.wav.mp3"
     if os.path.exists(audio_path):
         with open(audio_path, "rb") as a:
-            st.audio(a.read(), format="audio/wav")
+            st.audio(a.read(), format="audio/mp3")
         st.caption("NotebookLM Protocol Briefing")
     else:
         st.caption("Upload 'protocol_lecture.wav' for audio training.")
