@@ -1,7 +1,5 @@
 import streamlit as st
-import os
-import io
-import base64
+import os, io, base64
 from datetime import datetime
 import google.generativeai as genai
 from groq import Groq
@@ -9,31 +7,76 @@ from gtts import gTTS
 import PyPDF2
 from streamlit_gsheets import GSheetsConnection
 from streamlit_mic_recorder import speech_to_text
-from streamlit_pdf_viewer import pdf_viewer  # Your new addition!
+from streamlit_pdf_viewer import pdf_viewer
 
-# ====================== PAGE SETUP ======================
-st.set_page_config(page_title="Falcon Eye V6", layout="wide", page_icon="🦅")
+# ====================== ELITE UI CONFIG ======================
+st.set_page_config(page_title="Falcon Eye Elite", layout="wide", page_icon="🦅")
 
-# Falcon Eye Dark Theme
-st.markdown("<style>.main { background-color: #0e1117; color: #00f2ff; }</style>", unsafe_allow_html=True)
+# Advanced CSS for Investor-Ready Look
+st.markdown("""
+    <style>
+    /* Main Background */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+        color: #e2e8f0;
+    }
+    /* Glowing Headers */
+    h1, h2, h3 {
+        color: #22d3ee !important;
+        font-family: 'Orbitron', sans-serif;
+        text-shadow: 0px 0px 10px rgba(34, 211, 238, 0.3);
+    }
+    /* Glassmorphism Containers */
+    div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {
+        background: rgba(30, 41, 59, 0.5);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    /* Custom Buttons */
+    .stButton>button {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid #22d3ee;
+        background: rgba(34, 211, 238, 0.1);
+        color: #22d3ee;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background: #22d3ee;
+        color: #0f172a;
+        box-shadow: 0px 0px 15px #22d3ee;
+    }
+    /* Tab Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: rgba(30, 41, 59, 0.7);
+        border-radius: 10px 10px 0px 0px;
+        color: #94a3b8;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #22d3ee !important;
+        border-bottom-color: #22d3ee !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ====================== CORE ENGINES ======================
-def digest_manual():
-    if os.path.exists("gate_manual.pdf"):
+def falcon_query(prompt: str, brain_mode: str) -> str:
+    # Manual Digestion Logic
+    manual_data = ""
+    if brain_mode == "Gate 4 Protocol" and os.path.exists("gate_manual.pdf"):
         try:
             with open("gate_manual.pdf", "rb") as f:
                 reader = PyPDF2.PdfReader(f)
-                return "".join([page.extract_text() for page in reader.pages])
-        except: return ""
-    return ""
+                manual_data = "".join([page.extract_text() for page in reader.pages])
+        except: pass
 
-def falcon_query(prompt: str, brain_mode: str) -> str:
-    manual_data = digest_manual() if brain_mode == "Gate 4 Protocol" else ""
-    if brain_mode == "Gate 4 Protocol":
-        system_rules = f"You are the Gate 4 Supervisor. Source: {manual_data}. If not in manual, say so. Pappi may type messy; interpret his intent."
-    else:
-        system_rules = "You are a general AI assistant."
-
+    system_rules = f"You are Falcon Eye Elite, a security AI. Context: {manual_data}. Mode: {brain_mode}. Be professional."
+    
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     completion = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -41,122 +84,87 @@ def falcon_query(prompt: str, brain_mode: str) -> str:
     )
     return completion.choices[0].message.content
 
-# ====================== AUTHENTICATION ======================
+# ====================== UI LAYOUT ======================
 if "auth" not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
-    st.title("🦅 Falcon Eye V6")
-    if st.text_input("Authorization:", type="password") == "Gate4Pass2026":
-        if st.button("Initialize System"): st.session_state.auth = True; st.rerun()
+    st.title("🦅 FALCON EYE ELITE")
+    with st.container():
+        code = st.text_input("ENTER SECURITY CLEARANCE:", type="password")
+        if st.button("AUTHENTICATE SYSTEM"):
+            if code == "Gate4Pass2026":
+                st.session_state.auth = True
+                st.rerun()
     st.stop()
 
-# ====================== COMMAND CENTER ======================
-st.title("🦅 Falcon Eye | Gate 4 Command")
-t1, t2, t3 = st.tabs(["📡 Intelligence", "📖 Protocols", "📝 Mission Log"])
+# --- TOP STATUS BAR ---
+col_s1, col_s2, col_s3 = st.columns([2, 1, 1])
+with col_s1:
+    st.title("🦅 FALCON EYE | GATE 4")
+with col_s2:
+    st.metric(label="System Status", value="OPTIMAL", delta="🟢 Online")
+with col_s3:
+    st.metric(label="Active Operator", value="pappi")
 
-# --- TAB 1: AI SCANNER & TRANSLATOR ---
-# 1. Initialize the Conversation History (add this near the top of your app)
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+st.write("---")
+
+t1, t2, t3 = st.tabs(["📡 INTERCOM", "📖 PROTOCOLS", "📝 LOGS"])
+
+# --- TAB 1: INTERCOM LOOP ---
+if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
 with t1:
-    st.subheader("📡 Gate 4 Global Intercom")
+    col_a, col_b = st.columns([1, 2])
     
-    # Language Categories for Dubai/Global Gate Operations
-    common_langs = {
-        "Urdu": "ur", "Hindi": "hi", "Arabic": "ar", "Tagalog": "tl", 
-        "Bengali": "bn", "Malayalam": "ml", "Pashto": "ps", "Punjabi": "pa",
-        "Tamil": "ta", "Telugu": "te", "Swahili": "sw", "Russian": "ru",
-        "Chinese": "zh-cn", "French": "fr", "Spanish": "es"
-    }
-
-    col1, col2 = st.columns(2)
-    with col1:
-        brain_mode = st.radio("System Brain:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
-    with col2:
-        # This dropdown now contains all major languages
-        driver_lang_name = st.selectbox("Select Driver Language:", list(common_langs.keys()))
-        driver_lang_code = common_langs[driver_lang_name]
-
-    # --- THE INTERCOM LOOP ---
-    st.write(f"🎤 **Listening for {driver_lang_name}...**")
-    
-    # Driver speaks, AI listens in THEIR language
-    driver_speech = speech_to_text(
-        language=driver_lang_code, 
-        start_prompt=f"👂 Listen to {driver_lang_name}", 
-        stop_prompt="✅ Captured", 
-        just_once=True, 
-        key='driver_mic'
-    )
-
-    if driver_speech:
-        st.session_state.chat_history.append({"role": "driver", "text": driver_speech})
-        # AI explains the driver's intent to you in English
-        analysis_prompt = f"The driver said this in {driver_lang_name}: '{driver_speech}'. Briefly explain their request in English."
-        driver_intent = falcon_query(analysis_prompt, brain_mode)
-        st.warning(f"**Driver ({driver_lang_name}):** {driver_speech} \n\n**AI Translation:** {driver_intent}")
-
-    st.divider()
-
-    # --- YOUR RESPONSE ---
-    st.write("⌨️ **Type your instruction (in English):**")
-    my_reply = st.chat_input("Tell the driver what to do...")
-
-    if my_reply:
-        st.session_state.chat_history.append({"role": "pappi", "text": my_reply})
+    with col_a:
+        st.subheader("Control")
+        brain = st.radio("Brain Mode:", ["Gate 4 Protocol", "Global Knowledge"])
+        lang_dict = {"Urdu":"ur", "Hindi":"hi", "Arabic":"ar", "Tagalog":"tl", "Bengali":"bn", "Malayalam":"ml"}
+        d_lang = st.selectbox("Driver Language:", list(lang_dict.keys()))
         
-        with st.spinner(f"Converting to {driver_lang_name}..."):
-            # Groq handles the heavy translation
-            translation_prompt = f"Translate this instruction to {driver_lang_name} perfectly and clearly: {my_reply}"
-            translated_reply = falcon_query(translation_prompt, "Global Knowledge")
-            
-            st.success(f"**Your Reply ({driver_lang_name}):** {translated_reply}")
-            
-            # Voice out the reply
-            tts = gTTS(text=translated_reply, lang=driver_lang_code)
-            rv = io.BytesIO()
-            tts.write_to_fp(rv)
-            st.audio(rv.getvalue(), format="audio/mp3", autoplay=True)
+        st.write("🎤 **Step 1: Listen**")
+        voice = speech_to_text(language=lang_dict[d_lang], start_prompt="👂 EAR ON", stop_prompt="✅ CAPTURED", just_once=True, key='mic')
+        
+        if st.button("🗑️ Reset Chat"):
+            st.session_state.chat_history = []
+            st.rerun()
 
-    # --- CHAT LOG ---
-    for chat in reversed(st.session_state.chat_history):
-        avatar = "🚚" if chat["role"] == "driver" else "🦅"
-        st.chat_message("user" if chat["role"] == "driver" else "assistant", avatar=avatar).write(chat["text"])
-# --- TAB 2: PROTOCOLS (PDF + AUDIO) ---
+    with col_b:
+        st.subheader("Live Feed")
+        if voice:
+            st.session_state.chat_history.append({"role": "driver", "text": voice})
+            analysis = falcon_query(f"Driver said in {d_lang}: '{voice}'. English summary?", brain)
+            st.info(f"**Driver:** {voice}\n\n**Analysis:** {analysis}")
+
+        reply = st.chat_input("Type Response...")
+        if reply:
+            st.session_state.chat_history.append({"role": "pappi", "text": reply})
+            trans = falcon_query(f"Translate to {d_lang}: {reply}", "Global Knowledge")
+            st.success(f"**Replied:** {trans}")
+            tts = gTTS(text=trans, lang=lang_dict[d_lang])
+            rv = io.BytesIO(); tts.write_to_fp(rv); rv.seek(0)
+            st.audio(rv, format="audio/mp3", autoplay=True)
+
+        for chat in reversed(st.session_state.chat_history):
+            avatar = "🚚" if chat["role"] == "driver" else "🦅"
+            st.chat_message("user" if chat["role"]=="driver" else "assistant", avatar=avatar).write(chat["text"])
+
+# --- TAB 2: PROTOCOLS ---
 with t2:
-    st.subheader("📖 Gate 4 Library")
-    
+    st.subheader("Manual & Training Station")
     if os.path.exists("gate_manual.pdf"):
-        # Download Button as backup
-        with open("gate_manual.pdf", "rb") as f:
-            st.download_button("📥 Download Copy to Phone", f, "gate_manual.pdf", use_container_width=True)
-        
-        st.write("---")
-        
-        # IN-APP PDF VIEWER (Your requested feature)
-        st.info("📜 Scroll to read the manual below. Stay in-app!")
-        pdf_viewer("gate_manual.pdf", height=700) 
-        
-    else:
-        st.error("Manual 'gate_manual.pdf' not found.")
+        c1, c2 = st.columns([2, 1])
+        with c2:
+            st.download_button("📥 GET PDF", open("gate_manual.pdf", "rb"), "gate_manual.pdf")
+            if os.path.exists("protocol_lecture.wav"):
+                st.write("🎧 **Shift Briefing**")
+                st.audio("protocol_lecture.wav")
+        with c1:
+            pdf_viewer("gate_manual.pdf", height=600)
 
-    st.write("---")
-    
-    # NOTEBOOK LM AUDIO STATION
-    st.subheader("🎧 Audio Training")
-    audio_path = "protocol_lecture.wav.mp3"
-    if os.path.exists(audio_path):
-        with open(audio_path, "rb") as a:
-            st.audio(a.read(), format="audio/mp3")
-        st.caption("NotebookLM Protocol Briefing")
-    else:
-        st.caption("Upload 'protocol_lecture.wav' for audio training.")
-
-# --- TAB 3: MISSION LOG ---
+# --- TAB 3: LOGS ---
 with t3:
-    st.subheader("Shift Reporting")
-    notes = st.text_area("Observations:")
-    if st.button("🚀 Record Log"):
-        report = falcon_query(f"Format as security log: {notes}", "Gate 4 Protocol")
+    st.subheader("Shift Intelligence Report")
+    raw = st.text_area("Observations:")
+    if st.button("🚀 GENERATE OFFICIAL LOG"):
+        report = falcon_query(f"Professional Log: {raw}", "Gate 4 Protocol")
         st.code(report)
-        # G-Sheets logic here...
