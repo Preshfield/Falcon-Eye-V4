@@ -5,3 +5,4 @@ pandas
 st-gsheets-connection
 gTTS
 PyPDF2
+streamlit-mic-recorder
