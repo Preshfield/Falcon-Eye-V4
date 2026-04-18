@@ -53,12 +53,29 @@ def falcon_query(prompt: str, mode: str) -> str:
     )
     return completion.choices[0].message.content
 
-# ====================== AUTHENTICATION ======================
+# ====================== AUTHENTICATION & WORKER TRACKING ======================
+# List of authorized workers (Add or change names here)
+WORKERS = ["Pappi", "Bambi", "Worker 3", "Worker 4"]
+
 if "auth" not in st.session_state: st.session_state.auth = False
+if "current_worker" not in st.session_state: st.session_state.current_worker = None
+
 if not st.session_state.auth:
-    st.title("🦅 FALCON EYE ELITE")
-    if st.text_input("ENTER CODE:", type="password") == "Gate4Pass2026":
-        if st.button("INITIALIZE"): st.session_state.auth = True; st.rerun()
+    st.title("🦅 FALCON EYE | GATE 4")
+    with st.container():
+        # Step 1: Identity Selection
+        selected_user = st.selectbox("SELECT YOUR IDENTITY:", WORKERS)
+        
+        # Step 2: Security Clearance
+        code = st.text_input("ENTER SECURITY CLEARANCE:", type="password")
+        
+        if st.button("INITIALIZE SYSTEM"):
+            if code == "Gate4Pass2026":
+                st.session_state.auth = True
+                st.session_state.current_worker = selected_user # Locks the name for the session
+                st.rerun()
+            else:
+                st.error("ACCESS DENIED: Invalid Clearance Code")
     st.stop()
 
 # ====================== DASHBOARD ======================
