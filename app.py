@@ -86,15 +86,24 @@ from streamlit_pdf_viewer import pdf_viewer # Add this to your imports at the to
 with t2:
     st.subheader("📖 Gate 4 Library")
     
+    # --- MANUAL PDF SECTION ---
     if os.path.exists("gate_manual.pdf"):
-        # This keeps the PDF inside the app window so you NEVER leave the page
-        st.info("Scroll below to read. Tap Tab 1 to return to AI Scanner.")
-        
-        pdf_viewer("gate_manual.pdf", height=700) 
-        
-        st.write("---")
-        # Keep the download button as a backup
         with open("gate_manual.pdf", "rb") as f:
-            st.download_button("📥 Download Copy to Phone", f, "gate_manual.pdf")
+            st.download_button("📖 OPEN FULL MANUAL", f, "gate_manual.pdf", use_container_width=True)
+    
+    st.write("---")
+
+    # --- NEW: NOTEBOOK LM AUDIO STATION ---
+    st.subheader("🎧 Audio Training Brief")
+    audio_path = "protocol_lecture.wav"
+    
+    if os.path.exists(audio_path):
+        st.info("Play this lecture to stay familiar with Gate 4 protocols during your shift.")
+        with open(audio_path, "rb") as a:
+            audio_bytes = a.read()
+            # This creates the player
+            st.audio(audio_bytes, format="audio/wav")
+        
+        st.caption("Generated via NotebookLM Deep Dive")
     else:
-        st.error("Manual not found on GitHub.")
+        st.warning("⚠️ No lecture file found. Upload 'protocol_lecture.wav' to GitHub to activate.")
