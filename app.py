@@ -88,13 +88,21 @@ with t1:
                     st.audio(rv)
 
 with t2:
+    st.subheader("Manual Access")
     if os.path.exists("gate_manual.pdf"):
+        # We offer both: A direct view AND a download button
+        col1, col2 = st.columns(2)
+        with col1:
+            with open("gate_manual.pdf", "rb") as f:
+                st.download_button("📥 Download PDF", f, "gate_manual.pdf")
+        
+        # This part tries to show the PDF directly on the screen
+        import base64
         with open("gate_manual.pdf", "rb") as f:
-            st.download_button("📂 Download Manual", f, "gate_manual.pdf")
-    else: st.error("Manual missing from GitHub.")
-
-with t3:
-    notes = st.text_area("Shift Notes:")
-    if st.button("🚀 Log Report"):
-        report = falcon_query(f"Log this: {notes}", "Gate 4 Protocol")
-        st.code(report)
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        
+        # This creates a "Window" inside the app to see the manual
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
+    else:
+        st.error("Manual missing from GitHub.")
