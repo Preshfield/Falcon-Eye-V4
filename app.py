@@ -88,21 +88,17 @@ with t1:
                     st.audio(rv)
 
 with t2:
-    st.subheader("Manual Access")
+    st.subheader("Manual & Procedures")
     if os.path.exists("gate_manual.pdf"):
-        # We offer both: A direct view AND a download button
-        col1, col2 = st.columns(2)
-        with col1:
-            with open("gate_manual.pdf", "rb") as f:
-                st.download_button("📥 Download PDF", f, "gate_manual.pdf")
-        
-        # This part tries to show the PDF directly on the screen
-        import base64
         with open("gate_manual.pdf", "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            pdf_bytes = f.read()
+            base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            
+        # This creates a "Magic Link" that opens in a fresh, clean tab
+        pdf_link = f'<a href="data:application/pdf;base64,{base64_pdf}" target="_blank" style="text-decoration: none;"><div style="background-color: #00f2ff; color: black; padding: 10px 20px; border-radius: 10px; text-align: center; font-weight: bold;">📖 OPEN FULL MANUAL IN NEW TAB</div></a>'
         
-        # This creates a "Window" inside the app to see the manual
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
+        st.markdown(pdf_link, unsafe_allow_html=True)
+        st.write("---")
+        st.download_button("📥 Or Download to Device", pdf_bytes, "gate_manual.pdf")
     else:
-        st.error("Manual missing from GitHub.")
+        st.error("Manual missing from GitHub root.")
