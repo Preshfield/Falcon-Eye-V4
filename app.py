@@ -150,10 +150,18 @@ with t2:
 # ====================== TAB 3: LOGS ======================
 with t3:
     st.subheader("📋 Security Mission Logs")
-    st.info("Enter your shift notes below. The AI will format them into a professional report based on Gate 4 Protocols.")
+    
+    # Displays who is currently logged in
+    st.info(f"Logged in as: **{st.session_state.current_worker}**")
+    
+    st.write("Enter your shift notes below. The AI will format them into a professional report digitally signed by you.")
     
     # Input area for raw observations
-    raw_observations = st.text_area("Observations / Incident Details:", placeholder="e.g., Truck with plate 1234 arrived, out-to-out rule applied, cleared for entry at 0900.", key="log_input_area")
+    raw_observations = st.text_area(
+        "Observations / Incident Details:", 
+        placeholder="e.g., Truck with plate 1234 arrived, out-to-out rule applied, cleared for entry at 0900.", 
+        key="log_input_area"
+    )
     
     if st.button("🚀 GENERATE PROFESSIONAL LOG"):
         if raw_observations:
@@ -161,17 +169,25 @@ with t3:
                 # Captures the current time in Dubai
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
-                # Instruction for the AI to format the report
-                # Updated prompt to include the specific worker's name
-log_prompt = f"Convert these raw notes into a formal security report. WORKER ON DUTY: {st.session_state.current_worker}. TIMESTAMP: {timestamp}. Use high-level professional security language: {raw_observations}"
+                # Instruction for the AI to format the report and include the specific worker
+                log_prompt = (
+                    f"Convert these raw notes into a formal security report. "
+                    f"OFFICER ON DUTY: {st.session_state.current_worker}. "
+                    f"TIMESTAMP: {timestamp}. "
+                    f"Use high-level professional security language based on Gate 4 Protocols: {raw_observations}"
+                )
+                
                 # Calls your existing falcon_query function
                 formatted_report = falcon_query(log_prompt, "Gate 4 Protocol")
                 
                 st.divider()
-                st.write(f"**Generated Report (Time: {timestamp})**")
+                st.write(f"**Generated Report**")
+                st.caption(f"Prepared by {st.session_state.current_worker} at {timestamp}")
                 
                 # Displays the report in a box that is easy to copy
                 st.code(formatted_report, language="text")
-                st.success("Log Generated. You can now copy this for your official records.")
+                st.success("Log Generated. Copy the text above for your official records.")
+        else:
+            st.warning("Please enter some observations first.")al records.")
         else:
             st.warning("Please enter some observations first.")
