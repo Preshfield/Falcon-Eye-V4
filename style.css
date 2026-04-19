@@ -1,54 +1,40 @@
-/* Global Dashboard Theme */
+/* The Deep Dark Background from your sample */
 .stApp {
-    background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
-    color: #f1f5f9;
+    background: #020617 !important;
+    color: #e2e8f0;
 }
 
-/* Floating Status Bar (Top Left/Center) */
+/* The Falcon Eye Title & Subtext colors */
+h1 {
+    color: #22d3ee !important; /* That bright cyan color */
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 0px 0px 15px rgba(34, 211, 238, 0.5);
+}
+
+/* The Station Active Bar */
 .custom-header {
-    background: rgba(15, 23, 42, 0.9);
+    background: rgba(15, 23, 42, 0.8);
     border: 1px solid #22d3ee;
     border-radius: 12px;
-    padding: 12px 24px;
-    display: inline-block;
-    margin-bottom: 20px;
-    box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+    padding: 10px 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
 }
 
-/* Fixed Logout Button (Top Right Corner) */
-div[data-testid="stButton"] > button[kind="secondary"] {
-    position: fixed !important;
-    top: 25px !important;
-    right: 30px !important;
-    z-index: 1001 !important;
-    background: rgba(34, 211, 238, 0.1) !important;
-    border: 1px solid #22d3ee !important;
-    color: #22d3ee !important;
-    border-radius: 10px !important;
-    font-weight: bold !important;
-}
-
-div[data-testid="stButton"] > button[kind="secondary"]:hover {
-    background: #22d3ee !important;
-    color: #020617 !important;
-    box-shadow: 0 0 15px #22d3ee !important;
-}
-
-/* Glowing Intercom Container */
+/* The Glowing Intercom Box from the photo */
 .intercom-box {
-    background: rgba(30, 41, 59, 0.5);
-    border: 1.5px solid #22d3ee;
+    background: rgba(15, 23, 42, 0.9);
+    border: 2px solid #22d3ee;
     border-radius: 20px;
-    padding: 25px;
-    box-shadow: 0 0 20px rgba(34, 211, 238, 0.15);
+    padding: 30px;
+    box-shadow: 0 0 25px rgba(34, 211, 238, 0.2);
 }
 
-/* Driver Message Bubble */
-.driver-msg {
-    background: #1e293b;
-    border-left: 5px solid #22d3ee;
-    padding: 15px;
-    border-radius: 10px;
-    margin: 15px 0;
-    color: #e2e8f0;
+/* Tab Colors */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 20px;
+}
+.stTabs [aria-selected="true"] {
+    color: #22d3ee !important;
+    border-bottom-color: #22d3ee !important;
 }
