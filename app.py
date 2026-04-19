@@ -70,10 +70,6 @@ if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
     st.rerun()
 
-# Then your title follows...
-st.title("🦅 FALCON EYE GATE 4")
-
-
 # Forces the time to Dubai (UTC +4)
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
