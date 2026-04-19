@@ -7,7 +7,7 @@ import PyPDF2
 from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 
-# 1. LOAD EXTERNAL CSS
+# 1. LOAD EXTERNAL CSS (Keeps your app.py clean)
 def local_css(file_name):
     if os.path.exists(file_name):
         with open(file_name) as f:
@@ -16,7 +16,7 @@ def local_css(file_name):
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 local_css("css/style.css")
 
-# ====================== SYSTEM ENGINES ======================
+# ====================== SYSTEM ENGINES (UNTOUCHED) ======================
 def digest_manual():
     if os.path.exists("gate_manual.pdf"):
         try:
@@ -42,7 +42,7 @@ def falcon_query(prompt: str, mode: str) -> str:
     )
     return completion.choices[0].message.content
 
-# ====================== AUTHENTICATION ======================
+# ====================== AUTHENTICATION (UNTOUCHED) ======================
 WORKER_DB = {"Precious": "Falcon01", "Bambi": "Nancy"}
 
 if "auth" not in st.session_state: st.session_state.auth = False
@@ -57,7 +57,7 @@ if not st.session_state.auth:
             st.rerun()
     st.stop()
 
-# ====================== DASHBOARD UI ======================
+# ====================== DASHBOARD UI (THE POWER LOOK) ======================
 
 # --- FLOATING HEADER & LOGOUT ---
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {datetime.now().strftime("%H:%M")}</div>', unsafe_allow_html=True)
@@ -66,44 +66,28 @@ if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
     st.rerun()
 
-# --- HERO SECTION (Eagle on the left, Title on the right) ---
-col_logo, col_title = st.columns([1, 1.5])
-
-with col_logo:
-    # Check if the file exists to avoid the 'MediaFileStorageError' crash
-    if os.path.exists("falcon.png"):
-        st.image("falcon.png", use_container_width=True)
-    else:
-        # High-tech fallback image so it doesn't show a flower or crash
-        st.image("https://img.freepik.com/premium-photo/futuristic-mechanical-cyberpunk-falcon-eagle-with-glowing-blue-eyes_899449-3171.jpg", use_container_width=True)
-        st.caption("⚠️ 'falcon.png' not found in root folder. Using system fallback.")
-
-with col_title:
-    st.markdown("""
-        <div style='padding-top: 20px;'>
-            <h1 style='margin-bottom: 0px; font-size: 60px; color: #22d3ee;'>Falcon Eye</h1>
-            <h2 style='margin-top: -15px; color: white; font-size: 45px;'>Gate4</h2>
-            <p style='color: #94a3b8; font-size: 18px; letter-spacing: 1px;'>
-                ADVANCED AI INTELLIGENCE & PROTOCOL MANAGEMENT SYSTEM
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
+# --- HERO SECTION (High-Power Command Hub Lettering) ---
+st.markdown("""
+    <div style='text-align: left; padding: 40px 0 20px 0;'>
+        <h1 class='falcon-title'>FALCON EYE</h1>
+        <h2 class='gate-sub'>GATE 4 <span style='font-size:20px; color:#22d3ee; vertical-align:middle;'>● ONLINE</span></h2>
+        <p style='color: #94a3b8; font-size: 14px; letter-spacing: 5px; font-weight: bold; text-transform: uppercase;'>
+            Tactical AI Intelligence & Protocol Management
+        </p>
+    </div>
+""", unsafe_allow_html=True)
 
 # --- COMMAND TABS ---
 t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
 
 with t1:
-    # KNOWLEDGE SCAN
     st.subheader("🔍 Knowledge Scan")
     k_mode = st.radio("Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     k_query = st.text_input("Search protocols...", key="k_scan")
-    if k_query: 
-        with st.spinner("Analyzing..."):
-            st.info(falcon_query(k_query, k_mode))
+    if k_query: st.info(falcon_query(k_query, k_mode))
 
     st.divider()
 
-    # INTERCOM BOX
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
     
@@ -112,12 +96,11 @@ with t1:
     
     c1, c2 = st.columns([3, 1])
     with c1: st.write("🎤 **Listen to Driver**")
-    with c2: 
-        driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
+    with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
 
     if driver_v:
         intent = falcon_query(f"Driver said: {driver_v}", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Context:</b> {intent}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI:</b> {intent}</div>', unsafe_allow_html=True)
 
     d_reply = st.chat_input("Enter command for driver...")
     if d_reply:
@@ -141,8 +124,5 @@ with t3:
     st.subheader("📋 Security Mission Logs")
     notes = st.text_area("Observations:", key="logs")
     if st.button("🚀 GENERATE LOG"):
-        if notes:
-            report = falcon_query(f"Format this: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
-            st.code(report)
-        else:
-            st.warning("Please enter observations first.")
+        report = falcon_query(f"Format this: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
+        st.code(report)
