@@ -65,12 +65,13 @@ if not st.session_state.auth:
 
 # --- FLOATING HEADER & LOGOUT ---
        # --- TACTICAL EXIT PROTOCOL ---
-# This button triggers the CSS you just added to the style.css
+# --- TOP OF UI SECTION ---
 if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
-    st.session_state.current_worker = None
-    st.rerun() 
+    st.rerun()
 
+# Then your title follows...
+st.title("🦅 FALCON EYE GATE 4")
 
 
 # Forces the time to Dubai (UTC +4)
