@@ -28,38 +28,45 @@ def digest_manual():
         except: return ""
     return ""
 
+import streamlit as st
+from duckduckgo_search import DDGS
+
+@st.cache_data(ttl=3600) # This caches the answer for 1 hour to save your API limit
 def falcon_query(prompt: str, mode: str) -> str:
     manual_context = digest_manual()
     live_intel = ""
     
-    # --- LIVE AWARENESS GATE ---
-    # If not checking the manual, we ping the web for 2026 data
-    if mode != "Gate 4 Protocol":
+    # --- 1. SEARCH TRIGGER (Only for Global Knowledge) ---
+    if mode == "Global Knowledge":
         try:
             with DDGS() as ddgs:
-                # Grabs the 3 most recent snippets from the public domain
+                # Get real-time data from the web
                 results = [r['body'] for r in ddgs.text(prompt, max_results=3)]
                 live_intel = "\n\n[LIVE INTEL - APRIL 2026]:\n" + "\n".join(results)
-        except Exception:
-            live_intel = "\n(Real-time data link currently unavailable.)"
+        except:
+            live_intel = "\n(Live link busy. Using internal archives.)"
 
-    # --- SYSTEM RULES SELECTION ---
+    # --- 2. DEFINE SYSTEM RULES ---
     if mode == "Gate 4 Protocol":
-        sys_rules = f"Use this manual: {manual_context}. Professional security tone."
+        sys_rules = f"You are a Gate Security AI. Use this manual: {manual_context}"
     elif mode == "Driver Instruction":
-        sys_rules = "Short, loud, clear instructions for truck drivers. Professional translator."
+        sys_rules = "You are a professional translator for truck drivers. Be clear and short."
     else:
-        # We feed the 'live_intel' into the General Knowledge brain
-        sys_rules = f"General knowledge expert AI. Current Date: April 2026. Use this live news: {live_intel}"
+        sys_rules = f"You are a global intelligence expert. Today is April 19, 2026. Use this live data: {live_intel}"
 
-    # --- API CALL (Untouched logic) ---
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "system", "content": sys_rules}, {"role": "user", "content": prompt}]
-    )
-    return completion.choices[0].message.content
-
+    # --- 3. API CALL ---
+    try:
+        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": sys_rules},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        return f"System Overload: {str(e)}. Please wait 30 seconds."
 def save_log(report_text):
     with open("security_logs.txt", "a", encoding="utf-8") as f:
         f.write(f"{report_text}\n{'='*50}\n")
