@@ -1,6 +1,6 @@
 import streamlit as st
 import os, io, base64
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from groq import Groq
 from gtts import gTTS
 import PyPDF2
@@ -60,11 +60,10 @@ if not st.session_state.auth:
 # ====================== DASHBOARD UI (THE POWER LOOK) ======================
 
 # --- FLOATING HEADER & LOGOUT ---
-st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {datetime.now().strftime("%H:%M")}</div>', unsafe_allow_html=True)
+# Forces the time to Dubai (UTC +4)
+dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
-if st.button("🔒 LOGOUT", type="secondary"):
-    st.session_state.auth = False
-    st.rerun()
+st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 
 # --- HERO SECTION (High-Power Command Hub Lettering) ---
 st.markdown("""
