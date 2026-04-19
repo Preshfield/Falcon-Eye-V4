@@ -67,27 +67,29 @@ if st.button("🔒 LOGOUT", type="secondary"):
     st.rerun()
 
 # --- HERO SECTION ---
-# This matches the layout where the Eagle is on the left and text on the right
-col_logo, col_title = st.columns([1.2, 2])
+# --- HERO SECTION (Eagle on the left, Title on the right) ---
+col_logo, col_title = st.columns([1, 1.5])
 
 with col_logo:
-    # Use your actual image file here to get the high-tech look
-    if os.path.exists("falcon_hero.png"):
-        st.image("falcon_hero.png", use_container_width=True)
-    else:
-        # Emergency backup: A mechanical falcon link that is NOT a flower
-        st.image("https://img.freepik.com/premium-photo/robotic-eagle-with-blue-neon-lights-cyberpunk-style_962764-55444.jpg", use_container_width=True)
+    # PASTE IT HERE:
+    # Make sure you have a file named 'falcon.png' in your GitHub folder
+    st.image("falcon.png", use_container_width=True)
 
 with col_title:
+    # This matches the layout in your screenshot
     st.markdown("""
-        <div style='padding-top: 40px;'>
-            <h1 style='font-size: 65px; color: #22d3ee; margin-bottom: 0; text-shadow: 0 0 15px #22d3ee;'>Falcon</h1>
-            <h1 style='font-size: 55px; color: #ffffff; margin-top: -15px;'>Eye Gate4</h1>
-            <p style='color: #94a3b8; font-size: 18px; letter-spacing: 1px;'>
+        <div style='padding-top: 20px;'>
+            <h1 style='margin-bottom: 0px; font-size: 60px;'>Falcon Eye</h1>
+            <h2 style='margin-top: -15px; color: white; font-size: 45px;'>Gate4</h2>
+            <p style='color: #22d3ee; font-size: 18px; letter-spacing: 1px;'>
                 ADVANCED AI INTELLIGENCE & PROTOCOL MANAGEMENT SYSTEM
             </p>
         </div>
     """, unsafe_allow_html=True)
+
+# --- THE TABS START AFTER THIS ---
+t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
+
 
 # --- COMMAND TABS ---
 t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
