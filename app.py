@@ -172,3 +172,10 @@ with t3:
         st.download_button("📥 Download Full Log History", log_history, file_name="falcon_eye_logs.txt")
     else:
         st.caption("No saved logs found in the vault.")
+
+       # --- TACTICAL EXIT PROTOCOL ---
+# This button triggers the CSS you just added to the style.css
+if st.button("🔒 LOGOUT", type="secondary"):
+    st.session_state.auth = False
+    st.session_state.current_worker = None
+    st.rerun() 
