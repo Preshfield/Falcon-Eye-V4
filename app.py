@@ -54,30 +54,41 @@ def falcon_query(prompt: str, mode: str) -> str:
     return completion.choices[0].message.content
 
 # ====================== AUTHENTICATION & WORKER TRACKING ======================
-# List of authorized workers (Add or change names here)
-WORKERS = ["Pappi", "Bambi", "Worker 3", "Worker 4"]
+# ====================== AUTHENTICATION & WORKER TRACKING ======================
+# WORKER DATABASE: "Name": "Password"
+# You can add more workers here easily!
+WORKER_DB = {
+    "Precious": "Falcon01",
+    "Bambi": "Gate4Bambi",
+    "Worker3": "Access2026",
+    "Worker4": "Secure789"
+}
 
 if "auth" not in st.session_state: st.session_state.auth = False
 if "current_worker" not in st.session_state: st.session_state.current_worker = None
 
 if not st.session_state.auth:
     st.title("🦅 FALCON EYE | GATE 4")
+    
     with st.container():
-        # Step 1: Identity Selection
-        selected_user = st.selectbox("SELECT YOUR IDENTITY:", WORKERS)
+        st.subheader("Worker Login")
         
-        # Step 2: Security Clearance
-        code = st.text_input("ENTER SECURITY CLEARANCE:", type="password")
+        # Step 1: Select Name
+        user_identity = st.selectbox("SELECT YOUR NAME:", list(WORKER_DB.keys()))
         
-        if st.button("INITIALIZE SYSTEM"):
-            if code == "Gate4Pass2026":
+        # Step 2: Enter Personal Password
+        user_password = st.text_input("ENTER YOUR PERSONAL PASSWORD:", type="password")
+        
+        if st.button("SIGN IN TO STATION"):
+            # Check if the password matches the selected worker
+            if user_password == WORKER_DB[user_identity]:
                 st.session_state.auth = True
-                st.session_state.current_worker = selected_user # Locks the name for the session
+                st.session_state.current_worker = user_identity
+                st.success(f"Welcome back, {user_identity}. System Initializing...")
                 st.rerun()
             else:
-                st.error("ACCESS DENIED: Invalid Clearance Code")
+                st.error("❌ INVALID PASSWORD. Please check your credentials.")
     st.stop()
-
 # ====================== DASHBOARD ======================
 st.title("🦅 FALCON EYE COMMAND")
 t1, t2, t3 = st.tabs(["📡 INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
