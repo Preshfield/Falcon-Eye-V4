@@ -1,125 +1,44 @@
-/* ============================================================
-   FALCON EYE COMMAND CENTER - OFFICIAL GLOBAL STYLESHEET
-   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
 
-/* 1. MAIN BACKGROUND & TEXT */
+/* Main Tech Hub Background */
 .stApp {
-    background-color: #020617 !important; /* Deep Midnight */
-    color: #e2e8f0 !important;
-    font-family: 'Inter', sans-serif;
+    background-color: #020617 !important;
+    background-image: 
+        linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px) !important;
+    background-size: 35px 35px !important;
 }
 
-/* 2. TOP FLOATING HEADER (STATION ACTIVE) */
-.custom-header {
-    background: rgba(15, 23, 42, 0.9) !important;
-    border: 2px solid #22d3ee !important; /* Cyan Glow Border */
-    border-radius: 12px;
-    padding: 15px 25px;
-    margin-bottom: 25px;
-    box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+/* Power Lettering */
+.falcon-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 80px !important;
+    background: linear-gradient(to bottom, #22d3ee 0%, #0891b2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.6));
+    letter-spacing: -2px;
 }
 
-/* 3. LOGOUT BUTTON (TOP RIGHT) */
-div[data-testid="stButton"] > button[kind="secondary"] {
-    position: fixed !important;
-    top: 35px !important;
-    right: 5% !important;
-    z-index: 1001 !important;
-    background: rgba(15, 23, 42, 0.8) !important;
-    border: 1px solid #22d3ee !important;
-    color: #22d3ee !important;
-    border-radius: 8px !important;
-    font-weight: bold !important;
-    padding: 5px 20px !important;
-    text-transform: uppercase;
-    transition: 0.3s all ease;
+.gate-sub {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 45px !important;
+    color: #ffffff !important;
+    margin-top: -15px;
 }
 
-div[data-testid="stButton"] > button[kind="secondary"]:hover {
-    background: #22d3ee !important;
-    color: #020617 !important;
-    box-shadow: 0 0 15px #22d3ee !important;
-}
-
-/* 4. MAIN TITLES & HERO TEXT */
-h1 {
-    color: #22d3ee !important; /* Neon Blue */
-    text-shadow: 0 0 15px rgba(34, 211, 238, 0.6);
-    font-weight: 800 !important;
-    letter-spacing: -1px;
-}
-
-/* 5. THE INTERCOM BOX (CONTAINER) */
+/* Glowing Intercom Container */
 .intercom-box {
-    background: #0f172a !important; /* Dark Navy Panel */
+    background: rgba(15, 23, 42, 0.9) !important;
     border: 2px solid #22d3ee !important;
-    border-radius: 20px;
+    border-radius: 15px;
     padding: 30px;
-    margin-top: 20px;
-    box-shadow: inset 0 0 15px rgba(34, 211, 238, 0.1), 0 0 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.2);
 }
 
-/* 6. DRIVER MESSAGE BUBBLE */
-.driver-msg {
-    background: #1e293b !important;
-    border-left: 5px solid #22d3ee !important;
-    padding: 15px;
-    border-radius: 10px;
-    margin: 15px 0;
-    color: #f8fafc;
-    font-style: italic;
-}
-
-/* 7. TABS STYLING */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 30px;
-    background-color: transparent !important;
-}
-
-.stTabs [data-baseweb="tab"] {
-    height: 50px;
-    white-space: pre-wrap;
-    background-color: transparent !important;
-    border-radius: 0px;
-    color: #94a3b8 !important;
-    font-weight: 600 !important;
-}
-
+/* Tab Colors */
 .stTabs [aria-selected="true"] {
     color: #22d3ee !important;
     border-bottom: 3px solid #22d3ee !important;
-}
-
-/* 8. INPUT BOXES & BUTTONS */
-.stTextInput > div > div > input, .stSelectbox > div > div {
-    background-color: #1e293b !important;
-    color: white !important;
-    border: 1px solid rgba(34, 211, 238, 0.3) !important;
-}
-
-/* Primary Action Buttons */
-.stButton > button[kind="primary"] {
-    background: linear-gradient(90deg, #0891b2 0%, #22d3ee 100%) !important;
-    color: #020617 !important;
-    font-weight: bold !important;
-    border: none !important;
-    border-radius: 8px !important;
-}
-
-/* 9. SCROLLBARS */
-::-webkit-scrollbar {
-    width: 8px;
-}
-::-webkit-scrollbar-track {
-    background: #020617;
-}
-::-webkit-scrollbar-thumb {
-    background: #1e293b;
-    border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #22d3ee;
 }
