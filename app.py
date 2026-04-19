@@ -42,6 +42,10 @@ def falcon_query(prompt: str, mode: str) -> str:
     )
     return completion.choices[0].message.content
 
+def save_log(report_text):
+    with open("security_logs.txt", "a", encoding="utf-8") as f:
+        f.write(f"{report_text}\n{'='*50}\n")
+
 # ====================== AUTHENTICATION (UNTOUCHED) ======================
 WORKER_DB = {"Precious": "Falcon01", "Bambi": "Nancy"}
 
@@ -121,7 +125,36 @@ with t2:
 
 with t3:
     st.subheader("📋 Security Mission Logs")
-    notes = st.text_area("Observations:", key="logs")
-    if st.button("🚀 GENERATE LOG"):
-        report = falcon_query(f"Format this: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
-        st.code(report)
+    
+    # Input area
+    notes = st.text_area("Observations:", key="logs", placeholder="Enter shift details...")
+    
+    if st.button("🚀 GENERATE & SAVE LOG"):
+        if notes:
+            with st.spinner("Finalizing Report..."):
+                # 1. Generate the report using your existing logic
+                report = falcon_query(f"Format this: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
+                
+                # 2. Display the result
+                st.code(report)
+                
+                # 3. SAVE to the local file
+                save_log(report)
+                st.success("✅ Report Synchronized and Saved to Database.")
+        else:
+            st.warning("Please enter observations first.")
+
+    # --- NEW: VIEW RECENT HISTORY ---
+    st.divider()
+    st.subheader("📁 Archive: Recent Reports")
+    if os.path.exists("security_logs.txt"):
+        with open("security_logs.txt", "r", encoding="utf-8") as f:
+            log_history = f.read()
+        
+        # Displaying the history in a scrollable tech-box
+        st.text_area("Historical Records:", log_history, height=300, disabled=True)
+        
+        # Option to download the whole file
+        st.download_button("📥 Download Full Log History", log_history, file_name="falcon_eye_logs.txt")
+    else:
+        st.caption("No saved logs found in the vault.")
