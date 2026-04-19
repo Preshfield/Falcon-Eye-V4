@@ -1,3 +1,4 @@
+from duckduckgo_search import DDGS
 import streamlit as st
 import os, io, base64
 from datetime import datetime, timedelta, timezone
@@ -6,6 +7,7 @@ from gtts import gTTS
 import PyPDF2
 from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
+ 
 
 # 1. LOAD EXTERNAL CSS (Keeps your app.py clean)
 def local_css(file_name):
@@ -28,13 +30,29 @@ def digest_manual():
 
 def falcon_query(prompt: str, mode: str) -> str:
     manual_context = digest_manual()
+    live_intel = ""
+    
+    # --- LIVE AWARENESS GATE ---
+    # If not checking the manual, we ping the web for 2026 data
+    if mode != "Gate 4 Protocol":
+        try:
+            with DDGS() as ddgs:
+                # Grabs the 3 most recent snippets from the public domain
+                results = [r['body'] for r in ddgs.text(prompt, max_results=3)]
+                live_intel = "\n\n[LIVE INTEL - APRIL 2026]:\n" + "\n".join(results)
+        except Exception:
+            live_intel = "\n(Real-time data link currently unavailable.)"
+
+    # --- SYSTEM RULES SELECTION ---
     if mode == "Gate 4 Protocol":
         sys_rules = f"Use this manual: {manual_context}. Professional security tone."
     elif mode == "Driver Instruction":
         sys_rules = "Short, loud, clear instructions for truck drivers. Professional translator."
     else:
-        sys_rules = "General knowledge expert AI."
+        # We feed the 'live_intel' into the General Knowledge brain
+        sys_rules = f"General knowledge expert AI. Current Date: April 2026. Use this live news: {live_intel}"
 
+    # --- API CALL (Untouched logic) ---
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     completion = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
