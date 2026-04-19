@@ -66,13 +66,25 @@ if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
     st.rerun()
 
-# --- HERO SECTION (Eagle + Title) ---
+# --- HERO SECTION ---
 col_logo, col_title = st.columns([1, 1.5])
+
 with col_logo:
-    st.image("https://cdn-icons-png.flaticon.com/512/2121/2121115.png", width=250)
+    # Option A: If you uploaded 'falcon.png' to your GitHub
+    if os.path.exists("falcon.png"):
+        st.image("falcon.png", width=300)
+    else:
+        # Option B: High-quality Cyber-Falcon link for now
+        st.image("https://img.freepik.com/premium-photo/futuristic-mechanical-cyberpunk-falcon-eagle-with-glowing-blue-eyes_899449-3171.jpg", width=300)
+
 with col_title:
-    st.markdown("<h1 style='font-size: 50px; margin-bottom:0;'>Falcon Eye Gate4</h1>", unsafe_allow_html=True)
-    st.write("Advanced AI Intelligence & Protocol Management System")
+    # This matches the font and alignment in your screenshot
+    st.markdown("""
+        <div style='padding-top: 30px;'>
+            <h1 style='margin-bottom: 0px;'>Falcon Eye Gate4</h1>
+            <p style='color: #94a3b8; font-size: 20px;'>Advanced AI Intelligence & Protocol Management System</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 # --- COMMAND TABS ---
 t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
