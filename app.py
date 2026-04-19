@@ -10,14 +10,51 @@ from streamlit_pdf_viewer import pdf_viewer
 # ====================== ELITE UI CONFIG ======================
 st.set_page_config(page_title="FALCON EYE | GATE 4", layout="wide", page_icon="🦅")
 
-import streamlit as st
+st.markdown("""
+    <style>
+    /* 1. Global Background & Dark Theme */
+    .stApp {
+        background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+        color: #f1f5f9;
+    }
 
-def local_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    /* 2. Floating Top Header (Station Status) */
+    .custom-header {
+        position: fixed; top: 10px; left: 5%; width: 90%;
+        background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px);
+        border: 1px solid #22d3ee; border-radius: 15px;
+        padding: 10px 25px; display: flex; justify-content: space-between;
+        align-items: center; z-index: 1000; box-shadow: 0 4px 15px rgba(34, 211, 238, 0.2);
+    }
 
-# Call the function to load your styles
-local_css("css/style.css")
+    /* 3. Floating LOGOUT Button (Top Right) */
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        position: fixed; top: 22px; right: 8%; z-index: 1001;
+        background: transparent; border: 1px solid #22d3ee;
+        color: #22d3ee; border-radius: 8px; font-weight: bold;
+    }
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        background: #22d3ee; color: #020617; box-shadow: 0 0 10px #22d3ee;
+    }
+
+    /* 4. Tab Styling (Blue Underline) */
+    .stTabs [data-baseweb="tab-list"] { gap: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .stTabs [data-baseweb="tab"] { color: #94a3b8; font-weight: 500; }
+    .stTabs [aria-selected="true"] { color: #22d3ee !important; border-bottom-color: #22d3ee !important; }
+
+    /* 5. Glowing Intercom Box */
+    .intercom-box {
+        background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(34, 211, 238, 0.3);
+        border-radius: 20px; padding: 25px; margin-top: 20px;
+    }
+
+    /* 6. Driver Response Bubble */
+    .driver-bubble {
+        background: #1e293b; border-left: 5px solid #22d3ee;
+        padding: 15px; border-radius: 10px; margin: 10px 0;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ====================== SYSTEM ENGINES ======================
 def digest_manual():
