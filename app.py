@@ -10,20 +10,14 @@ from streamlit_pdf_viewer import pdf_viewer
 # ====================== ELITE UI CONFIG ======================
 st.set_page_config(page_title="FALCON EYE | GATE 4", layout="wide", page_icon="🦅")
 
-st.markdown("""
-    <style>
-    .stApp { background: linear-gradient(135deg, #0f172a 0%, #020617 100%); color: #e2e8f0; }
-    h1, h2, h3 { color: #22d3ee !important; font-family: 'Orbitron', sans-serif; }
-    div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {
-        background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(10px);
-        border-radius: 15px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .stButton>button {
-        width: 100%; border-radius: 10px; border: 1px solid #22d3ee;
-        background: rgba(34, 211, 238, 0.1); color: #22d3ee;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+import streamlit as st
+
+def local_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+# Call the function to load your styles
+local_css("css/style.css")
 
 # ====================== SYSTEM ENGINES ======================
 def digest_manual():
