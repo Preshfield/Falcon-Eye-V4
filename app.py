@@ -80,6 +80,20 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+
+# --- TACTICAL BRIEFING (Surgical Addition) ---
+with st.container():
+    st.markdown("---")
+    # AI generates a 1-sentence tactical focus based on your manual
+    briefing = falcon_query("Give me a 1-sentence daily tactical security focus for a gate officer based on professional protocols.", "Gate 4 Protocol")
+    
+    st.markdown(f"""
+        <div style='background: rgba(34, 211, 238, 0.1); border-left: 4px solid #22d3ee; padding: 15px; border-radius: 5px;'>
+            <strong style='color: #22d3ee; letter-spacing: 2px;'>[ TACTICAL BRIEFING ]</strong><br>
+            <span style='color: #f1f5f9; font-style: italic;'>"{briefing}"</span>
+        </div>
+    """, unsafe_allow_html=True)
+
 # --- COMMAND TABS ---
 t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
 
