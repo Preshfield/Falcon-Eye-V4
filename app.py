@@ -66,23 +66,29 @@ if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
     st.rerun()
 
-# --- HERO SECTION (Eagle & Title) ---
-col_logo, col_title = st.columns([1, 1.5])
+# --- HERO SECTION ---
+# This matches the layout where the Eagle is on the left and text on the right
+col_logo, col_title = st.columns([1.2, 2])
 
 with col_logo:
-    # This link is a high-tech mechanical eagle to match your 'hot' design
-    st.image("https://img.freepik.com/premium-photo/futuristic-mechanical-cyberpunk-falcon-eagle-with-glowing-blue-eyes_899449-3171.jpg", width=300)
+    # Use your actual image file here to get the high-tech look
+    if os.path.exists("falcon_hero.png"):
+        st.image("falcon_hero.png", use_container_width=True)
+    else:
+        # Emergency backup: A mechanical falcon link that is NOT a flower
+        st.image("https://img.freepik.com/premium-photo/robotic-eagle-with-blue-neon-lights-cyberpunk-style_962764-55444.jpg", use_container_width=True)
 
 with col_title:
     st.markdown("""
-        <div style='padding-top: 25px;'>
-            <h1 style='font-size: 60px; margin-bottom:0; color:#22d3ee; text-shadow: 0 0 20px #22d3ee;'>Falcon Eye</h1>
-            <h2 style='font-size: 40px; margin-top:-10px; color:#ffffff;'>Gate4</h2>
-            <p style='color:#94a3b8; font-size:18px; font-weight:300; letter-spacing: 1px;'>
+        <div style='padding-top: 40px;'>
+            <h1 style='font-size: 65px; color: #22d3ee; margin-bottom: 0; text-shadow: 0 0 15px #22d3ee;'>Falcon</h1>
+            <h1 style='font-size: 55px; color: #ffffff; margin-top: -15px;'>Eye Gate4</h1>
+            <p style='color: #94a3b8; font-size: 18px; letter-spacing: 1px;'>
                 ADVANCED AI INTELLIGENCE & PROTOCOL MANAGEMENT SYSTEM
             </p>
         </div>
     """, unsafe_allow_html=True)
+
 # --- COMMAND TABS ---
 t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
 
