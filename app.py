@@ -64,6 +64,15 @@ if not st.session_state.auth:
 # ====================== DASHBOARD UI (THE POWER LOOK) ======================
 
 # --- FLOATING HEADER & LOGOUT ---
+       # --- TACTICAL EXIT PROTOCOL ---
+# This button triggers the CSS you just added to the style.css
+if st.button("🔒 LOGOUT", type="secondary"):
+    st.session_state.auth = False
+    st.session_state.current_worker = None
+    st.rerun() 
+
+
+
 # Forces the time to Dubai (UTC +4)
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
@@ -173,9 +182,3 @@ with t3:
     else:
         st.caption("No saved logs found in the vault.")
 
-       # --- TACTICAL EXIT PROTOCOL ---
-# This button triggers the CSS you just added to the style.css
-if st.button("🔒 LOGOUT", type="secondary"):
-    st.session_state.auth = False
-    st.session_state.current_worker = None
-    st.rerun() 
