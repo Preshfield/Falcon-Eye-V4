@@ -59,7 +59,7 @@ def falcon_query(prompt: str, mode: str) -> str:
 # You can add more workers here easily!
 WORKER_DB = {
     "Precious": "Falcon01",
-    "Bambi": "Gate4Bambi",
+    "Bambi": "Nancy",
     "Worker3": "Access2026",
     "Worker4": "Secure789"
 }
