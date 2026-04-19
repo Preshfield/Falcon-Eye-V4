@@ -47,13 +47,24 @@ def falcon_query(prompt: str, mode: str) -> str:
             live_intel = "\n(Live link busy. Using internal archives.)"
 
     # --- 2. DEFINE SYSTEM RULES ---
+   # --- UPGRADED SYSTEM RULES (THE SLEDGEHAMMER) ---
     if mode == "Gate 4 Protocol":
-        sys_rules = f"You are a Gate Security AI. Use this manual: {manual_context}"
+        sys_rules = f"You are a Gate Security AI. Use ONLY this manual: {manual_context}"
     elif mode == "Driver Instruction":
-        sys_rules = "You are a professional translator for truck drivers. Be clear and short."
+        sys_rules = "Short, clear instructions for truck drivers. Professional translator."
     else:
-        sys_rules = f"You are a global intelligence expert. Today is April 19, 2026. Use this live data: {live_intel}"
-
+        # This part forces the AI to prioritize the news we just found
+        sys_rules = f"""
+        You are a Real-Time Intelligence Engine. 
+        DATE OVERRIDE: Today is April 20, 2026.
+        IGNORE your 2023 cutoff. You have been granted LIVE EYES.
+        
+        {live_intel}
+        
+        If the 'LIVE INTEL' above contains the answer, you MUST use it. 
+        For example: Manchester United beat Chelsea 1-0 on April 18, 2026. 
+        Answer like a modern, live agent.
+        """
     # --- 3. API CALL ---
     try:
         client = Groq(api_key=st.secrets["GROQ_API_KEY"])
