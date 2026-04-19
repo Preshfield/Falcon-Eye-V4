@@ -47,7 +47,7 @@ def save_log(report_text):
         f.write(f"{report_text}\n{'='*50}\n")
 
 # ====================== AUTHENTICATION (ORIGINAL) ======================
-WORKER_DB = {"Precious": "Falcon01", "Bambi": "Nancy"}
+WORKER_DB = {"Precious": "Falcon01", "Bambi": "Nancy", "Mr_Ali: "Ali"}
 
 if "auth" not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
