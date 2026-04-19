@@ -1,1 +1,49 @@
+/* Global Background */
+.stApp {
+    background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+    color: #f1f5f9;
+}
 
+/* Floating Station Active Bar */
+.custom-header {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid #22d3ee;
+    border-radius: 12px;
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Fixed Logout Button */
+div[data-testid="stButton"] > button[kind="secondary"] {
+    position: fixed;
+    top: 25px;
+    right: 30px;
+    z-index: 1001;
+    background: rgba(34, 211, 238, 0.1);
+    border: 1px solid #22d3ee;
+    color: #22d3ee;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+/* Glowing Intercom Box */
+.intercom-box {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1.5px solid #22d3ee;
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.15);
+}
+
+/* Driver Message Bubble */
+.driver-msg {
+    background: #1e293b;
+    border-left: 5px solid #22d3ee;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+    color: #e2e8f0;
+}
