@@ -69,10 +69,8 @@ if not st.session_state.auth:
 if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
     st.rerun()
-
 # Forces the time to Dubai (UTC +4)
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
-
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 
 # --- HERO SECTION (High-Power Command Hub Lettering) ---
@@ -85,8 +83,6 @@ st.markdown("""
         </p>
     </div>
 """, unsafe_allow_html=True)
-
-
 # --- TACTICAL BRIEFING (Surgical Addition) ---
 with st.container():
     st.markdown("---")
