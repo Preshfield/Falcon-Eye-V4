@@ -66,30 +66,28 @@ if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
     st.rerun()
 
-# --- HERO SECTION ---
 # --- HERO SECTION (Eagle on the left, Title on the right) ---
 col_logo, col_title = st.columns([1, 1.5])
 
 with col_logo:
-    # PASTE IT HERE:
-    # Make sure you have a file named 'falcon.png' in your GitHub folder
-    st.image("falcon.png", use_container_width=True)
+    # Check if the file exists to avoid the 'MediaFileStorageError' crash
+    if os.path.exists("falcon.png"):
+        st.image("falcon.png", use_container_width=True)
+    else:
+        # High-tech fallback image so it doesn't show a flower or crash
+        st.image("https://img.freepik.com/premium-photo/futuristic-mechanical-cyberpunk-falcon-eagle-with-glowing-blue-eyes_899449-3171.jpg", use_container_width=True)
+        st.caption("⚠️ 'falcon.png' not found in root folder. Using system fallback.")
 
 with col_title:
-    # This matches the layout in your screenshot
     st.markdown("""
         <div style='padding-top: 20px;'>
-            <h1 style='margin-bottom: 0px; font-size: 60px;'>Falcon Eye</h1>
+            <h1 style='margin-bottom: 0px; font-size: 60px; color: #22d3ee;'>Falcon Eye</h1>
             <h2 style='margin-top: -15px; color: white; font-size: 45px;'>Gate4</h2>
-            <p style='color: #22d3ee; font-size: 18px; letter-spacing: 1px;'>
+            <p style='color: #94a3b8; font-size: 18px; letter-spacing: 1px;'>
                 ADVANCED AI INTELLIGENCE & PROTOCOL MANAGEMENT SYSTEM
             </p>
         </div>
     """, unsafe_allow_html=True)
-
-# --- THE TABS START AFTER THIS ---
-t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
-
 
 # --- COMMAND TABS ---
 t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
@@ -99,11 +97,13 @@ with t1:
     st.subheader("🔍 Knowledge Scan")
     k_mode = st.radio("Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     k_query = st.text_input("Search protocols...", key="k_scan")
-    if k_query: st.info(falcon_query(k_query, k_mode))
+    if k_query: 
+        with st.spinner("Analyzing..."):
+            st.info(falcon_query(k_query, k_mode))
 
     st.divider()
 
-    # INTERCOM BOX (Styled like screenshot)
+    # INTERCOM BOX
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
     
@@ -112,11 +112,12 @@ with t1:
     
     c1, c2 = st.columns([3, 1])
     with c1: st.write("🎤 **Listen to Driver**")
-    with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
+    with c2: 
+        driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
 
     if driver_v:
         intent = falcon_query(f"Driver said: {driver_v}", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI:</b> {intent}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Context:</b> {intent}</div>', unsafe_allow_html=True)
 
     d_reply = st.chat_input("Enter command for driver...")
     if d_reply:
@@ -140,5 +141,8 @@ with t3:
     st.subheader("📋 Security Mission Logs")
     notes = st.text_area("Observations:", key="logs")
     if st.button("🚀 GENERATE LOG"):
-        report = falcon_query(f"Format this: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
-        st.code(report)
+        if notes:
+            report = falcon_query(f"Format this: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
+            st.code(report)
+        else:
+            st.warning("Please enter observations first.")
