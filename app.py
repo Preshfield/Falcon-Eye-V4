@@ -66,26 +66,23 @@ if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
     st.rerun()
 
-# --- HERO SECTION ---
+# --- HERO SECTION (Eagle & Title) ---
 col_logo, col_title = st.columns([1, 1.5])
 
 with col_logo:
-    # Option A: If you uploaded 'falcon.png' to your GitHub
-    if os.path.exists("falcon.png"):
-        st.image("falcon.png", width=300)
-    else:
-        # Option B: High-quality Cyber-Falcon link for now
-        st.image("https://img.freepik.com/premium-photo/futuristic-mechanical-cyberpunk-falcon-eagle-with-glowing-blue-eyes_899449-3171.jpg", width=300)
+    # This link is a high-tech mechanical eagle to match your 'hot' design
+    st.image("https://img.freepik.com/premium-photo/futuristic-mechanical-cyberpunk-falcon-eagle-with-glowing-blue-eyes_899449-3171.jpg", width=300)
 
 with col_title:
-    # This matches the font and alignment in your screenshot
     st.markdown("""
-        <div style='padding-top: 30px;'>
-            <h1 style='margin-bottom: 0px;'>Falcon Eye Gate4</h1>
-            <p style='color: #94a3b8; font-size: 20px;'>Advanced AI Intelligence & Protocol Management System</p>
+        <div style='padding-top: 25px;'>
+            <h1 style='font-size: 60px; margin-bottom:0; color:#22d3ee; text-shadow: 0 0 20px #22d3ee;'>Falcon Eye</h1>
+            <h2 style='font-size: 40px; margin-top:-10px; color:#ffffff;'>Gate4</h2>
+            <p style='color:#94a3b8; font-size:18px; font-weight:300; letter-spacing: 1px;'>
+                ADVANCED AI INTELLIGENCE & PROTOCOL MANAGEMENT SYSTEM
+            </p>
         </div>
     """, unsafe_allow_html=True)
-
 # --- COMMAND TABS ---
 t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
 
