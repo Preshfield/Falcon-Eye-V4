@@ -31,21 +31,40 @@ def digest_manual():
 import streamlit as st
 from duckduckgo_search import DDGS
 
-@st.cache_data(ttl=3600) # This caches the answer for 1 hour to save your API limit
-def falcon_query(prompt: str, mode: str) -> str:
-    manual_context = digest_manual()
-    live_intel = ""
-    
-    # --- 1. SEARCH TRIGGER (Only for Global Knowledge) ---
-    if mode == "Global Knowledge":
-        try:
-            with DDGS() as ddgs:
-                # Get real-time data from the web
-                results = [r['body'] for r in ddgs.text(prompt, max_results=3)]
-                live_intel = "\n\n[LIVE INTEL - APRIL 2026]:\n" + "\n".join(results)
-        except:
-            live_intel = "\n(Live link busy. Using internal archives.)"
+import openai # DeepSeek uses the OpenAI library format
 
+@st.cache_data(ttl=3600)
+def falcon_query(prompt: str, mode: str) -> str:
+    # 1. Pull the context from your uploaded PDF
+    manual_context = digest_manual()
+    
+    # 2. Connect to the DeepSeek Server
+    client = openai.OpenAI(
+        api_key=st.secrets["DEEPSEEK_API_KEY"], 
+        base_url="https://api.deepseek.com"
+    )
+
+    # 3. Define the "Security Mindset"
+    if mode == "Gate 4 Protocol":
+        sys_rules = f"You are a Gate Security AI. Use ONLY this manual: {manual_context}. Be firm and precise."
+    elif mode == "Driver Instruction":
+        sys_rules = "Short, clear safety instructions for truck drivers. Professional translator."
+    else:
+        sys_rules = "You are a Real-Time Intelligence Engine. Date: April 20, 2026. Focus on site security and Law No. 3."
+
+    # 4. The Request
+    try:
+        completion = client.chat.completions.create(
+            model="deepseek-chat", # This is the specific model name for DeepSeek
+            messages=[
+                {"role": "system", "content": sys_rules},
+                {"role": "user", "content": prompt}
+            ],
+            stream=False
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        return f"FALCON ENGINE ERROR: {str(e)}"
     # --- 2. DEFINE SYSTEM RULES ---
    # --- UPGRADED SYSTEM RULES (THE SLEDGEHAMMER) ---
     if mode == "Gate 4 Protocol":
