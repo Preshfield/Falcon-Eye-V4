@@ -148,6 +148,7 @@ with t2:
         pdf_viewer("gate_manual.pdf", height=700)
         
 # ====================== TAB 3: LOGS ======================
+# ====================== TAB 3: LOGS ======================
 with t3:
     st.subheader("📋 Security Mission Logs")
     
@@ -187,7 +188,5 @@ with t3:
                 # Displays the report in a box that is easy to copy
                 st.code(formatted_report, language="text")
                 st.success("Log Generated. Copy the text above for your official records.")
-        else:
-            st.warning("Please enter some observations first.")al records.")
         else:
             st.warning("Please enter some observations first.")
