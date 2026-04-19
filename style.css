@@ -56,46 +56,7 @@
     0% { top: -5%; }
     100% { top: 105%; }
 }
-/* --- LOGIN/LOCK SCREEN SPECIAL STYLING --- */
 
-/* 1. Ensure the grid background is active on the lock screen */
-iframe[data-testid="stFrame"] {
-    background: transparent !important;
-}
-
-/* 2. Center and glow the verification sub-title */
-[style*="text-align: center;"] .gate-sub {
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
-    margin-top: 5px;
-    font-size: 35px !important; /* Slightly smaller for the login page */
-}
-
-/* 3. Specific lock-screen form formatting (The Tech-Box) */
-[data-testid="stForm"] {
-    background: rgba(15, 23, 42, 0.95) !important;
-    border: 2px solid #22d3ee !important;
-    border-radius: 12px;
-    padding: 30px;
-    box-shadow: 0 0 40px rgba(34, 211, 238, 0.3) !important;
-    margin-top: 20px;
-}
-
-/* 4. Make the input text look techy */
-[data-testid="stForm"] select, [data-testid="stForm"] input {
-    font-family: 'Orbitron', sans-serif;
-    background-color: #0f172a !important;
-    color: #22d3ee !important;
-    border-color: rgba(34, 211, 238, 0.3) !important;
-}
-
-/* 5. The Login Button Pulse */
-[data-testid="stForm"] button {
-    background: #22d3ee !important;
-    color: #020617 !important;
-    font-weight: bold !important;
-    font-family: 'Orbitron', sans-serif;
-    width: 100%;
-}
 /* Subtle glow pulse for the intercom box */
 .intercom-box {
     animation: box-glow 8s ease-in-out infinite;
