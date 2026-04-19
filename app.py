@@ -107,7 +107,7 @@ with col_title:
     st.write(f"**Station Active:** {st.session_state.current_worker} | {datetime.now().strftime('%H:%M')}")
 
 # ====================== DASHBOARD ======================
-st.title("🦅 FALCON EYE COMMAND")
+st.title("🦅 Falcon Eye Gate4")
 t1, t2, t3 = st.tabs(["📡 INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
 
 with t1:
