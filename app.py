@@ -121,39 +121,39 @@ with t1:
 
     st.divider()
 
-    # --- SEARCH BAR 2: DRIVER INTERCOM ---
+    # --- SEARCH 2: DRIVER INTERCOM (FIXED AUDIO) ---
     st.subheader("🚛 Driver Intercom")
     
-    # Expanded Language List
     full_langs = {
-        "Urdu": "ur", "Hindi": "hi", "Arabic": "ar", "Tagalog": "tl", 
-        "Bengali": "bn", "Malayalam": "ml", "Pashto": "ps", "Punjabi": "pa",
-        "Tamil": "ta", "Telugu": "te", "Sinhala": "si", "Swahili": "sw",
-        "Russian": "ru", "Chinese": "zh-cn", "French": "fr", "Spanish": "es",
-        "Turkish": "tr", "Persian": "fa", "Vietnamese": "vi"
+        "Bengali": "bn", "Urdu": "ur", "Hindi": "hi", "Arabic": "ar", 
+        "Tagalog": "tl", "Malayalam": "ml", "Pashto": "ps", "Punjabi": "pa",
+        "Tamil": "ta", "Telugu": "te", "Sinhala": "si", "Swahili": "sw"
     }
     
-    col_l, col_r = st.columns([1, 2])
-    with col_l:
-        d_lang = st.selectbox("Driver Language:", list(full_langs.keys()))
-    with col_r:
-        st.write("🎤 Listen to Driver:")
-        driver_voice = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
+    d_col1, d_col2 = st.columns([1, 2])
+    with d_col1:
+        d_lang = st.selectbox("Select Language:", list(full_langs.keys()))
+    with d_col2:
+        st.write("🎤 Driver Speaking:")
+        driver_voice = speech_to_text(language=full_langs[d_lang], start_prompt="👂 CLICK TO LISTEN", key='d_mic')
 
     if driver_voice:
-        analysis = falcon_query(f"Driver said: {driver_voice}. What do they need?", "Driver Instruction")
-        st.warning(f"**Driver:** {driver_voice}\n**AI:** {analysis}")
+        intent = falcon_query(f"Driver said: {driver_voice}. What do they need?", "Driver Intercom")
+        st.warning(f"**Driver ({d_lang}):** {driver_voice}\n\n**AI Context:** {intent}")
 
-    # Reply to Driver
-    st.write("⌨️ **Reply to Driver:**")
+    # Reply Logic
     d_reply = st.chat_input("Enter command for driver...")
     if d_reply:
-        trans = falcon_query(f"Translate to {d_lang}: {d_reply}", "Driver Instruction")
-        st.success(f"**Replied:** {trans}")
-        tts = gTTS(text=trans, lang=full_langs[d_lang])
-        rv = io.BytesIO(); tts.write_to_fp(rv); rv.seek(0)
-        st.audio(rv, format="audio/mp3", autoplay=True)
-
+        translation = falcon_query(f"Translate to {d_lang}: {d_reply}", "Driver Intercom")
+        st.success(f"**Translation ({d_lang}):** {translation}")
+        
+        # FIXED AUDIO BLOCK
+        tts = gTTS(text=translation, lang=full_langs[d_lang])
+        audio_stream = io.BytesIO()
+        tts.write_to_fp(audio_stream)
+        
+        # Using getvalue() to ensure the browser reads the raw data correctly
+        st.audio(audio_stream.getvalue(), format="audio/mpeg", autoplay=True)
 # --- TAB 2: PROTOCOLS (Corrected Audio) ---
 with t2:
     st.subheader("Manual & Audio Briefing")
