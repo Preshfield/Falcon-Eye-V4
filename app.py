@@ -46,41 +46,20 @@ def save_log(report_text):
     with open("security_logs.txt", "a", encoding="utf-8") as f:
         f.write(f"{report_text}\n{'='*50}\n")
 
-# ====================== AUTHENTICATION (UPGRADED LOCK SCREEN) ======================
+# ====================== AUTHENTICATION (ORIGINAL) ======================
 WORKER_DB = {"Precious": "Falcon01", "Bambi": "Nancy"}
 
 if "auth" not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
-    # --- HERO SECTION (Power Lettering & Active Grid) ---
-    st.markdown("""
-        <div style='text-align: center; padding: 100px 0 50px 0;'>
-            <h1 class='falcon-title'>FALCON EYE</h1>
-            <h2 class='gate-sub' style='color:#ffffff; opacity:0.7;'>PROTOCOL VERIFICATION</h2>
-            <p style='color: #94a3b8; font-size: 14px; letter-spacing: 5px; font-weight: bold; text-transform: uppercase;'>
-                Authorized Personnel Access Only
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # --- Centered Login Box ---
-    l1, l2, l3 = st.columns([1, 2, 1])
-    with l2:
-        with st.form("login_form"):
-            user_identity = st.selectbox("OPERATOR IDENTITY:", list(WORKER_DB.keys()))
-            user_password = st.text_input("SECURITY KEY:", type="password")
-            submitted = st.form_submit_submit("🔓 INITIATE ACCESS")
-            
-            if submitted:
-                if user_password == WORKER_DB[user_identity]:
-                    st.session_state.auth = True
-                    st.session_state.current_worker = user_identity
-                    st.success("PROTOCOL VERIFIED. ACCESS GRANTED.")
-                    st.rerun()
-                else:
-                    st.error("ACCESS DENIED. UNMATCHED KEY.")
-
+    st.title("🦅 FALCON EYE | LOGIN")
+    user_identity = st.selectbox("USER:", list(WORKER_DB.keys()))
+    user_password = st.text_input("PASSWORD:", type="password")
+    if st.button("SIGN IN"):
+        if user_password == WORKER_DB[user_identity]:
+            st.session_state.auth = True
+            st.session_state.current_worker = user_identity
+            st.rerun()
     st.stop()
-
 # ====================== DASHBOARD UI (THE POWER LOOK) ======================
 
 # --- FLOATING HEADER & LOGOUT ---
