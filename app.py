@@ -89,6 +89,23 @@ if not st.session_state.auth:
             else:
                 st.error("❌ INVALID PASSWORD. Please check your credentials.")
     st.stop()
+
+# ====================== LOGOUT SYSTEM ======================
+# Add this right after your main title
+col_title, col_logout = st.columns([3, 1])
+
+with col_logout:
+    if st.button("🔒 LOGOUT"):
+        # This clears all session data and kicks back to the login screen
+        st.session_state.auth = False
+        st.session_state.current_worker = None
+        st.session_state.chat_history = []
+        st.rerun()
+
+with col_title:
+    # This keeps your metric looking clean next to the logout button
+    st.write(f"**Station Active:** {st.session_state.current_worker} | {datetime.now().strftime('%H:%M')}")
+
 # ====================== DASHBOARD ======================
 st.title("🦅 FALCON EYE COMMAND")
 t1, t2, t3 = st.tabs(["📡 INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
