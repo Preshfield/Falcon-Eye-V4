@@ -1,35 +1,40 @@
-/* Global Background */
+/* Global Dashboard Theme */
 .stApp {
     background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
     color: #f1f5f9;
 }
 
-/* Floating Station Active Bar */
+/* Floating Status Bar (Top Left/Center) */
 .custom-header {
     background: rgba(15, 23, 42, 0.9);
     border: 1px solid #22d3ee;
     border-radius: 12px;
     padding: 12px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: inline-block;
     margin-bottom: 20px;
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
 }
 
-/* Fixed Logout Button */
+/* Fixed Logout Button (Top Right Corner) */
 div[data-testid="stButton"] > button[kind="secondary"] {
-    position: fixed;
-    top: 25px;
-    right: 30px;
-    z-index: 1001;
-    background: rgba(34, 211, 238, 0.1);
-    border: 1px solid #22d3ee;
-    color: #22d3ee;
-    border-radius: 10px;
-    font-weight: bold;
+    position: fixed !important;
+    top: 25px !important;
+    right: 30px !important;
+    z-index: 1001 !important;
+    background: rgba(34, 211, 238, 0.1) !important;
+    border: 1px solid #22d3ee !important;
+    color: #22d3ee !important;
+    border-radius: 10px !important;
+    font-weight: bold !important;
 }
 
-/* Glowing Intercom Box */
+div[data-testid="stButton"] > button[kind="secondary"]:hover {
+    background: #22d3ee !important;
+    color: #020617 !important;
+    box-shadow: 0 0 15px #22d3ee !important;
+}
+
+/* Glowing Intercom Container */
 .intercom-box {
     background: rgba(30, 41, 59, 0.5);
     border: 1.5px solid #22d3ee;
