@@ -1,40 +1,26 @@
-/* The Deep Dark Background from your sample */
+/* Deep Black-Blue Background */
 .stApp {
     background: #020617 !important;
-    color: #e2e8f0;
 }
 
-/* The Falcon Eye Title & Subtext colors */
+/* Glowing Title Font */
 h1 {
-    color: #22d3ee !important; /* That bright cyan color */
-    font-family: 'Orbitron', sans-serif;
-    text-shadow: 0px 0px 15px rgba(34, 211, 238, 0.5);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 800 !important;
+    text-transform: none;
 }
 
-/* The Station Active Bar */
-.custom-header {
-    background: rgba(15, 23, 42, 0.8);
-    border: 1px solid #22d3ee;
-    border-radius: 12px;
-    padding: 10px 20px;
-    margin-bottom: 25px;
-    box-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
-}
-
-/* The Glowing Intercom Box from the photo */
+/* The Intercom Box (Make it glow Cyan like your sample) */
 .intercom-box {
     background: rgba(15, 23, 42, 0.9);
-    border: 2px solid #22d3ee;
+    border: 2px solid #22d3ee; /* Cyan Border */
     border-radius: 20px;
     padding: 30px;
-    box-shadow: 0 0 25px rgba(34, 211, 238, 0.2);
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.2); /* Exterior Glow */
 }
 
-/* Tab Colors */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 20px;
-}
+/* Tabs: Active Blue line */
 .stTabs [aria-selected="true"] {
     color: #22d3ee !important;
-    border-bottom-color: #22d3ee !important;
+    border-bottom: 3px solid #22d3ee !important;
 }
