@@ -10,13 +10,52 @@ from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 
 # 1. LOAD EXTERNAL CSS
+# 1. LOAD EXTERNAL AND INTERNAL CSS
 def local_css(file_name):
+    # This part keeps your existing style.css working
     if os.path.exists(file_name):
         with open(file_name) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    
+    # This part FORCES the Tech HQ look even if the file fails
+    st.markdown('''
+        <style>
+        .stApp { background: radial-gradient(circle at top right, #0f172a, #020617); color: #f8fafc; }
+        .hero-container {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 60px 40px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(173, 255, 47, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        .hero-title { color: #ffffff !important; font-size: 72px !important; font-weight: 900 !important; letter-spacing: -3px !important; }
+        .status-dot { color: #ADFF2F; font-weight: 800; text-shadow: 0 0 15px #ADFF2F; animation: pulse 2s infinite; }
+        .hero-divider { height: 3px; width: 80px; background: linear-gradient(90deg, #ADFF2F, transparent); margin: 20px 0; }
+        .hero-tagline { color: #ADFF2F !important; font-size: 14px !important; letter-spacing: 5px !important; font-weight: 700 !important; text-transform: uppercase; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        
+        /* Tactical Tabs */
+        .stTabs [data-baseweb="tab-list"] { background-color: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 12px; }
+        .stTabs [aria-selected="true"] { color: #ADFF2F !important; background-color: rgba(173, 255, 47, 0.1) !important; }
+        </style>
+    ''', unsafe_allow_html=True)
 
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
-local_css("css/style.css?v=1.1")
+local_css("css/style.css")
+
+# ... (Authentication and Logic remain exactly the same)
+
+# --- REFINED HERO DASHBOARD ---
+st.markdown('''
+    <div class="hero-container">
+        <h1 class="hero-title">FALCON EYE</h1>
+        <h2 class="hero-subtitle">GATE 4 <span class="status-dot">● ONLINE</span></h2>
+        <div class="hero-divider"></div>
+        <p class="hero-tagline">Tactical AI Intelligence & Protocol Management</p>
+    </div>
+''', unsafe_allow_html=True)
 
 # ====================== GOOGLE SHEETS ENGINE ======================
 def save_to_google_sheets(worker, log_text):
