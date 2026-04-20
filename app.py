@@ -16,7 +16,7 @@ def local_css(file_name):
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
-local_css("css/style.css")
+local_css("css/style.css?v=1.1")
 
 # ====================== GOOGLE SHEETS ENGINE ======================
 def save_to_google_sheets(worker, log_text):
