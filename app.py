@@ -154,7 +154,7 @@ with t2:
     st.subheader("📖 Active Protocols & Training")
     
     # --- AUDIO LECTURE PLAYER ---
-    st.markdown("#### 🎧 Protocol Audio Lecture")
+    st.markdown("#### 🎧 Protocol Audio_Lecture.wav.mp3")
     if os.path.exists("lecture.mp3"):
         st.audio("lecture.mp3", format="audio/mpeg")
     else:
