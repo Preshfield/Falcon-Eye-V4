@@ -30,18 +30,6 @@ def local_css(file_name):
             border: 1px solid rgba(173, 255, 47, 0.3);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
-        .hero-title { color: #ffffff !important; font-size: 72px !important; font-weight: 900 !important; letter-spacing: -3px !important; }
-        .status-dot { color: #ADFF2F; font-weight: 800; text-shadow: 0 0 15px #ADFF2F; animation: pulse 2s infinite; }
-        .hero-divider { height: 3px; width: 80px; background: linear-gradient(90deg, #ADFF2F, transparent); margin: 20px 0; }
-        .hero-tagline { color: #ADFF2F !important; font-size: 14px !important; letter-spacing: 5px !important; font-weight: 700 !important; text-transform: uppercase; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        
-        /* Tactical Tabs */
-        .stTabs [data-baseweb="tab-list"] { background-color: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 12px; }
-        .stTabs [aria-selected="true"] { color: #ADFF2F !important; background-color: rgba(173, 255, 47, 0.1) !important; }
-        </style>
-    ''', unsafe_allow_html=True)
-
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 local_css("css/style.css")
 
