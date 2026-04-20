@@ -105,22 +105,15 @@ if st.sidebar.button("🔒 LOGOUT", type="secondary"):
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 # --- INSERTED HERO DASHBOARD (PLACE THIS HERE) ---
-st.markdown(f"""
-    <div style="background-color: #0f172a; padding: 60px 40px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #1e293b;">
-        <h1 style="color: #ffffff; font-size: 64px; font-weight: 800; letter-spacing: -2px; margin-bottom: 0px; line-height: 1;">
-            FALCON EYE <span style="font-size: 24px; color: #94a3b8; vertical-align: middle;">🔗</span>
-        </h1>
-        <h2 style="color: #ffffff; font-size: 32px; font-weight: 600; margin-top: 10px; margin-bottom: 20px;">
-            GATE 4 <span style="color: #22d3ee; font-size: 20px; vertical-align: middle;">● ONLINE</span>
-        </h2>
-        <p style="color: #94a3b8; font-size: 14px; letter-spacing: 4px; font-weight: 700; text-transform: uppercase; margin: 0;">
-            Tactical AI Intelligence & Protocol Management
-        </p>
+# --- REFINED HERO DASHBOARD ---
+st.markdown('''
+    <div class="hero-container">
+        <h1 class="hero-title">FALCON EYE</h1>
+        <h2 class="hero-subtitle">GATE 4 <span class="status-dot">● ONLINE</span></h2>
+        <div class="hero-divider"></div>
+        <p class="hero-tagline">Tactical AI Intelligence & Protocol Management</p>
     </div>
-""", unsafe_allow_html=True)
-
-# --- TABS START HERE ---
-t1, t2, t3, t4 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT"])
+''', unsafe_allow_html=True)
 
 # ... (t1, t2, and t3 remain the same)
 
