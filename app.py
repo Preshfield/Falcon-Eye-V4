@@ -104,7 +104,7 @@ if st.sidebar.button("🔒 LOGOUT", type="secondary"):
 
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
-# --- INSERTED HERO DASHBOARD (PLACE THIS HERE) ---
+
 # --- REFINED HERO DASHBOARD ---
 st.markdown('''
     <div class="hero-container">
@@ -114,12 +114,15 @@ st.markdown('''
         <p class="hero-tagline">Tactical AI Intelligence & Protocol Management</p>
     </div>
 ''', unsafe_allow_html=True)
-# ... (t1, t2, and t3 remain the same)
 
 t1, t2, t3, t4 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT"])
 
 with t1:
     st.subheader("🔍 Knowledge Scan")
+    
+    # --- RESTORED BRAIN SELECTION ---
+    k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
+    
     chat_container = st.container(height=350)
     with chat_container:
         for message in st.session_state.messages:
@@ -130,7 +133,7 @@ with t1:
         with chat_container:
             with st.chat_message("user"): st.markdown(k_query)
             with st.chat_message("assistant"):
-                response = falcon_query(k_query, "Global Knowledge")
+                response = falcon_query(k_query, k_mode)
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
         save_chat_history(st.session_state.current_worker, st.session_state.messages)
@@ -149,9 +152,8 @@ with t1:
         intent = falcon_query(f"The driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
         st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
 
-    # --- FIXED TRANSLATOR REPLY ---
     st.write("💬 **Reply to Driver**")
-    d_reply = st.text_input("Type command here (e.g., 'Please turn off your engine')", key="driver_reply_box")
+    d_reply = st.text_input("Type command here", key="driver_reply_box")
     if st.button("📤 SEND COMMAND TO DRIVER"):
         if d_reply:
             with st.spinner("Translating..."):
@@ -161,48 +163,33 @@ with t1:
                 stream = io.BytesIO()
                 tts.write_to_fp(stream)
                 st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
-        else:
-            st.warning("Please enter a command first.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
     st.subheader("📖 Active Protocols & Training")
-    
-    # --- AUDIO LECTURE PLAYER ---
     st.markdown("#### 🎧 Protocol Audio Lecture")
     audio_file = "protocol_lecture.wav.mp3"
-    
     if os.path.exists(audio_file):
         st.audio(audio_file, format="audio/mpeg")
-        st.caption(f"Source: {audio_file}")
     else:
         st.error(f"⚠️ System Error: File '{audio_file}' not detected.")
     
     st.divider()
-
-    # --- MANUAL VIEWER & DOWNLOAD (FIXED) ---
     st.markdown("#### 📄 Gate 4 Manual")
     pdf_path = "gate_manual.pdf"
-    
     if os.path.exists(pdf_path):
-        # Add a real download button
         with open(pdf_path, "rb") as f:
-            st.download_button(
-                label="📥 Download Protocol Manual (PDF)",
-                data=f,
-                file_name="Gate_4_Security_Manual.pdf",
-                mime="application/pdf"
-            )
-        # Display the PDF
+            st.download_button(label="📥 Download Protocol Manual (PDF)", data=f, file_name="Gate_4_Security_Manual.pdf", mime="application/pdf")
         pdf_viewer(pdf_path, height=700)
     else:
-        st.error("Protocol Manual (gate_manual.pdf) not found in the vault.")
+        st.error("Protocol Manual (gate_manual.pdf) not found.")
+
 with t3:
     st.subheader("📋 Security Mission Logs")
     notes = st.text_area("Observations:", key="logs")
     if st.button("🚀 GENERATE & SAVE LOG"):
         if notes:
-            with st.spinner("Syncing to Government Database..."):
+            with st.spinner("Syncing..."):
                 report = falcon_query(f"Format: {notes}", "Gate 4 Protocol")
                 st.code(report)
                 if save_to_google_sheets(st.session_state.current_worker, report):
