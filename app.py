@@ -110,7 +110,6 @@ st.markdown("<h1 class='falcon-title'>FALCON EYE</h1><h2 class='gate-sub'>GATE 4
 t1, t2, t3, t4 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT"])
 
 with t1:
-    # --- CHAT INTERFACE ---
     st.subheader("🔍 Knowledge Scan")
     chat_container = st.container(height=350)
     with chat_container:
@@ -128,8 +127,6 @@ with t1:
         save_chat_history(st.session_state.current_worker, st.session_state.messages)
 
     st.divider()
-
-    # --- TRANSLATOR & AUDIO INTERCOM ---
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
     full_langs = {"Bengali": "bn", "Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
@@ -154,7 +151,19 @@ with t1:
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
-    st.subheader("Active Protocols")
+    st.subheader("📖 Active Protocols & Training")
+    
+    # --- AUDIO LECTURE PLAYER ---
+    st.markdown("#### 🎧 Protocol Audio Lecture")
+    if os.path.exists("lecture.mp3"):
+        st.audio("lecture.mp3", format="audio/mpeg")
+    else:
+        st.info("No audio lecture file (lecture.mp3) found in the station directory.")
+    
+    st.divider()
+    
+    # --- MANUAL VIEWER ---
+    st.markdown("#### 📄 Gate 4 Manual")
     if os.path.exists("gate_manual.pdf"):
         pdf_viewer("gate_manual.pdf", height=700)
     else:
@@ -170,3 +179,9 @@ with t3:
                 st.code(report)
                 if save_to_google_sheets(st.session_state.current_worker, report):
                     st.success("✅ Log Synchronized to Google Sheet.")
+
+with t4:
+    st.subheader("🕵️ Supervisor Audit Terminal")
+    audit_query = st.text_input("Enter Plate/Name:")
+    if st.button("🔍 RUN DEEP AUDIT"):
+        st.info("Scanning database archives...")
