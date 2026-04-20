@@ -104,3 +104,58 @@ div[data-testid="stButton"] > button[kind="secondary"]:hover {
 div[data-testid="stButton"] > button[kind="secondary"]:hover p {
     color: white !important;
 }
+
+/* Hero Container Box */
+.hero-container {
+    background-color: #0f172a;
+    padding: 50px 40px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    border: 1px solid #1e293b;
+    text-align: left;
+}
+
+/* Main Title */
+.hero-title {
+    color: #ffffff !important;
+    font-size: 58px !important;
+    font-weight: 800 !important;
+    letter-spacing: -1.5px !important;
+    margin-bottom: 0px !important;
+    padding-bottom: 0px !important;
+}
+
+/* Subtitle & Online Status */
+.hero-subtitle {
+    color: #ffffff !important;
+    font-size: 28px !important;
+    font-weight: 600 !important;
+    margin-top: 5px !important;
+}
+
+/* Lemon Green Online Dot */
+.status-dot {
+    color: #ADFF2F; /* Lemon Green / GreenYellow */
+    font-size: 18px;
+    margin-left: 10px;
+    text-shadow: 0 0 10px rgba(173, 255, 47, 0.4);
+}
+
+/* Lemon Green Accent Line */
+.hero-divider {
+    height: 2px;
+    width: 60px;
+    background-color: #ADFF2F;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+/* Bottom Tagline */
+.hero-tagline {
+    color: #94a3b8 !important;
+    font-size: 14px !important;
+    letter-spacing: 3px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    margin: 0 !important;
+}
