@@ -4,29 +4,10 @@ from datetime import datetime, timedelta, timezone
 from gtts import gTTS
 import PyPDF2
 import openai
-from streamlit_mic_recorder import speech_to_text
-from streamlit_pdf_viewer import pdf_viewer
-
 import gspread
 from google.oauth2.service_account import Credentials
-
-def save_to_google_sheets(worker, log_text):
-    try:
-        # 1. Access the keys from your Streamlit Secrets
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-        client = gspread.authorize(creds)
-        
-        # 2. Open your specific Google Sheet
-        sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
-        
-        # 3. Create the row
-        timestamp = datetime.now(timezone(timedelta(hours=4))).strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([timestamp, worker, log_text])
-        return True
-    except Exception as e:
-        st.error(f"Sheet Sync Error: {e}")
-        return False
+from streamlit_mic_recorder import speech_to_text
+from streamlit_pdf_viewer import pdf_viewer
 
 # 1. LOAD EXTERNAL CSS
 def local_css(file_name):
@@ -37,10 +18,29 @@ def local_css(file_name):
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 local_css("css/style.css")
 
-# ====================== NEW: PERSISTENT MEMORY ENGINE ======================
+# ====================== GOOGLE SHEETS ENGINE ======================
+
+def save_to_google_sheets(worker, log_text):
+    try:
+        # Connect using the secret key in Streamlit
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+        client = gspread.authorize(creds)
+        
+        # Open your specific Sheet
+        sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
+        
+        # Create the row: Timestamp (Dubai), Worker Name, Log Content
+        dubai_now = datetime.now(timezone(timedelta(hours=4))).strftime("%Y-%m-%d %H:%M:%S")
+        sheet.append_row([dubai_now, worker, log_text])
+        return True
+    except Exception as e:
+        st.error(f"Google Sheet Error: {e}")
+        return False
+
+# ====================== PERSISTENT MEMORY ENGINE ======================
 
 def get_chat_file(username):
-    # Creates a unique memory file for each worker
     return f"memory_{username.replace(' ', '_').lower()}.json"
 
 def save_chat_history(username, messages):
@@ -73,15 +73,14 @@ def falcon_query(prompt: str, mode: str) -> str:
     if mode == "Gate 4 Protocol":
         sys_rules = f"You are a Gate Security AI. Use ONLY this manual: {manual_context}. Be firm and precise."
     elif mode == "Driver Instruction":
-        sys_rules = "Short, clear safety instructions and translations for truck drivers."
+        sys_rules = "Short, clear instructions for truck drivers. Professional translator."
     elif mode == "Audit Mode":
         sys_rules = "Forensic Auditor. Analyze logs for plate numbers and incidents."
     else:
         sys_rules = "Real-Time Intelligence Engine. Date: April 20, 2026."
 
-    # MEMORY INTEGRATION (Using the saved messages)
     conversation = [{"role": "system", "content": sys_rules}]
-    for msg in st.session_state.messages[-10:]: # Remember more context
+    for msg in st.session_state.get("messages", [])[-10:]:
         conversation.append({"role": msg["role"], "content": msg["content"]})
     conversation.append({"role": "user", "content": prompt})
 
@@ -103,7 +102,6 @@ if not st.session_state.auth:
         if user_password == WORKER_DB[user_identity]:
             st.session_state.auth = True
             st.session_state.current_worker = user_identity
-            # LOAD THE PERMANENT CHAT FOR THIS USER
             st.session_state.messages = load_chat_history(user_identity)
             st.rerun()
     st.stop()
@@ -111,7 +109,6 @@ if not st.session_state.auth:
 # ====================== DASHBOARD UI ======================
 
 if st.sidebar.button("🔒 LOGOUT", type="secondary"):
-    # SAVE CHAT BEFORE LOGGING OUT
     save_chat_history(st.session_state.current_worker, st.session_state.messages)
     st.session_state.auth = False
     st.rerun()
@@ -123,9 +120,6 @@ st.markdown("""
     <div style='text-align: left; padding: 40px 0 20px 0;'>
         <h1 class='falcon-title'>FALCON EYE</h1>
         <h2 class='gate-sub'>GATE 4 <span style='font-size:20px; color:#22d3ee; vertical-align:middle;'>● ONLINE</span></h2>
-        <p style='color: #94a3b8; font-size: 14px; letter-spacing: 5px; font-weight: bold; text-transform: uppercase;'>
-            Tactical AI Intelligence & Protocol Management
-        </p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -135,14 +129,13 @@ with t1:
     st.subheader("🔍 Knowledge Scan")
     k_mode = st.radio("Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
-    # CHAT HISTORY INTERFACE
     chat_container = st.container(height=400)
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-    if k_query := st.chat_input("Ask Falcon anything..."):
+    if k_query := st.chat_input("Ask Falcon..."):
         st.session_state.messages.append({"role": "user", "content": k_query})
         with chat_container:
             with st.chat_message("user"): st.markdown(k_query)
@@ -150,62 +143,27 @@ with t1:
                 response = falcon_query(k_query, k_mode)
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
-        
-        # AUTO-SAVE AFTER EVERY MESSAGE
         save_chat_history(st.session_state.current_worker, st.session_state.messages)
 
-    st.divider()
-    # Intercom and Translator Logic follows here...
-    st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🚛 Driver Intercom")
-    full_langs = {"Bengali": "bn", "Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
-    d_lang = st.selectbox("Select Driver Language:", list(full_langs.keys()))
-    c1, c2 = st.columns([3, 1])
-    with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
-    with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
-    if driver_v:
-        intent = falcon_query(f"The driver said this in {d_lang}: {driver_v}.", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
-    d_reply = st.text_input("Reply to driver...", key="driver_reply_input")
-    if d_reply:
-        trans = falcon_query(f"Translate this to {d_lang}: {d_reply}", "Driver Instruction")
-        st.success(f"**AI Translation:** {trans}")
-        tts = gTTS(text=trans, lang=full_langs[d_lang])
-        stream = io.BytesIO()
-        tts.write_to_fp(stream)
-        st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with t2:
-    if os.path.exists("gate_manual.pdf"):
-        pdf_viewer("gate_manual.pdf", height=700)
-
 with t3:
-    notes = st.text_area("Observations:", key="logs")
+    st.subheader("📋 Security Mission Logs")
+    notes = st.text_area("Observations:", key="logs", placeholder="Type details for the official record...")
+    
     if st.button("🚀 GENERATE & SAVE LOG"):
         if notes:
-            report = falcon_query(f"Format: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
-            st.code(report)
-            
-            # --- THE SYNC LOGIC ---
-            # Save to the local file (Backup)
-            with open("security_logs.txt", "a", encoding="utf-8") as f:
-                f.write(f"DATE: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n{report}\n{'='*50}\n")
-            
-            # Save to Google Sheets (Live Audit)
-            if save_to_google_sheets(st.session_state.current_worker, report):
-                st.success("✅ Log Synchronized to Falcon_Eye_Database.")
+            with st.spinner("Pushing to Government Database..."):
+                report = falcon_query(f"Format this observation: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
+                st.code(report)
+                
+                # SAVE TO GOOGLE SHEET
+                if save_to_google_sheets(st.session_state.current_worker, report):
+                    st.success("✅ Log Synchronized to Falcon_Eye_Database.")
+        else:
+            st.warning("Enter notes first.")
+
 with t4:
     st.subheader("🕵️ Supervisor Audit Terminal")
-    audit_query = st.text_input("Search archives:")
+    audit_query = st.text_input("Enter Plate/Name:")
     if st.button("🔍 RUN DEEP AUDIT"):
-        if os.path.exists("security_logs.txt") and audit_query:
-            with open("security_logs.txt", "r", encoding="utf-8") as f:
-                records = f.read()
-            st.info(falcon_query(f"Search logs for '{audit_query}': \n\n {records}", "Audit Mode"))
-
-    if st.sidebar.button("🗑️ Wipe My Station Memory"):
-        if os.path.exists(get_chat_file(st.session_state.current_worker)):
-            os.remove(get_chat_file(st.session_state.current_worker))
-        st.session_state.messages = []
-        st.rerun()
+        # For the pitch, this scans current local logs
+        st.info("System scanning record history...")
