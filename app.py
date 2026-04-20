@@ -145,16 +145,6 @@ if st.sidebar.button("🔒 LOGOUT", type="secondary"):
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 
-# --- REFINED HERO DASHBOARD ---
-# --- REFINED HERO DASHBOARD ---
-st.markdown('''
-    <div class="hero-container">
-        <h1 class="hero-title">FALCON EYE</h1>
-        <h2 class="hero-subtitle">GATE 4 <span class="status-dot">● ONLINE</span></h2>
-        <div class="hero-divider"></div>
-        <p class="hero-tagline">Tactical AI Intelligence & Protocol Management</p>
-    </div>
-''', unsafe_allow_html=True)
 
 t1, t2, t3, t4 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT"])
 
