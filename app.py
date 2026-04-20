@@ -138,46 +138,56 @@ with t1:
 
     if driver_v:
         intent = falcon_query(f"The driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI:</b> {intent}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
 
-    d_reply = st.chat_input("Enter command for driver...", key="driver_reply")
-    if d_reply:
-        trans = falcon_query(f"Translate to {d_lang}: {d_reply}", "Driver Instruction")
-        st.success(f"**Replied:** {trans}")
-        tts = gTTS(text=trans, lang=full_langs[d_lang])
-        stream = io.BytesIO()
-        tts.write_to_fp(stream)
-        st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
+    # --- FIXED TRANSLATOR REPLY ---
+    st.write("💬 **Reply to Driver**")
+    d_reply = st.text_input("Type command here (e.g., 'Please turn off your engine')", key="driver_reply_box")
+    if st.button("📤 SEND COMMAND TO DRIVER"):
+        if d_reply:
+            with st.spinner("Translating..."):
+                trans = falcon_query(f"Translate to {d_lang}: {d_reply}", "Driver Instruction")
+                st.success(f"**Replied in {d_lang}:** {trans}")
+                tts = gTTS(text=trans, lang=full_langs[d_lang])
+                stream = io.BytesIO()
+                tts.write_to_fp(stream)
+                st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
+        else:
+            st.warning("Please enter a command first.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
     st.subheader("📖 Active Protocols & Training")
     
     # --- AUDIO LECTURE PLAYER ---
-    st.markdown("#### 🎧 protocol audio lecture")
-    
-    # We changed "lecture.mp3" to "Protocol_Lecture.wav.mp3" so the system finds it
+    st.markdown("#### 🎧 Protocol Audio Lecture")
     audio_file = "protocol_lecture.wav.mp3"
     
     if os.path.exists(audio_file):
         st.audio(audio_file, format="audio/mpeg")
-        st.success(f"Playing: {audio_file}")
+        st.caption(f"Source: {audio_file}")
     else:
-        st.error(f"⚠️ System Error: File '{audio_file}' not detected in repository.")
+        st.error(f"⚠️ System Error: File '{audio_file}' not detected.")
     
     st.divider()
 
-    # --- PDF VIEWER (Ensure this filename matches your GitHub too!) ---
-    if os.path.exists("gate_manual.pdf"):
-        pdf_viewer("gate_manual.pdf", height=700)
-    
-    # --- MANUAL VIEWER ---
+    # --- MANUAL VIEWER & DOWNLOAD (FIXED) ---
     st.markdown("#### 📄 Gate 4 Manual")
-    if os.path.exists("gate_manual.pdf"):
-        pdf_viewer("gate_manual.pdf", height=700)
+    pdf_path = "gate_manual.pdf"
+    
+    if os.path.exists(pdf_path):
+        # Add a real download button
+        with open(pdf_path, "rb") as f:
+            st.download_button(
+                label="📥 Download Protocol Manual (PDF)",
+                data=f,
+                file_name="Gate_4_Security_Manual.pdf",
+                mime="application/pdf"
+            )
+        # Display the PDF
+        pdf_viewer(pdf_path, height=700)
     else:
-        st.error("Protocol Manual (gate_manual.pdf) not found.")
-
+        st.error("Protocol Manual (gate_manual.pdf) not found in the vault.")
 with t3:
     st.subheader("📋 Security Mission Logs")
     notes = st.text_area("Observations:", key="logs")
