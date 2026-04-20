@@ -1,161 +1,114 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
-
-/* Main Tech Hub Background */
+/* GLOBAL COMMAND CENTER THEME */
 .stApp {
-    background-color: #020617 !important;
-    background-image: 
-        linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px) !important;
-    background-size: 35px 35px !important;
+    background: radial-gradient(circle at top right, #0f172a, #020617);
+    color: #f8fafc;
+    font-family: 'Inter', -apple-system, sans-serif;
 }
 
-/* Power Lettering */
-.falcon-title {
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 900;
-    font-size: 80px !important;
-    background: linear-gradient(to bottom, #22d3ee 0%, #0891b2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.6));
-    letter-spacing: -2px;
-}
-
-.gate-sub {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 45px !important;
-    color: #ffffff !important;
-    margin-top: -15px;
-}
-
-/* Glowing Intercom Container */
-.intercom-box {
-    background: rgba(15, 23, 42, 0.9) !important;
-    border: 2px solid #22d3ee !important;
-    border-radius: 15px;
-    padding: 30px;
-    box-shadow: 0 0 30px rgba(34, 211, 238, 0.2);
-}
-
-/* --- RADAR HEARTBEAT ANIMATION --- */
-.stApp::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: linear-gradient(to right, transparent, #22d3ee, transparent);
-    opacity: 0.3;
-    z-index: 99;
-    animation: radar-sweep 4s linear infinite;
-    pointer-events: none;
-}
-
-@keyframes radar-sweep {
-    0% { top: -5%; }
-    100% { top: 105%; }
-}
-
-/* Subtle glow pulse for the intercom box */
-.intercom-box {
-    animation: box-glow 8s ease-in-out infinite;
-}
-
-@keyframes box-glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.2); }
-    50% { box-shadow: 0 0 40px rgba(34, 211, 238, 0.4); }
-}
-/* Tab Colors */
-.stTabs [aria-selected="true"] {
-    color: #22d3ee !important;
-    border-bottom: 3px solid #22d3ee !important;
-}
-/* --- TACTICAL LOGOUT (RED ALERT STYLE) --- */
-div[data-testid="stButton"] > button[kind="secondary"] {
-    position: fixed !important;
-    top: 20px !important; 
-    right: 20px !important;
-    background-color: rgba(15, 23, 42, 0.8) !important; /* Dark Glass */
-    border: 2px solid #ff4b4b !important; /* High-Viz Red */
-    border-radius: 8px !important;
-    z-index: 999999 !important;
-    height: 45px !important;
-    width: 140px !important;
-    box-shadow: 0 0 15px rgba(255, 75, 75, 0.3) !important;
-}
-
-/* Forcing the text color inside the button */
-div[data-testid="stButton"] > button[kind="secondary"] p {
-    color: #ff4b4b !important;
-    font-weight: 800 !important;
-    font-family: 'Orbitron', sans-serif !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1px !important;
-    font-size: 14px !important;
-}
-
-/* Hover State: Full Red Glow */
-div[data-testid="stButton"] > button[kind="secondary"]:hover {
-    background-color: #ff4b4b !important;
-    box-shadow: 0 0 25px rgba(255, 75, 75, 0.6) !important;
-}
-
-div[data-testid="stButton"] > button[kind="secondary"]:hover p {
-    color: white !important;
-}
-
-/* Hero Container Box */
+/* HERO DASHBOARD CONTAINER */
 .hero-container {
-    background-color: #0f172a;
-    padding: 50px 40px;
-    border-radius: 12px;
-    margin-bottom: 25px;
-    border: 1px solid #1e293b;
-    text-align: left;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 60px 40px;
+    border-radius: 20px;
+    margin-bottom: 30px;
+    border: 1px solid rgba(50, 205, 50, 0.3); /* Subtle lemon green glow */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* Main Title */
 .hero-title {
     color: #ffffff !important;
-    font-size: 58px !important;
-    font-weight: 800 !important;
-    letter-spacing: -1.5px !important;
-    margin-bottom: 0px !important;
-    padding-bottom: 0px !important;
+    font-size: 72px !important;
+    font-weight: 900 !important;
+    letter-spacing: -3px !important;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
 }
 
-/* Subtitle & Online Status */
 .hero-subtitle {
-    color: #ffffff !important;
-    font-size: 28px !important;
-    font-weight: 600 !important;
-    margin-top: 5px !important;
-}
-
-/* Lemon Green Online Dot */
-.status-dot {
-    color: #ADFF2F; /* Lemon Green / GreenYellow */
-    font-size: 18px;
-    margin-left: 10px;
-    text-shadow: 0 0 10px rgba(173, 255, 47, 0.4);
-}
-
-/* Lemon Green Accent Line */
-.hero-divider {
-    height: 2px;
-    width: 60px;
-    background-color: #ADFF2F;
-    margin-top: 15px;
-    margin-bottom: 15px;
-}
-
-/* Bottom Tagline */
-.hero-tagline {
     color: #94a3b8 !important;
+    font-size: 24px !important;
+    font-weight: 400 !important;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.status-dot {
+    color: #ADFF2F; /* Lemon Green */
+    font-weight: 800;
+    text-shadow: 0 0 15px #ADFF2F;
+    animation: pulse 2s infinite;
+}
+
+.hero-divider {
+    height: 3px;
+    width: 80px;
+    background: linear-gradient(90deg, #ADFF2F, transparent);
+    margin: 20px 0;
+}
+
+.hero-tagline {
+    color: #ADFF2F !important;
     font-size: 14px !important;
-    letter-spacing: 3px !important;
+    letter-spacing: 5px !important;
     font-weight: 700 !important;
-    text-transform: uppercase !important;
-    margin: 0 !important;
+    opacity: 0.8;
+}
+
+/* TACTICAL TABS */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: rgba(30, 41, 59, 0.5);
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: #64748b !important;
+    font-weight: 700 !important;
+    transition: all 0.3s ease;
+}
+
+.stTabs [aria-selected="true"] {
+    color: #ADFF2F !important;
+    background-color: rgba(173, 255, 47, 0.1) !important;
+    border-radius: 8px;
+}
+
+/* INTERCOM & CHAT BOXES */
+.intercom-box {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    padding: 25px;
+}
+
+.driver-msg {
+    background: #1e293b;
+    border-left: 4px solid #ADFF2F;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 10px 0;
+}
+
+/* CUSTOM HEADER */
+.custom-header {
+    background: #020617;
+    border-bottom: 1px solid #1e293b;
+    padding: 10px 20px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: #64748b;
+}
+
+/* ANIMATIONS */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+/* SIDEBAR STYLING */
+[data-testid="stSidebar"] {
+    background-color: #020617;
+    border-right: 1px solid #1e293b;
 }
