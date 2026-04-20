@@ -155,12 +155,21 @@ with t2:
     
     # --- AUDIO LECTURE PLAYER ---
     st.markdown("#### 🎧 Protocol Audio Lecture")
-    if os.path.exists("lecture.mp3"):
-        st.audio("Protocol_Lecture.wav.mp3", format="audio/mpeg")
+    
+    # We changed "lecture.mp3" to "Protocol_Lecture.wav.mp3" so the system finds it
+    audio_file = "Protocol_Lecture.wav.mp3"
+    
+    if os.path.exists(audio_file):
+        st.audio(audio_file, format="audio/mpeg")
+        st.success(f"Playing: {audio_file}")
     else:
-        st.info("No audio lecture file (lecture.mp3) found in the station directory.")
+        st.error(f"⚠️ System Error: File '{audio_file}' not detected in repository.")
     
     st.divider()
+
+    # --- PDF VIEWER (Ensure this filename matches your GitHub too!) ---
+    if os.path.exists("gate_manual.pdf"):
+        pdf_viewer("gate_manual.pdf", height=700)
     
     # --- MANUAL VIEWER ---
     st.markdown("#### 📄 Gate 4 Manual")
