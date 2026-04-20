@@ -8,7 +8,7 @@ import openai
 from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 
-# 1. LOAD EXTERNAL CSS (Keeps your interface beautiful)
+# 1. LOAD EXTERNAL CSS
 def local_css(file_name):
     if os.path.exists(file_name):
         with open(file_name) as f:
@@ -17,14 +17,13 @@ def local_css(file_name):
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 local_css("css/style.css")
 
-# --- INITIALIZE MEMORY (THE RECENT ADDITION) ---
+# --- NEW: INITIALIZE CONVERSATION MEMORY ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # ====================== SYSTEM ENGINES ======================
 
 def digest_manual():
-    # Looks for your gate manual
     if os.path.exists("gate_manual.pdf"):
         try:
             with open("gate_manual.pdf", "rb") as f:
@@ -36,25 +35,22 @@ def digest_manual():
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str) -> str:
     manual_context = digest_manual()
-    
-    # Connect to the DeepSeek Server (PAID TIER)
-    client = openai.OpenAI(
-        api_key=st.secrets["DEEPSEEK_API_KEY"], 
-        base_url="https://api.deepseek.com"
-    )
+    client = openai.OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
 
-    # Tactical Security Rules
+    # Define Rules
     if mode == "Gate 4 Protocol":
         sys_rules = f"You are a Gate Security AI. Use ONLY this manual: {manual_context}. Be firm and precise."
     elif mode == "Driver Instruction":
         sys_rules = "Short, clear safety instructions for truck drivers. Professional translator."
+    elif mode == "Audit Mode":
+        sys_rules = "You are a Forensic Auditor. Analyze the provided historical logs to find specific plate numbers or incidents."
     else:
-        sys_rules = "You are a Real-Time Intelligence Engine. Date: April 20, 2026. Focus on site security and Law No. 3."
+        sys_rules = "You are a Real-Time Intelligence Engine. Date: April 20, 2026. Focus on site security."
 
-    # BUILD MEMORY PACKET (The "Precious" Memory Loop)
+    # --- INTEGRATING MEMORY LOOP ---
     conversation = [{"role": "system", "content": sys_rules}]
-    # We loop through session messages to keep the context alive
-    for msg in st.session_state.messages[-6:]: # Keeps the last 6 messages for stability
+    # Add last 5 exchanges to the current "Brain" state
+    for msg in st.session_state.messages[-5:]:
         conversation.append({"role": msg["role"], "content": msg["content"]})
     
     conversation.append({"role": "user", "content": prompt})
@@ -71,7 +67,8 @@ def falcon_query(prompt: str, mode: str) -> str:
 
 def save_log(report_text):
     with open("security_logs.txt", "a", encoding="utf-8") as f:
-        f.write(f"{report_text}\n{'='*50}\n")
+        # Adding a timestamp for the Audit engine to track months ago
+        f.write(f"DATE: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n{report_text}\n{'='*50}\n")
 
 # ====================== AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
@@ -90,16 +87,13 @@ if not st.session_state.auth:
 
 # ====================== DASHBOARD UI ======================
 
-# Logout Logic
-if st.sidebar.button("🔒 LOGOUT", type="secondary"):
+if st.button("🔒 LOGOUT", type="secondary"):
     st.session_state.auth = False
     st.rerun()
 
-# Forces the time to Dubai (UTC +4)
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 
-# HERO SECTION
 st.markdown("""
     <div style='text-align: left; padding: 40px 0 20px 0;'>
         <h1 class='falcon-title'>FALCON EYE</h1>
@@ -110,20 +104,19 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# COMMAND TABS
-t1, t2, t3 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS"])
+# --- COMMAND TABS ---
+t1, t2, t3, t4 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT"])
 
 with t1:
-    st.subheader("🔍 Knowledge Scan")
+    st.subheader("🔍 Knowledge Scan (With Memory)")
     k_mode = st.radio("Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
-    # CHAT HISTORY DISPLAY
+    # Display Memory Flow
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # INPUT BLOCK
-    if k_query := st.chat_input("Enter Protocol Query or Command..."):
+    if k_query := st.chat_input("Ask Falcon anything (it remembers our talk)..."):
         st.session_state.messages.append({"role": "user", "content": k_query})
         with st.chat_message("user"):
             st.markdown(k_query)
@@ -133,22 +126,9 @@ with t1:
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
-    st.divider()
-
-    # INTERCOM BOX
-    st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🚛 Driver Intercom")
-    full_langs = {"Bengali": "bn", "Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
-    d_lang = st.selectbox("Language:", list(full_langs.keys()))
-    
-    c1, c2 = st.columns([3, 1])
-    with c1: st.write("🎤 **Listen to Driver**")
-    with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
-
-    if driver_v:
-        intent = falcon_query(f"Driver said: {driver_v}", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI:</b> {intent}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    if st.button("🗑️ Clear Local Memory"):
+        st.session_state.messages = []
+        st.rerun()
 
 with t2:
     st.subheader("Manuals")
@@ -164,17 +144,34 @@ with t3:
     if st.button("🚀 GENERATE & SAVE LOG"):
         if notes:
             with st.spinner("Finalizing Report..."):
-                report = falcon_query(f"Format this into a professional security report: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
+                report = falcon_query(f"Format this: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
                 st.code(report)
                 save_log(report)
-                st.success("✅ Report Synchronized and Saved to Database.")
+                st.success("✅ Report Synchronized and Saved to Vault.")
         else:
             st.warning("Please enter observations first.")
 
+with t4:
+    st.subheader("🕵️ Supervisor Audit Terminal")
+    st.info("Cross-referencing saved history with Intelligence Core...")
+    
+    audit_query = st.text_input("Enter Plate Number, Name, or Event (e.g. 'Plate K-55 from 2 months ago'):")
+    
+    if st.button("🔍 RUN DEEP AUDIT"):
+        if os.path.exists("security_logs.txt") and audit_query:
+            with open("security_logs.txt", "r", encoding="utf-8") as f:
+                past_records = f.read()
+            
+            with st.spinner("Scanning Vaulted Records..."):
+                # We feed the entire log history to the AI specifically to find the audit target
+                audit_result = falcon_query(f"Search these logs for '{audit_query}' and summarize all reoccurrences: \n\n {past_records}", "Audit Mode")
+                st.markdown(f'<div class="intercom-box"><b>Audit Result:</b><br>{audit_result}</div>', unsafe_allow_html=True)
+        else:
+            st.warning("Database empty or no query entered.")
+
     st.divider()
-    st.subheader("📁 Archive: Recent Reports")
+    st.subheader("📁 Archive Access")
     if os.path.exists("security_logs.txt"):
         with open("security_logs.txt", "r", encoding="utf-8") as f:
             log_history = f.read()
-        st.text_area("Historical Records:", log_history, height=300, disabled=True)
-        st.download_button("📥 Download Full Log History", log_history, file_name="falcon_eye_logs.txt")
+        st.download_button("📥 Export Full Forensic History", log_history, file_name="falcon_forensics.txt")
