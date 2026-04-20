@@ -114,10 +114,7 @@ st.markdown('''
         <p class="hero-tagline">Tactical AI Intelligence & Protocol Management</p>
     </div>
 ''', unsafe_allow_html=True)
-
 # ... (t1, t2, and t3 remain the same)
-
-st.markdown("<h1 class='falcon-title'>FALCON EYE</h1><h2 class='gate-sub'>GATE 4 ● ONLINE</h2>", unsafe_allow_html=True)
 
 t1, t2, t3, t4 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT"])
 
