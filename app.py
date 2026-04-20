@@ -106,6 +106,7 @@ dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 
 # --- REFINED HERO DASHBOARD ---
+# --- REFINED HERO DASHBOARD ---
 st.markdown('''
     <div class="hero-container">
         <h1 class="hero-title">FALCON EYE</h1>
