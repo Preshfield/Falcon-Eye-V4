@@ -7,6 +7,27 @@ import openai
 from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 
+import gspread
+from google.oauth2.service_account import Credentials
+
+def save_to_google_sheets(worker, log_text):
+    try:
+        # 1. Access the keys from your Streamlit Secrets
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+        client = gspread.authorize(creds)
+        
+        # 2. Open your specific Google Sheet
+        sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
+        
+        # 3. Create the row
+        timestamp = datetime.now(timezone(timedelta(hours=4))).strftime("%Y-%m-%d %H:%M:%S")
+        sheet.append_row([timestamp, worker, log_text])
+        return True
+    except Exception as e:
+        st.error(f"Sheet Sync Error: {e}")
+        return False
+
 # 1. LOAD EXTERNAL CSS
 def local_css(file_name):
     if os.path.exists(file_name):
@@ -165,10 +186,15 @@ with t3:
         if notes:
             report = falcon_query(f"Format: {notes} | Officer: {st.session_state.current_worker}", "Gate 4 Protocol")
             st.code(report)
+            
+            # --- THE SYNC LOGIC ---
+            # Save to the local file (Backup)
             with open("security_logs.txt", "a", encoding="utf-8") as f:
                 f.write(f"DATE: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n{report}\n{'='*50}\n")
-            st.success("✅ Log Archived.")
-
+            
+            # Save to Google Sheets (Live Audit)
+            if save_to_google_sheets(st.session_state.current_worker, report):
+                st.success("✅ Log Synchronized to Falcon_Eye_Database.")
 with t4:
     st.subheader("🕵️ Supervisor Audit Terminal")
     audit_query = st.text_input("Search archives:")
