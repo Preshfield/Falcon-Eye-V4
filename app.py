@@ -102,11 +102,8 @@ def generate_shift_pdf(worker_name, logs):
     # Data Rows
     pdf.set_font("Arial", '', 9)
     for log in logs:
-        # Get Time and Details from the sheet row
         time_val = str(log.get("TIME", "N/A"))
         detail_val = str(log.get("LOG DETAILS", "N/A"))
-        
-        # Multi-line cell for long logs
         pdf.cell(30, 10, time_val, 1)
         pdf.multi_cell(160, 10, detail_val, 1)
         
@@ -293,14 +290,12 @@ with t4:
         else:
             st.info("Please enter a search term to begin the audit.")
 
-st.divider()
+    # --- HANDOVER REPORT SECTION MOVED INSIDE TAB 4 ---
+    st.divider()
     st.subheader("📋 End of Shift Handover")
     if st.button("📄 GENERATE FINAL SHIFT REPORT"):
-        # 1. Get all logs for the current worker today
         today_str = datetime.now(timezone(timedelta(hours=4))).strftime("%d-%m-%Y")
         all_data = search_logs(st.session_state.current_worker)
-        
-        # 2. Filter for only today's logs
         today_logs = [row for row in all_data if row.get("DATE") == today_str]
         
         if today_logs:
