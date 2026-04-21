@@ -117,29 +117,33 @@ def digest_manual():
         except: return ""
     return ""
 
-@st.cache_data(ttl=3600)
-def falcon_query(prompt: str, mode: str) -> str:
-    manual_context = digest_manual()
-    client = openai.OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
+# --- DUAL-MODE OPERATOR REPLY (TEXT OR VOICE) ---
+    st.write("💬 **Reply to Driver**")
+    
+    # 1. Voice Reply Option
+    operator_v = speech_to_text(language='en', start_prompt="🎤 VOICE REPLY", key='op_mic')
+    
+    # 2. Text Reply Option (Keeping your original box)
+    d_reply = st.text_input("Or type command here:", key="driver_reply_box")
+    
+    # Logic to handle whichever input you use (Voice or Text)
+    final_input = operator_v if operator_v else d_reply
 
-    if mode == "Gate 4 Protocol":
-        sys_rules = f"You are a Gate Security AI. Use ONLY this manual: {manual_context}. Be firm and precise."
-    elif mode == "Driver Instruction":
-        sys_rules = "Short, clear instructions for truck drivers. Professional translator."
-    else:
-        sys_rules = "Real-Time Intelligence Engine. Date: April 21, 2026."
-
-    conversation = [{"role": "system", "content": sys_rules}]
-    for msg in st.session_state.get("messages", [])[-10:]:
-        conversation.append({"role": msg["role"], "content": msg["content"]})
-    conversation.append({"role": "user", "content": prompt})
-
-    try:
-        completion = client.chat.completions.create(model="deepseek-chat", messages=conversation, stream=False)
-        return completion.choices[0].message.content
-    except Exception as e:
-        return f"FALCON ENGINE ERROR: {str(e)}"
-
+    if st.button("📤 SEND COMMAND TO DRIVER"):
+        if final_input:
+            with st.spinner("Translating..."):
+                # The AI converts your English (Voice or Text) to the Driver's Language
+                trans = falcon_query(f"Translate to {d_lang}: {final_input}", "Driver Instruction")
+                
+                st.success(f"**Translated ({d_lang}):** {trans}")
+                
+                # Generate and play the audio for the driver
+                tts = gTTS(text=trans, lang=full_langs[d_lang])
+                stream = io.BytesIO()
+                tts.write_to_fp(stream)
+                st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
+        else:
+            st.warning("Please provide a voice command or type a message.")
 # ====================== AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
