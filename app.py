@@ -78,10 +78,8 @@ def search_logs(query):
 
 # ====================== VISION SCANNER ENGINE ======================
 def process_receipt(image_file):
-    # Using GPT-4o for handwriting recognition
     client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
-
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -89,7 +87,7 @@ def process_receipt(image_file):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Extract details from this manual log/receipt: Date, Name, Amount, and Receipt Number. Format as a clean summary. If handwriting is bad, provide best guess."},
+                        {"type": "text", "text": "Extract details from this manual document: Date, Name, Amount, and Receipt Number. Format as clean text. If handwriting is messy, provide your best guess."},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                     ],
                 }
@@ -105,22 +103,17 @@ def generate_shift_pdf(worker_name, logs):
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(190, 10, "FALCON EYE - SHIFT HANDOVER REPORT", ln=True, align='C')
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(190, 10, f"Station: GATE 4 | Date: {datetime.now().strftime('%d-%m-%Y')}", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(190, 10, f"Outgoing Operator: {worker_name}", ln=True)
+    pdf.cell(190, 10, f"Operator: {worker_name}", ln=True)
     pdf.ln(5)
     pdf.set_fill_color(173, 255, 47) 
-    pdf.set_font("Arial", 'B', 10)
     pdf.cell(30, 10, "TIME", 1, 0, 'C', True)
     pdf.cell(160, 10, "LOG DETAILS", 1, 1, 'C', True)
     pdf.set_font("Arial", '', 9)
     for log in logs:
-        time_val = str(log.get("TIME", "N/A"))
-        detail_val = str(log.get("LOG DETAILS", "N/A"))
-        pdf.cell(30, 10, time_val, 1)
-        pdf.multi_cell(160, 10, detail_val, 1)
+        pdf.cell(30, 10, str(log.get("TIME", "N/A")), 1)
+        pdf.multi_cell(160, 10, str(log.get("LOG DETAILS", "N/A")), 1)
     return pdf.output(dest='S').encode('latin-1')
 
 # ====================== MULTI-SESSION MEMORY ENGINE ======================
@@ -157,7 +150,7 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     elif mode == "Driver Instruction":
         sys_rules = "Short instructions for truck drivers. Translator."
     else:
-        sys_rules = "Real-Time Intelligence Engine. April 21, 2026."
+        sys_rules = "Real-Time Intelligence Engine. Station: Dubai DWC Gate 4."
     
     conversation = [{"role": "system", "content": sys_rules}]
     if chat_history:
@@ -173,6 +166,7 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
 if "auth" not in st.session_state: st.session_state.auth = False
+
 if not st.session_state.auth:
     st.title("🦅 FALCON EYE | LOGIN")
     user_identity = st.selectbox("USER:", list(WORKER_DB.keys()))
@@ -181,16 +175,20 @@ if not st.session_state.auth:
         if user_password == WORKER_DB[user_identity]:
             st.session_state.auth = True
             st.session_state.current_worker = user_identity
+            # FIXED: Initialize sessions immediately upon login
             st.session_state.all_sessions = load_all_sessions(user_identity)
             st.rerun()
     st.stop()
 
 # ====================== DASHBOARD UI ======================
+# Safety catch: Ensure sessions are loaded if app refreshes
+if "all_sessions" not in st.session_state:
+    st.session_state.all_sessions = load_all_sessions(st.session_state.current_worker)
+
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
 with st.sidebar:
     st.title("🦅 MISSION LOGS")
-    
     if st.button("➕ START NEW CHAT", use_container_width=True):
         new_id = f"Session {len(st.session_state.all_sessions) + 1} ({dubai_time})"
         st.session_state.all_sessions[new_id] = []
@@ -199,7 +197,11 @@ with st.sidebar:
 
     st.divider()
     chat_list = list(st.session_state.all_sessions.keys())
-    selected_chat = st.radio("History:", chat_list, index=chat_list.index(st.session_state.get('current_chat_id', chat_list[0])))
+    # Ensure current_chat_id is valid
+    if "current_chat_id" not in st.session_state or st.session_state.current_chat_id not in chat_list:
+        st.session_state.current_chat_id = chat_list[0]
+    
+    selected_chat = st.radio("History:", chat_list, index=chat_list.index(st.session_state.current_chat_id))
     st.session_state.current_chat_id = selected_chat
     st.session_state.messages = st.session_state.all_sessions[selected_chat]
 
@@ -243,7 +245,7 @@ with t1:
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
-    full_langs = {"Arabic": "ar", "Bengali": "bn", "Hindi": "hi", "Tagalog": "tl", "Urdu": "ur"} # Simplified for brevity
+    full_langs = {"Arabic": "ar", "Bengali": "bn", "Hindi": "hi", "Tagalog": "tl", "Urdu": "ur"} 
     d_lang = st.selectbox("Select Driver Language:", list(full_langs.keys()))
     c1, c2 = st.columns([3, 1])
     with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
@@ -289,12 +291,11 @@ with t4:
     if st.button("📄 GENERATE HANDOVER PDF"):
         all_data = search_logs(st.session_state.current_worker)
         if all_data:
-            pdf_data = generate_shift_pdf(st.session_state.current_worker, all_data[-5:])
+            pdf_data = generate_shift_pdf(st.session_state.current_worker, all_data[-10:])
             st.download_button("📥 Download Report", pdf_data, "Handover.pdf", "application/pdf")
 
 with t5:
     st.subheader("📟 Digital Ledger Scanner")
-    st.info("Capture Day Passes or Receipts to automate data entry.")
     captured_image = st.camera_input("Scan Document")
     if captured_image:
         with st.spinner("Falcon Eye is reading document..."):
