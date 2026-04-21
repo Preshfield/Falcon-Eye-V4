@@ -9,3 +9,4 @@ streamlit-mic-recorder
 streamlit-pdf-viewer
 duckduckgo-search
 openai
+fpdf
