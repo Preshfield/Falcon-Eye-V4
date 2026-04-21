@@ -172,47 +172,44 @@ if not st.session_state.auth:
             st.rerun()
     st.stop()
 
-# ====================== 5. DASHBOARD UI (STABILIZED) ======================
+# ====================== 5. DASHBOARD UI (IRONCLAD VERSION) ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
-if st.session_state.auth:
+if st.session_state.get("auth"):
     with st.sidebar:
         st.title("🦅 MISSION LOGS")
         
-        # --- HARDENED DATA FETCHING ---
-        # 1. Start with a safe default
-        chat_list = ["New Conversation"] 
+        # --- SHIELDED DATA FETCHING ---
+        # Using .get() with a default empty dict to prevent AttributeError
+        sessions_data = st.session_state.get("all_sessions")
+        if not isinstance(sessions_data, dict):
+            sessions_data = {"New Conversation": []}
+            st.session_state.all_sessions = sessions_data
         
-        # 2. Try to get real data from session state
-        sessions_data = st.session_state.get("all_sessions", {})
-        
-        # 3. Double-check keys exist before converting to list
-        if sessions_data and isinstance(sessions_data, dict):
-            chat_list = list(sessions_data.keys())
+        chat_list = list(sessions_data.keys())
         
         if st.button("➕ START NEW CHAT", use_container_width=True):
             new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
-            if "all_sessions" not in st.session_state:
-                st.session_state.all_sessions = {}
             st.session_state.all_sessions[new_id] = []
             st.session_state.current_chat_id = new_id
             st.rerun()
 
         st.divider()
         
-        # --- SAFE SELECTION LOGIC ---
-        if st.session_state.current_chat_id not in chat_list:
-            st.session_state.current_chat_id = chat_list[0] if chat_list else "New Conversation"
+        # --- SHIELDED SELECTION ---
+        current_id = st.session_state.get("current_chat_id", "New Conversation")
+        if current_id not in chat_list:
+            current_id = chat_list[0] if chat_list else "New Conversation"
         
         try:
-            curr_index = chat_list.index(st.session_state.current_chat_id)
+            curr_index = chat_list.index(current_id)
         except (ValueError, IndexError):
             curr_index = 0
 
         selected_chat = st.radio("History:", chat_list, index=curr_index)
         st.session_state.current_chat_id = selected_chat
         
-        # Final safety check for message retrieval
+        # SHIELDED MESSAGE LOAD: Final guard against the error in your rrr.jpeg
         st.session_state.messages = sessions_data.get(selected_chat, [])
 
         st.divider()
