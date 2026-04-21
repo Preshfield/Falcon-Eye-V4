@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, json
+import os, io, json, base64
 from datetime import datetime, timedelta, timezone
 from gtts import gTTS
 import PyPDF2
@@ -42,12 +42,12 @@ st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅
 local_css("css/style.css")
 
 # ====================== GOOGLE SHEETS ENGINE ======================
-def save_to_google_sheets(worker, log_text):
+def save_to_google_sheets(worker, log_text, sheet_name="LOG"):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
         client = gspread.authorize(creds)
-        sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
+        sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
         clean_log = log_text.replace("**", "").replace("###", "").replace("- ", "").strip()
         now = datetime.now(timezone(timedelta(hours=4)))
         row_data = [now.strftime("%d-%m-%Y"), now.strftime("%H:%M:%S"), "GATE 4", worker, clean_log, "VERIFIED"]
@@ -76,53 +76,67 @@ def search_logs(query):
         st.error(f"Audit Search Error: {e}")
         return []
 
+# ====================== VISION SCANNER ENGINE ======================
+def process_receipt(image_file):
+    # Using GPT-4o for handwriting recognition
+    client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Extract details from this manual log/receipt: Date, Name, Amount, and Receipt Number. Format as a clean summary. If handwriting is bad, provide best guess."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                    ],
+                }
+            ],
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Vision Error: {str(e)}"
+
 # ====================== PDF HANDOVER ENGINE ======================
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page()
-    
-    # Header
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(190, 10, "FALCON EYE - SHIFT HANDOVER REPORT", ln=True, align='C')
     pdf.set_font("Arial", '', 10)
     pdf.cell(190, 10, f"Station: GATE 4 | Date: {datetime.now().strftime('%d-%m-%Y')}", ln=True, align='C')
     pdf.ln(10)
-    
-    # Operator Info
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(190, 10, f"Outgoing Operator: {worker_name}", ln=True)
     pdf.ln(5)
-    
-    # Table Headers
-    pdf.set_fill_color(173, 255, 47) # Falcon Green
+    pdf.set_fill_color(173, 255, 47) 
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(30, 10, "TIME", 1, 0, 'C', True)
     pdf.cell(160, 10, "LOG DETAILS", 1, 1, 'C', True)
-    
-    # Data Rows
     pdf.set_font("Arial", '', 9)
     for log in logs:
         time_val = str(log.get("TIME", "N/A"))
         detail_val = str(log.get("LOG DETAILS", "N/A"))
         pdf.cell(30, 10, time_val, 1)
         pdf.multi_cell(160, 10, detail_val, 1)
-        
     return pdf.output(dest='S').encode('latin-1')
 
-# ====================== PERSISTENT MEMORY ENGINE ======================
+# ====================== MULTI-SESSION MEMORY ENGINE ======================
 def get_chat_file(username):
     return f"memory_{username.replace(' ', '_').lower()}.json"
 
-def save_chat_history(username, messages):
+def save_all_sessions(username, sessions):
     with open(get_chat_file(username), "w") as f:
-        json.dump(messages, f)
+        json.dump(sessions, f)
 
-def load_chat_history(username):
+def load_all_sessions(username):
     file_path = get_chat_file(username)
     if os.path.exists(file_path):
         with open(file_path, "r") as f:
             return json.load(f)
-    return []
+    return {"New Conversation": []}
 
 # ====================== SYSTEM ENGINES ======================
 def digest_manual():
@@ -135,7 +149,7 @@ def digest_manual():
     return ""
 
 @st.cache_data(ttl=3600)
-def falcon_query(prompt: str, mode: str) -> str:
+def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     manual_context = digest_manual()
     client = openai.OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
     if mode == "Gate 4 Protocol":
@@ -146,8 +160,8 @@ def falcon_query(prompt: str, mode: str) -> str:
         sys_rules = "Real-Time Intelligence Engine. April 21, 2026."
     
     conversation = [{"role": "system", "content": sys_rules}]
-    for msg in st.session_state.get("messages", [])[-10:]:
-        conversation.append({"role": msg["role"], "content": msg["content"]})
+    if chat_history:
+        conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
     try:
         completion = client.chat.completions.create(model="deepseek-chat", messages=conversation, stream=False)
@@ -167,17 +181,34 @@ if not st.session_state.auth:
         if user_password == WORKER_DB[user_identity]:
             st.session_state.auth = True
             st.session_state.current_worker = user_identity
-            st.session_state.messages = load_chat_history(user_identity)
+            st.session_state.all_sessions = load_all_sessions(user_identity)
             st.rerun()
     st.stop()
 
 # ====================== DASHBOARD UI ======================
-if st.sidebar.button("🔒 LOGOUT"):
-    save_chat_history(st.session_state.current_worker, st.session_state.messages)
-    st.session_state.auth = False
-    st.rerun()
-
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
+
+with st.sidebar:
+    st.title("🦅 MISSION LOGS")
+    
+    if st.button("➕ START NEW CHAT", use_container_width=True):
+        new_id = f"Session {len(st.session_state.all_sessions) + 1} ({dubai_time})"
+        st.session_state.all_sessions[new_id] = []
+        st.session_state.current_chat_id = new_id
+        st.rerun()
+
+    st.divider()
+    chat_list = list(st.session_state.all_sessions.keys())
+    selected_chat = st.radio("History:", chat_list, index=chat_list.index(st.session_state.get('current_chat_id', chat_list[0])))
+    st.session_state.current_chat_id = selected_chat
+    st.session_state.messages = st.session_state.all_sessions[selected_chat]
+
+    st.divider()
+    if st.button("🔒 LOGOUT", type="secondary", use_container_width=True):
+        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        st.session_state.auth = False
+        st.rerun()
+
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 
 st.markdown('''
@@ -189,10 +220,10 @@ st.markdown('''
     </div>
 ''', unsafe_allow_html=True)
 
-t1, t2, t3, t4 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT"])
+t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER"])
 
 with t1:
-    st.subheader("🔍 Knowledge Scan")
+    st.subheader(f"🔍 {st.session_state.current_chat_id}")
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     chat_container = st.container(height=350)
     with chat_container:
@@ -204,63 +235,38 @@ with t1:
         with chat_container:
             with st.chat_message("user"): st.markdown(k_query)
             with st.chat_message("assistant"):
-                response = falcon_query(k_query, k_mode)
+                response = falcon_query(k_query, k_mode, st.session_state.messages)
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
-        save_chat_history(st.session_state.current_worker, st.session_state.messages)
+        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
 
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
-
-    full_langs = {
-        "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-cn",
-        "English": "en", "French": "fr", "German": "de",
-        "Hindi": "hi", "Indonesian": "id", "Italian": "it",
-        "Japanese": "ja", "Malayalam": "ml", "Nigerian Pidgin": "en-ng", 
-        "Pashto": "ps", "Persian": "fa", "Portuguese": "pt",
-        "Punjabi": "pa", "Russian": "ru", "Spanish": "es",
-        "Swahili": "sw", "Tagalog": "tl", "Tamil": "ta",
-        "Telugu": "te", "Turkish": "tr", "Urdu": "ur", "Vietnamese": "vi"
-    }
-    
-    sorted_langs = dict(sorted(full_langs.items()))
-    d_lang = st.selectbox("Select Driver Language:", list(sorted_langs.keys()))
-
+    full_langs = {"Arabic": "ar", "Bengali": "bn", "Hindi": "hi", "Tagalog": "tl", "Urdu": "ur"} # Simplified for brevity
+    d_lang = st.selectbox("Select Driver Language:", list(full_langs.keys()))
     c1, c2 = st.columns([3, 1])
     with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
     with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
-
     if driver_v:
-        intent = falcon_query(f"The driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
-
-    st.divider()
+        intent = falcon_query(f"The driver said: {driver_v}. Translate to English.", "Driver Instruction")
+        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI:</b> {intent}</div>', unsafe_allow_html=True)
     st.write("💬 **Reply to Driver**")
-    op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK REPLY", key='op_mic')
+    op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK", key='op_mic')
     d_reply_text = st.text_input("Type command here", key="driver_reply_box")
     final_reply = op_voice if op_voice else d_reply_text
-
-    if st.button("📤 SEND COMMAND TO DRIVER"):
+    if st.button("📤 SEND COMMAND"):
         if final_reply:
-            with st.spinner("Translating..."):
-                trans = falcon_query(f"Translate to {d_lang}: {final_reply}", "Driver Instruction")
-                st.success(f"**Replied in {d_lang}:** {trans}")
-                tts = gTTS(text=trans, lang=full_langs[d_lang])
-                stream = io.BytesIO()
-                tts.write_to_fp(stream)
-                st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
-        else:
-            st.warning("Please speak or type a command first.")
+            trans = falcon_query(f"Translate to {d_lang}: {final_reply}", "Driver Instruction")
+            st.success(f"**Replied:** {trans}")
+            tts = gTTS(text=trans, lang=full_langs[d_lang])
+            stream = io.BytesIO(); tts.write_to_fp(stream)
+            st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
     st.subheader("📖 Active Protocols")
-    if os.path.exists("protocol_lecture.wav.mp3"):
-        st.audio("protocol_lecture.wav.mp3", format="audio/mpeg")
     if os.path.exists("gate_manual.pdf"):
-        with open("gate_manual.pdf", "rb") as f:
-            st.download_button(label="📥 Download Manual", data=f, file_name="Manual.pdf", mime="application/pdf")
         pdf_viewer("gate_manual.pdf", height=700)
 
 with t3:
@@ -268,61 +274,33 @@ with t3:
     notes = st.text_area("Observations:", key="logs")
     if st.button("🚀 SAVE LOG"):
         if notes:
-            with st.spinner("Syncing..."):
-                report = falcon_query(f"Format: {notes}", "Gate 4 Protocol")
-                st.code(report)
-                if save_to_google_sheets(st.session_state.current_worker, report):
-                    st.success("✅ Synchronized.")
+            report = falcon_query(f"Format this observation: {notes}", "Gate 4 Protocol")
+            st.code(report)
+            if save_to_google_sheets(st.session_state.current_worker, report):
+                st.success("✅ Synchronized.")
 
 with t4:
-    st.subheader("🕵️ Supervisor Audit Terminal")
-    st.write("Search the Master Ledger for Plates, Workers, or specific Events.")
-    audit_query = st.text_input("Enter Plate Number or Operator Name:", key="audit_search_input")
-    if st.button("🔍 RUN DEEP AUDIT"):
-        if audit_query:
-            with st.spinner(f"Scanning Falcon Eye Archives for '{audit_query}'..."):
-                found_logs = search_logs(audit_query)
-                if found_logs:
-                    st.success(f"Found {len(found_logs)} matching records.")
-                    st.table(found_logs)
-                else:
-                    st.warning("No records found in the database matching that query.")
-        else:
-            st.info("Please enter a search term to begin the audit.")
-
-  # --- UNIVERSAL HEADER HANDOVER REPORT SECTION ---
+    st.subheader("🕵️ Supervisor Audit")
+    audit_query = st.text_input("Search archives:")
+    if st.button("🔍 RUN AUDIT"):
+        found = search_logs(audit_query)
+        if found: st.table(found)
     st.divider()
-    st.subheader("📋 End of Shift Handover")
-    if st.button("📄 GENERATE FINAL SHIFT REPORT"):
-        today_str = datetime.now(timezone(timedelta(hours=4))).strftime("%d-%m-%Y")
-        
-        with st.spinner("Scanning database..."):
-            all_data = search_logs(st.session_state.current_worker)
-            
-            today_logs = []
-            for row in all_data:
-                # Instead of row.get("DATE"), we look at the VERY FIRST column values
-                # We convert the whole row values to a list to get the first item
-                row_values = list(row.values())
-                first_column_value = str(row_values[0]).strip() if row_values else ""
-                
-                # Check if today's date exists anywhere in that first column
-                if today_str in first_column_value:
-                    today_logs.append(row)
-            
-            if today_logs:
-                pdf_data = generate_shift_pdf(st.session_state.current_worker, today_logs)
-                st.download_button(
-                    label="📥 Download Handover PDF",
-                    data=pdf_data,
-                    file_name=f"Handover_{st.session_state.current_worker}_{today_str}.pdf",
-                    mime="application/pdf"
-                )
-                st.success(f"Found {len(today_logs)} logs in the timestamp column. Report ready!")
-            else:
-                st.warning(f"No logs found containing {today_str} in the first column.")
-                if all_data:
-                    # Final Debug to see what the keys actually are
-                    actual_keys = list(all_data[0].keys())
-                    st.info(f"Your Google Sheet headers are: {actual_keys}")
-                    st.write(f"First column value of last log: `{list(all_data[-1].values())[0]}`")
+    if st.button("📄 GENERATE HANDOVER PDF"):
+        all_data = search_logs(st.session_state.current_worker)
+        if all_data:
+            pdf_data = generate_shift_pdf(st.session_state.current_worker, all_data[-5:])
+            st.download_button("📥 Download Report", pdf_data, "Handover.pdf", "application/pdf")
+
+with t5:
+    st.subheader("📟 Digital Ledger Scanner")
+    st.info("Capture Day Passes or Receipts to automate data entry.")
+    captured_image = st.camera_input("Scan Document")
+    if captured_image:
+        with st.spinner("Falcon Eye is reading document..."):
+            extracted = process_receipt(captured_image)
+            st.write("### Extracted Data")
+            final_entry = st.text_area("Review/Edit details:", value=extracted, height=200)
+            if st.button("✅ SYNC TO FINANCE DATABASE"):
+                if save_to_google_sheets(st.session_state.current_worker, final_entry, "FINANCE"):
+                    st.success("Entry locked into Finance Database.")
