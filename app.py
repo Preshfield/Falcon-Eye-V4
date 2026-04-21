@@ -10,10 +10,10 @@ from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 from fpdf import FPDF
 
-# ====================== 1. CRITICAL INITIALIZATION (THE "FIX") ======================
+# ====================== 1. CRITICAL INITIALIZATION ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 
-# HARD INITIALIZATION: Force these to exist immediately
+# Global Fallbacks to prevent crashes on first run
 if "auth" not in st.session_state:
     st.session_state.auth = False
 if "all_sessions" not in st.session_state:
@@ -112,8 +112,10 @@ def generate_shift_pdf(worker_name, logs):
     pdf.cell(30, 10, "TIME", 1, 0, 'C', True); pdf.cell(160, 10, "LOG DETAILS", 1, 1, 'C', True)
     pdf.set_font("Arial", '', 9)
     for log in logs:
+        # encoding log details to latin-1 to prevent FPDF character errors
+        log_txt = str(log.get("LOG DETAILS", "N/A")).encode('latin-1', 'replace').decode('latin-1')
         pdf.cell(30, 10, str(log.get("TIME", "N/A")), 1)
-        pdf.multi_cell(160, 10, str(log.get("LOG DETAILS", "N/A")), 1)
+        pdf.multi_cell(160, 10, log_txt, 1)
     return pdf.output(dest='S').encode('latin-1')
 
 def get_chat_file(username):
@@ -170,37 +172,46 @@ if not st.session_state.auth:
             st.rerun()
     st.stop()
 
-# ====================== 5. DASHBOARD UI (THE CRITICAL FIX) ======================
+# ====================== 5. DASHBOARD UI ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
-with st.sidebar:
-    st.title("🦅 MISSION LOGS")
-    
-    # We use .get() and an empty dictionary fallback to prevent the .keys() error
-    sessions_data = st.session_state.get("all_sessions", {"New Conversation": []})
-    chat_list = list(sessions_data.keys())
-    
-    if st.button("➕ START NEW CHAT", use_container_width=True):
-        new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
-        st.session_state.all_sessions[new_id] = []
-        st.session_state.current_chat_id = new_id
-        st.rerun()
+if st.session_state.auth:
+    with st.sidebar:
+        st.title("🦅 MISSION LOGS")
+        
+        # SAFETY: Ensure sessions data is always available
+        current_sessions = st.session_state.get("all_sessions", {"New Conversation": []})
+        chat_list = list(current_sessions.keys())
+        
+        if st.button("➕ START NEW CHAT", use_container_width=True):
+            new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
+            st.session_state.all_sessions[new_id] = []
+            st.session_state.current_chat_id = new_id
+            st.rerun()
 
-    st.divider()
-    
-    if st.session_state.current_chat_id not in chat_list:
-        st.session_state.current_chat_id = chat_list[0] if chat_list else "New Conversation"
-    
-    selected_chat = st.radio("History:", chat_list, index=chat_list.index(st.session_state.current_chat_id))
-    st.session_state.current_chat_id = selected_chat
-    st.session_state.messages = sessions_data.get(selected_chat, [])
+        st.divider()
+        
+        # SAFETY: Re-validate current_chat_id against chat_list
+        if st.session_state.current_chat_id not in chat_list:
+             st.session_state.current_chat_id = chat_list[0] if chat_list else "New Conversation"
+        
+        # Use a Try/Except here because rapid clicks on radio buttons can cause index errors in Streamlit
+        try:
+            curr_index = chat_list.index(st.session_state.current_chat_id)
+        except ValueError:
+            curr_index = 0
 
-    st.divider()
-    if st.button("🔒 LOGOUT", type="secondary", use_container_width=True):
-        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-        st.session_state.auth = False
-        st.rerun()
+        selected_chat = st.radio("History:", chat_list, index=curr_index)
+        st.session_state.current_chat_id = selected_chat
+        st.session_state.messages = current_sessions.get(selected_chat, [])
 
+        st.divider()
+        if st.button("🔒 LOGOUT", type="secondary", use_container_width=True):
+            save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+            st.session_state.auth = False
+            st.rerun()
+
+# Main Header
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 
 st.markdown('''
@@ -214,7 +225,7 @@ st.markdown('''
 
 t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER"])
 
-# [THE REST OF YOUR ORIGINAL FUNCTIONAL CODE CONTINUES BELOW]
+# [Intelligence Tab Content]
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
@@ -231,6 +242,8 @@ with t1:
                 response = falcon_query(k_query, k_mode, st.session_state.messages)
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
+        # Update session state with new messages
+        st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
 
     st.divider()
@@ -272,11 +285,13 @@ with t1:
                 st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# [Protocol Tab Content]
 with t2:
     st.subheader("📖 Active Protocols")
     if os.path.exists("gate_manual.pdf"): pdf_viewer("gate_manual.pdf", height=700)
     else: st.warning("Manual file 'gate_manual.pdf' not found.")
 
+# [Logs Tab Content]
 with t3:
     st.subheader("📋 Security Logs")
     notes = st.text_area("Observations:", key="logs_input")
@@ -287,6 +302,7 @@ with t3:
                 st.code(report)
                 if save_to_google_sheets(st.session_state.current_worker, report): st.success("✅ Synchronized.")
 
+# [Audit Tab Content]
 with t4:
     st.subheader("🕵️ Supervisor Audit Terminal")
     audit_query = st.text_input("Search archives (Plate No, Name):")
@@ -304,6 +320,7 @@ with t4:
             st.download_button("📥 Download Handover PDF", pdf_data, f"Handover_{st.session_state.current_worker}.pdf", "application/pdf")
         else: st.error("No log data available to generate report.")
 
+# [Scanner Tab Content]
 with t5:
     st.subheader("📟 Digital Ledger Scanner")
     st.info("Scan Day Passes or Receipts to automate entries.")
