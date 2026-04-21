@@ -183,6 +183,7 @@ with t1:
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
         save_chat_history(st.session_state.current_worker, st.session_state.messages)
+
 st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
@@ -202,7 +203,7 @@ st.divider()
     sorted_langs = dict(sorted(full_langs.items()))
     d_lang = st.selectbox("Select Driver Language:", list(sorted_langs.keys()))
 
-    # LISTEN TO DRIVER
+    # --- SECTION: LISTEN TO DRIVER ---
     c1, c2 = st.columns([3, 1])
     with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
     with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
@@ -213,7 +214,7 @@ st.divider()
 
     st.divider()
 
-    # REPLY TO DRIVER
+    # --- SECTION: REPLY TO DRIVER ---
     st.write("💬 **Reply to Driver**")
     op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK REPLY", key='op_mic')
     d_reply_text = st.text_input("Type command here", key="driver_reply_box")
