@@ -290,22 +290,24 @@ with t4:
         else:
             st.info("Please enter a search term to begin the audit.")
 
-   # --- TIMESTAMP-AWARE HANDOVER REPORT SECTION ---
+  # --- UNIVERSAL HEADER HANDOVER REPORT SECTION ---
     st.divider()
     st.subheader("📋 End of Shift Handover")
     if st.button("📄 GENERATE FINAL SHIFT REPORT"):
         today_str = datetime.now(timezone(timedelta(hours=4))).strftime("%d-%m-%Y")
         
-        with st.spinner(f"Scanning Timestamps for {st.session_state.current_worker}..."):
+        with st.spinner("Scanning database..."):
             all_data = search_logs(st.session_state.current_worker)
             
             today_logs = []
             for row in all_data:
-                # We check Column A (DATE or TIMESTAMP)
-                # This 'in' logic works even if there is a time attached!
-                sheet_timestamp = str(row.get("DATE", "")).strip()
+                # Instead of row.get("DATE"), we look at the VERY FIRST column values
+                # We convert the whole row values to a list to get the first item
+                row_values = list(row.values())
+                first_column_value = str(row_values[0]).strip() if row_values else ""
                 
-                if today_str in sheet_timestamp:
+                # Check if today's date exists anywhere in that first column
+                if today_str in first_column_value:
                     today_logs.append(row)
             
             if today_logs:
@@ -316,10 +318,11 @@ with t4:
                     file_name=f"Handover_{st.session_state.current_worker}_{today_str}.pdf",
                     mime="application/pdf"
                 )
-                st.success(f"Successfully captured {len(today_logs)} logs from today's timestamps.")
+                st.success(f"Found {len(today_logs)} logs in the timestamp column. Report ready!")
             else:
-                st.warning(f"No logs found where the timestamp contains: {today_str}")
+                st.warning(f"No logs found containing {today_str} in the first column.")
                 if all_data:
-                    # Let's see exactly what a row looks like to be 100% sure
-                    example_row = all_data[-1]
-                    st.info(f"Debug: The system is looking for `{today_str}` inside your first column, which currently looks like: `{example_row.get('DATE')}`")
+                    # Final Debug to see what the keys actually are
+                    actual_keys = list(all_data[0].keys())
+                    st.info(f"Your Google Sheet headers are: {actual_keys}")
+                    st.write(f"First column value of last log: `{list(all_data[-1].values())[0]}`")
