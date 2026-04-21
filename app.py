@@ -64,16 +64,26 @@ def search_logs(query):
         client = gspread.authorize(creds)
         sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
         
-        # Get all records from the sheet
-        all_records = sheet.get_all_records()
+        # We use get_all_values() instead of get_all_records() 
+        # to ensure we see EVERYTHING even if headers are weird.
+        all_rows = sheet.get_all_values()
         
-        # Filter records based on the search query
-        results = [row for row in all_records if query.lower() in str(row).lower()]
+        if not all_rows:
+            return []
+
+        header = all_rows[0]
+        results = []
+        
+        for row in all_rows[1:]: # Skip the header row
+            # Check if query is in ANY cell of this row
+            if any(query.lower() in str(cell).lower() for cell in row):
+                # Create a dictionary so it looks nice in st.table
+                results.append(dict(zip(header, row)))
+                
         return results
     except Exception as e:
         st.error(f"Audit Search Error: {e}")
         return []
-
 # ====================== PERSISTENT MEMORY ENGINE ======================
 def get_chat_file(username):
     return f"memory_{username.replace(' ', '_').lower()}.json"
