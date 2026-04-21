@@ -10,16 +10,18 @@ from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 from fpdf import FPDF
 
-# ====================== 1. CRITICAL INITIALIZATION (FIXES ATTRIBUTE ERROR) ======================
+# ====================== 1. CRITICAL INITIALIZATION (THE "FIX") ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 
-# This block MUST run before the sidebar logic to prevent the "all_sessions" AttributeError
+# Initialize state BEFORE any sidebar or logic runs to prevent AttributeErrors
 if "auth" not in st.session_state:
     st.session_state.auth = False
 if "all_sessions" not in st.session_state:
     st.session_state.all_sessions = {"New Conversation": []}
 if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = "New Conversation"
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # ====================== 2. FULL RESTORED CSS ======================
 def local_css(file_name):
@@ -54,7 +56,7 @@ def local_css(file_name):
 
 local_css("css/style.css")
 
-# ====================== 3. ENGINES (RESTORED) ======================
+# ====================== 3. ENGINES ======================
 def save_to_google_sheets(worker, log_text, sheet_name="LOG"):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -67,7 +69,7 @@ def save_to_google_sheets(worker, log_text, sheet_name="LOG"):
         sheet.append_row(row_data)
         return True
     except Exception as e:
-        st.error(f"Sync Error: {e}"); return False
+        st.error(f"Cloud Sync Unavailable: {e}"); return False
 
 def search_logs(query):
     try:
@@ -78,11 +80,7 @@ def search_logs(query):
         all_rows = sheet.get_all_values()
         if not all_rows: return []
         header = all_rows[0]
-        results = []
-        for row in all_rows[1:]:
-            if any(query.lower() in str(cell).lower() for cell in row):
-                results.append(dict(zip(header, row)))
-        return results
+        return [dict(zip(header, row)) for row in all_rows[1:] if any(query.lower() in str(c).lower() for c in row)]
     except Exception as e:
         st.error(f"Audit Search Error: {e}"); return []
 
@@ -93,7 +91,7 @@ def process_receipt(image_file):
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": [
-                {"type": "text", "text": "Extract details from this manual document: Date, Name, Amount, and Receipt Number. Format as clean text for database entry."},
+                {"type": "text", "text": "Extract details: Date, Name, Amount, and Receipt Number."},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
             ]}],
         )
@@ -102,47 +100,37 @@ def process_receipt(image_file):
 
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
+    pdf.add_page(); pdf.set_font("Arial", 'B', 16)
     pdf.cell(190, 10, "FALCON EYE - SHIFT HANDOVER REPORT", ln=True, align='C')
     pdf.set_font("Arial", '', 10)
     pdf.cell(190, 10, f"Station: GATE 4 | Date: {datetime.now().strftime('%d-%m-%Y')}", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(190, 10, f"Outgoing Operator: {worker_name}", ln=True)
-    pdf.ln(5)
-    pdf.set_fill_color(173, 255, 47) 
-    pdf.set_font("Arial", 'B', 10)
-    pdf.cell(30, 10, "TIME", 1, 0, 'C', True)
-    pdf.cell(160, 10, "LOG DETAILS", 1, 1, 'C', True)
+    pdf.ln(10); pdf.set_font("Arial", 'B', 12)
+    pdf.cell(190, 10, f"Operator: {worker_name}", ln=True); pdf.ln(5)
+    pdf.set_fill_color(173, 255, 47); pdf.set_font("Arial", 'B', 10)
+    pdf.cell(30, 10, "TIME", 1, 0, 'C', True); pdf.cell(160, 10, "LOG DETAILS", 1, 1, 'C', True)
     pdf.set_font("Arial", '', 9)
     for log in logs:
-        time_val = str(log.get("TIME", "N/A"))
-        detail_val = str(log.get("LOG DETAILS", "N/A"))
-        pdf.cell(30, 10, time_val, 1)
-        pdf.multi_cell(160, 10, detail_val, 1)
+        pdf.cell(30, 10, str(log.get("TIME", "N/A")), 1)
+        pdf.multi_cell(160, 10, str(log.get("LOG DETAILS", "N/A")), 1)
     return pdf.output(dest='S').encode('latin-1')
 
 def get_chat_file(username):
     return f"memory_{username.replace(' ', '_').lower()}.json"
 
 def save_all_sessions(username, sessions):
-    with open(get_chat_file(username), "w") as f:
-        json.dump(sessions, f)
+    with open(get_chat_file(username), "w") as f: json.dump(sessions, f)
 
 def load_all_sessions(username):
     file_path = get_chat_file(username)
     if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            return json.load(f)
+        with open(file_path, "r") as f: return json.load(f)
     return {"New Conversation": []}
 
 def digest_manual():
     if os.path.exists("gate_manual.pdf"):
         try:
             with open("gate_manual.pdf", "rb") as f:
-                reader = PyPDF2.PdfReader(f)
-                return "".join([page.extract_text() for page in reader.pages])
+                return "".join([p.extract_text() for p in PyPDF2.PdfReader(f).pages])
         except: return ""
     return ""
 
@@ -155,18 +143,17 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     elif mode == "Driver Instruction":
         sys_rules = "Short instructions for truck drivers. Translator."
     else:
-        sys_rules = "Real-Time Intelligence Engine. April 21, 2026."
+        sys_rules = "Real-Time Intelligence Engine. Present date: April 22, 2026."
     
     conversation = [{"role": "system", "content": sys_rules}]
-    if chat_history:
-        conversation.extend(chat_history[-10:])
+    if chat_history: conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
     try:
         completion = client.chat.completions.create(model="deepseek-chat", messages=conversation, stream=False)
         return completion.choices[0].message.content
     except Exception as e: return f"ERROR: {str(e)}"
 
-# ====================== 4. AUTHENTICATION (RESTORED) ======================
+# ====================== 4. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
 if not st.session_state.auth:
@@ -181,7 +168,7 @@ if not st.session_state.auth:
             st.rerun()
     st.stop()
 
-# ====================== 5. DASHBOARD UI (RESTORED) ======================
+# ====================== 5. DASHBOARD UI ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
 with st.sidebar:
@@ -262,7 +249,6 @@ with t1:
         intent = falcon_query(f"The driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
         st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
 
-    st.divider()
     st.write("💬 **Reply to Driver**")
     op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK REPLY", key='op_mic')
     d_reply_text = st.text_input("Type command here", key="driver_reply_box")
@@ -280,26 +266,26 @@ with t1:
 
 with t2:
     st.subheader("📖 Active Protocols")
-    if os.path.exists("gate_manual.pdf"):
-        pdf_viewer("gate_manual.pdf", height=700)
+    if os.path.exists("gate_manual.pdf"): pdf_viewer("gate_manual.pdf", height=700)
+    else: st.warning("Manual file 'gate_manual.pdf' not found.")
 
 with t3:
     st.subheader("📋 Security Logs")
-    notes = st.text_area("Observations:", key="logs")
+    notes = st.text_area("Observations:", key="logs_input")
     if st.button("🚀 SAVE LOG"):
         if notes:
-            with st.spinner("Syncing..."):
+            with st.spinner("Processing..."):
                 report = falcon_query(f"Format this observation: {notes}", "Gate 4 Protocol")
                 st.code(report)
-                if save_to_google_sheets(st.session_state.current_worker, report):
-                    st.success("✅ Synchronized.")
+                if save_to_google_sheets(st.session_state.current_worker, report): st.success("✅ Synchronized.")
 
 with t4:
     st.subheader("🕵️ Supervisor Audit Terminal")
-    audit_query = st.text_input("Search archives (Plate No, Name, etc):")
+    audit_query = st.text_input("Search archives (Plate No, Name):")
     if st.button("🔍 RUN AUDIT"):
         found = search_logs(audit_query)
         if found: st.table(found)
+        else: st.info("No matching records found.")
     
     st.divider()
     st.subheader("📋 Shift Handover")
@@ -308,6 +294,7 @@ with t4:
         if all_data:
             pdf_data = generate_shift_pdf(st.session_state.current_worker, all_data[-10:])
             st.download_button("📥 Download Handover PDF", pdf_data, f"Handover_{st.session_state.current_worker}.pdf", "application/pdf")
+        else: st.error("No log data available to generate report.")
 
 with t5:
     st.subheader("📟 Digital Ledger Scanner")
