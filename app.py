@@ -59,17 +59,34 @@ st.markdown('''
 ''', unsafe_allow_html=True)
 
 # ====================== GOOGLE SHEETS ENGINE ======================
+# ====================== OFFICE-STANDARD LOGGING ENGINE ======================
 def save_to_google_sheets(worker, log_text):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
         client = gspread.authorize(creds)
         sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
-        dubai_now = datetime.now(timezone(timedelta(hours=4))).strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([dubai_now, worker, log_text])
+        
+        # Dubai Timestamping
+        now = datetime.now(timezone(timedelta(hours=4)))
+        date_str = now.strftime("%d-%m-%Y")
+        time_str = now.strftime("%H:%M:%S")
+        
+        # --- OFFICE FORMAT ROW ---
+        # Columns: [DATE, TIME, STATION, OPERATOR, LOG_DETAILS, STATUS]
+        row_data = [
+            date_str, 
+            time_str, 
+            "GATE 4", 
+            worker, 
+            log_text, 
+            "VERIFIED"
+        ]
+        
+        sheet.append_row(row_data)
         return True
     except Exception as e:
-        st.error(f"Google Sheet Error: {e}")
+        st.error(f"Data Synchronization Error: {e}")
         return False
 
 # ====================== PERSISTENT MEMORY ENGINE ======================
