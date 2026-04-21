@@ -10,10 +10,10 @@ from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 from fpdf import FPDF
 
-# ====================== INITIALIZATION (CRITICAL FIX) ======================
+# ====================== 1. CRITICAL INITIALIZATION (FIXES ATTRIBUTE ERROR) ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 
-# Pre-initialize session state to prevent AttributeErrors
+# This block ensures the sidebar always has data to look at, even before login
 if "auth" not in st.session_state:
     st.session_state.auth = False
 if "all_sessions" not in st.session_state:
@@ -21,7 +21,7 @@ if "all_sessions" not in st.session_state:
 if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = "New Conversation"
 
-# 1. LOAD EXTERNAL AND INTERNAL CSS
+# ====================== 2. FULL RESTORED CSS ======================
 def local_css(file_name):
     if os.path.exists(file_name):
         with open(file_name) as f:
@@ -48,12 +48,13 @@ def local_css(file_name):
         .stTabs [aria-selected="true"] { color: #ADFF2F !important; background-color: rgba(173, 255, 47, 0.1) !important; }
         .driver-msg { background: rgba(173, 255, 47, 0.1); padding: 15px; border-radius: 10px; border-left: 5px solid #ADFF2F; margin: 10px 0; }
         .intercom-box { background: rgba(30, 41, 59, 0.4); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
+        .custom-header { background: rgba(15, 23, 42, 0.9); padding: 10px 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #ADFF2F; }
         </style>
     ''', unsafe_allow_html=True)
 
 local_css("css/style.css")
 
-# ====================== GOOGLE SHEETS ENGINE ======================
+# ====================== 3. ENGINES (RESTORED) ======================
 def save_to_google_sheets(worker, log_text, sheet_name="LOG"):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -68,7 +69,6 @@ def save_to_google_sheets(worker, log_text, sheet_name="LOG"):
     except Exception as e:
         st.error(f"Sync Error: {e}"); return False
 
-# ====================== AUDIT SEARCH ENGINE ======================
 def search_logs(query):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -86,7 +86,6 @@ def search_logs(query):
     except Exception as e:
         st.error(f"Audit Search Error: {e}"); return []
 
-# ====================== VISION SCANNER ENGINE ======================
 def process_receipt(image_file):
     client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
@@ -101,7 +100,6 @@ def process_receipt(image_file):
         return response.choices[0].message.content
     except Exception as e: return f"Vision Error: {str(e)}"
 
-# ====================== PDF HANDOVER ENGINE ======================
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page()
@@ -125,7 +123,6 @@ def generate_shift_pdf(worker_name, logs):
         pdf.multi_cell(160, 10, detail_val, 1)
     return pdf.output(dest='S').encode('latin-1')
 
-# ====================== MULTI-SESSION MEMORY ENGINE ======================
 def get_chat_file(username):
     return f"memory_{username.replace(' ', '_').lower()}.json"
 
@@ -140,7 +137,6 @@ def load_all_sessions(username):
             return json.load(f)
     return {"New Conversation": []}
 
-# ====================== SYSTEM ENGINES ======================
 def digest_manual():
     if os.path.exists("gate_manual.pdf"):
         try:
@@ -170,7 +166,7 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
         return completion.choices[0].message.content
     except Exception as e: return f"ERROR: {str(e)}"
 
-# ====================== AUTHENTICATION ======================
+# ====================== 4. AUTHENTICATION (RESTORED) ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
 if not st.session_state.auth:
@@ -185,7 +181,7 @@ if not st.session_state.auth:
             st.rerun()
     st.stop()
 
-# ====================== DASHBOARD UI ======================
+# ====================== 5. DASHBOARD UI (RESTORED) ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
 with st.sidebar:
