@@ -8,6 +8,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
+from fpdf import FPDF
 
 # 1. LOAD EXTERNAL AND INTERNAL CSS
 def local_css(file_name):
@@ -74,6 +75,42 @@ def search_logs(query):
     except Exception as e:
         st.error(f"Audit Search Error: {e}")
         return []
+
+# ====================== PDF HANDOVER ENGINE ======================
+def generate_shift_pdf(worker_name, logs):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Header
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(190, 10, "FALCON EYE - SHIFT HANDOVER REPORT", ln=True, align='C')
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(190, 10, f"Station: GATE 4 | Date: {datetime.now().strftime('%d-%m-%Y')}", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Operator Info
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(190, 10, f"Outgoing Operator: {worker_name}", ln=True)
+    pdf.ln(5)
+    
+    # Table Headers
+    pdf.set_fill_color(173, 255, 47) # Falcon Green
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(30, 10, "TIME", 1, 0, 'C', True)
+    pdf.cell(160, 10, "LOG DETAILS", 1, 1, 'C', True)
+    
+    # Data Rows
+    pdf.set_font("Arial", '', 9)
+    for log in logs:
+        # Get Time and Details from the sheet row
+        time_val = str(log.get("TIME", "N/A"))
+        detail_val = str(log.get("LOG DETAILS", "N/A"))
+        
+        # Multi-line cell for long logs
+        pdf.cell(30, 10, time_val, 1)
+        pdf.multi_cell(160, 10, detail_val, 1)
+        
+    return pdf.output(dest='S').encode('latin-1')
 
 # ====================== PERSISTENT MEMORY ENGINE ======================
 def get_chat_file(username):
@@ -255,3 +292,25 @@ with t4:
                     st.warning("No records found in the database matching that query.")
         else:
             st.info("Please enter a search term to begin the audit.")
+
+st.divider()
+    st.subheader("📋 End of Shift Handover")
+    if st.button("📄 GENERATE FINAL SHIFT REPORT"):
+        # 1. Get all logs for the current worker today
+        today_str = datetime.now(timezone(timedelta(hours=4))).strftime("%d-%m-%Y")
+        all_data = search_logs(st.session_state.current_worker)
+        
+        # 2. Filter for only today's logs
+        today_logs = [row for row in all_data if row.get("DATE") == today_str]
+        
+        if today_logs:
+            pdf_data = generate_shift_pdf(st.session_state.current_worker, today_logs)
+            st.download_button(
+                label="📥 Download Handover PDF",
+                data=pdf_data,
+                file_name=f"Handover_{st.session_state.current_worker}_{today_str}.pdf",
+                mime="application/pdf"
+            )
+            st.success("Report Generated Successfully.")
+        else:
+            st.warning("No logs found for your shift today to generate a report.")
