@@ -296,7 +296,7 @@ with t4:
     if st.button("📄 GENERATE FINAL SHIFT REPORT"):
         today_str = datetime.now(timezone(timedelta(hours=4))).strftime("%d-%m-%Y")
         all_data = search_logs(st.session_state.current_worker)
-       today_logs = [row for row in all_data if str(row.get("DATE")).strip() == today_str]
+        today_logs = [row for row in all_data if str(row.get("DATE")).strip() == today_str]
         
         if today_logs:
             pdf_data = generate_shift_pdf(st.session_state.current_worker, today_logs)
