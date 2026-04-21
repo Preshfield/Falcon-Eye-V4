@@ -293,10 +293,27 @@ with t1:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # [Protocol Tab Content]
+# [Protocol Tab Content]
 with t2:
     st.subheader("📖 Active Protocols")
-    if os.path.exists("gate_manual.pdf"): pdf_viewer("gate_manual.pdf", height=700)
-    else: st.warning("Manual file 'gate_manual.pdf' not found.")
+    
+    # --- AUDIO LECTURE SECTION ---
+    st.markdown("### 🎧 Protocol Audio Briefing")
+    audio_path = "protocol_lecture.wav.mp3"
+    
+    if os.path.exists(audio_path):
+        st.audio(audio_path, format="audio/mpeg")
+    else:
+        st.info("📢 Audio briefing file not found. Please ensure 'protocol_lecture.wav.mp3' is in the root folder.")
+    
+    st.divider()
+
+    # --- PDF VIEW SECTION ---
+    st.markdown("### 📜 Standard Operating Procedures")
+    if os.path.exists("gate_manual.pdf"):
+        pdf_viewer("gate_manual.pdf", height=700)
+    else:
+        st.warning("Manual file 'gate_manual.pdf' not found.")
 
 # [Logs Tab Content]
 with t3:
