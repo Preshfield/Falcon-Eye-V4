@@ -172,38 +172,48 @@ if not st.session_state.auth:
             st.rerun()
     st.stop()
 
-# ====================== 5. DASHBOARD UI ======================
+# ====================== 5. DASHBOARD UI (STABILIZED) ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
 if st.session_state.auth:
     with st.sidebar:
         st.title("🦅 MISSION LOGS")
         
-        # SAFETY: Ensure sessions data is always available
-        current_sessions = st.session_state.get("all_sessions", {"New Conversation": []})
-        chat_list = list(current_sessions.keys())
+        # --- HARDENED DATA FETCHING ---
+        # 1. Start with a safe default
+        chat_list = ["New Conversation"] 
+        
+        # 2. Try to get real data from session state
+        sessions_data = st.session_state.get("all_sessions", {})
+        
+        # 3. Double-check keys exist before converting to list
+        if sessions_data and isinstance(sessions_data, dict):
+            chat_list = list(sessions_data.keys())
         
         if st.button("➕ START NEW CHAT", use_container_width=True):
             new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
+            if "all_sessions" not in st.session_state:
+                st.session_state.all_sessions = {}
             st.session_state.all_sessions[new_id] = []
             st.session_state.current_chat_id = new_id
             st.rerun()
 
         st.divider()
         
-        # SAFETY: Re-validate current_chat_id against chat_list
+        # --- SAFE SELECTION LOGIC ---
         if st.session_state.current_chat_id not in chat_list:
-             st.session_state.current_chat_id = chat_list[0] if chat_list else "New Conversation"
+            st.session_state.current_chat_id = chat_list[0] if chat_list else "New Conversation"
         
-        # Use a Try/Except here because rapid clicks on radio buttons can cause index errors in Streamlit
         try:
             curr_index = chat_list.index(st.session_state.current_chat_id)
-        except ValueError:
+        except (ValueError, IndexError):
             curr_index = 0
 
         selected_chat = st.radio("History:", chat_list, index=curr_index)
         st.session_state.current_chat_id = selected_chat
-        st.session_state.messages = current_sessions.get(selected_chat, [])
+        
+        # Final safety check for message retrieval
+        st.session_state.messages = sessions_data.get(selected_chat, [])
 
         st.divider()
         if st.button("🔒 LOGOUT", type="secondary", use_container_width=True):
