@@ -56,6 +56,24 @@ def save_to_google_sheets(worker, log_text):
         st.error(f"Sync Error: {e}")
         return False
 
+# ====================== AUDIT SEARCH ENGINE ======================
+def search_logs(query):
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+        client = gspread.authorize(creds)
+        sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
+        
+        # Get all records from the sheet
+        all_records = sheet.get_all_records()
+        
+        # Filter records based on the search query
+        results = [row for row in all_records if query.lower() in str(row).lower()]
+        return results
+    except Exception as e:
+        st.error(f"Audit Search Error: {e}")
+        return []
+
 # ====================== PERSISTENT MEMORY ENGINE ======================
 def get_chat_file(username):
     return f"memory_{username.replace(' ', '_').lower()}.json"
@@ -208,6 +226,21 @@ with t3:
                     st.success("✅ Synchronized.")
 
 with t4:
-    st.subheader("🕵️ Audit Terminal")
-    st.text_input("Enter Plate/Name:")
-    st.button("🔍 RUN AUDIT")
+    st.subheader("🕵️ Supervisor Audit Terminal")
+    st.write("Search the Master Ledger for Plates, Workers, or specific Events.")
+    
+    audit_query = st.text_input("Enter Plate Number or Operator Name:", key="audit_search_input")
+    
+    if st.button("🔍 RUN DEEP AUDIT"):
+        if audit_query:
+            with st.spinner(f"Scanning Falcon Eye Archives for '{audit_query}'..."):
+                found_logs = search_logs(audit_query)
+                
+                if found_logs:
+                    st.success(f"Found {len(found_logs)} matching records.")
+                    # Display the results in a clean table
+                    st.table(found_logs)
+                else:
+                    st.warning("No records found in the database matching that query.")
+        else:
+            st.info("Please enter a search term to begin the audit.")
