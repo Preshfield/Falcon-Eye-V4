@@ -184,12 +184,45 @@ with t1:
                 st.session_state.messages.append({"role": "assistant", "content": response})
         save_chat_history(st.session_state.current_worker, st.session_state.messages)
 
-    st.divider()
+   st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
-    full_langs = {"Bengali": "bn", "Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
-    d_lang = st.selectbox("Select Driver Language:", list(full_langs.keys()))
+
+    # --- PASTE THE NEW CODE STARTING HERE ---
+    full_langs = {
+        "Arabic": "ar",
+        "Bengali": "bn",
+        "Chinese (Mandarin)": "zh-cn",
+        "English": "en",
+        "French": "fr",
+        "German": "de",
+        "Hindi": "hi",
+        "Indonesian": "id",
+        "Italian": "it",
+        "Japanese": "ja",
+        "Malayalam": "ml",
+        "Nigerian Pidgin": "en-ng", 
+        "Pashto": "ps",
+        "Persian": "fa",
+        "Portuguese": "pt",
+        "Punjabi": "pa",
+        "Russian": "ru",
+        "Spanish": "es",
+        "Swahili": "sw",
+        "Tagalog": "tl",
+        "Tamil": "ta",
+        "Telugu": "te",
+        "Turkish": "tr",
+        "Urdu": "ur",
+        "Vietnamese": "vi"
+    }
     
+    # This keeps the menu alphabetized for the operator
+    sorted_langs = dict(sorted(full_langs.items()))
+    d_lang = st.selectbox("Select Driver Language:", list(sorted_langs.keys()))
+    # --- END OF NEW CODE SECTION ---
+
+    # The rest of your Listen and Reply logic stays below this...
     # LISTEN
     c1, c2 = st.columns([3, 1])
     with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
