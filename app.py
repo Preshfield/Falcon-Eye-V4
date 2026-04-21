@@ -63,27 +63,18 @@ def search_logs(query):
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
         client = gspread.authorize(creds)
         sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
-        
-        # We use get_all_values() instead of get_all_records() 
-        # to ensure we see EVERYTHING even if headers are weird.
         all_rows = sheet.get_all_values()
-        
-        if not all_rows:
-            return []
-
+        if not all_rows: return []
         header = all_rows[0]
         results = []
-        
-        for row in all_rows[1:]: # Skip the header row
-            # Check if query is in ANY cell of this row
+        for row in all_rows[1:]:
             if any(query.lower() in str(cell).lower() for cell in row):
-                # Create a dictionary so it looks nice in st.table
                 results.append(dict(zip(header, row)))
-                
         return results
     except Exception as e:
         st.error(f"Audit Search Error: {e}")
         return []
+
 # ====================== PERSISTENT MEMORY ENGINE ======================
 def get_chat_file(username):
     return f"memory_{username.replace(' ', '_').lower()}.json"
@@ -184,11 +175,10 @@ with t1:
                 st.session_state.messages.append({"role": "assistant", "content": response})
         save_chat_history(st.session_state.current_worker, st.session_state.messages)
 
-st.divider()
+    st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
 
-    # --- GLOBAL LANGUAGE SUITE ---
     full_langs = {
         "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-cn",
         "English": "en", "French": "fr", "German": "de",
@@ -203,7 +193,6 @@ st.divider()
     sorted_langs = dict(sorted(full_langs.items()))
     d_lang = st.selectbox("Select Driver Language:", list(sorted_langs.keys()))
 
-    # --- SECTION: LISTEN TO DRIVER ---
     c1, c2 = st.columns([3, 1])
     with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
     with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
@@ -213,8 +202,6 @@ st.divider()
         st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
 
     st.divider()
-
-    # --- SECTION: REPLY TO DRIVER ---
     st.write("💬 **Reply to Driver**")
     op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK REPLY", key='op_mic')
     d_reply_text = st.text_input("Type command here", key="driver_reply_box")
@@ -231,33 +218,6 @@ st.divider()
                 st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
         else:
             st.warning("Please speak or type a command first.")
-            
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # The rest of your Listen and Reply logic stays below this...
-    # LISTEN
-    c1, c2 = st.columns([3, 1])
-    with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
-    with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
-    if driver_v:
-        intent = falcon_query(f"The driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI:</b> {intent}</div>', unsafe_allow_html=True)
-
-    # REPLY (Voice + Text)
-    st.write("💬 **Reply to Driver**")
-    op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK REPLY", key='op_mic')
-    d_reply_text = st.text_input("Type command here", key="driver_reply_box")
-    final_reply = op_voice if op_voice else d_reply_text
-
-    if st.button("📤 SEND COMMAND TO DRIVER"):
-        if final_reply:
-            with st.spinner("Translating..."):
-                trans = falcon_query(f"Translate to {d_lang}: {final_reply}", "Driver Instruction")
-                st.success(f"**Replied in {d_lang}:** {trans}")
-                tts = gTTS(text=trans, lang=full_langs[d_lang])
-                stream = io.BytesIO()
-                tts.write_to_fp(stream)
-                st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
@@ -283,17 +243,13 @@ with t3:
 with t4:
     st.subheader("🕵️ Supervisor Audit Terminal")
     st.write("Search the Master Ledger for Plates, Workers, or specific Events.")
-    
     audit_query = st.text_input("Enter Plate Number or Operator Name:", key="audit_search_input")
-    
     if st.button("🔍 RUN DEEP AUDIT"):
         if audit_query:
             with st.spinner(f"Scanning Falcon Eye Archives for '{audit_query}'..."):
                 found_logs = search_logs(audit_query)
-                
                 if found_logs:
                     st.success(f"Found {len(found_logs)} matching records.")
-                    # Display the results in a clean table
                     st.table(found_logs)
                 else:
                     st.warning("No records found in the database matching that query.")
