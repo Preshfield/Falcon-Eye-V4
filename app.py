@@ -117,52 +117,33 @@ def digest_manual():
         except: return ""
     return ""
 
-st.divider()
-    st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🚛 Driver Intercom")
+# --- DUAL-MODE OPERATOR REPLY (TEXT OR VOICE) ---
+    st.write("💬 **Reply to Driver**")
     
-    full_langs = {"Bengali": "bn", "Urdu": "ur", "Arabic": "ar", "Hindi": "hi", "Tagalog": "tl"}
-    d_lang = st.selectbox("Select Driver Language:", list(full_langs.keys()))
+    # 1. Voice Reply Option
+    operator_v = speech_to_text(language='en', start_prompt="🎤 VOICE REPLY", key='op_mic')
     
-    # --- 1. LISTEN TO DRIVER ---
-    c1, c2 = st.columns([3, 1])
-    with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
-    driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
-
-    if driver_v:
-        # This calls your engine to translate driver to English
-        intent = falcon_query(f"The driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
-
-    st.divider()
-
-    # --- 2. REPLY TO DRIVER (VOICE + TEXT) ---
-    st.write("💬 **Operator Reply (Your Voice or Type)**")
+    # 2. Text Reply Option (Keeping your original box)
+    d_reply = st.text_input("Or type command here:", key="driver_reply_box")
     
-    # Operator Microphone (English)
-    operator_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK REPLY", key='op_mic')
-    
-    # Manual Text Entry
-    d_reply_text = st.text_input("Or type command here:", key="driver_reply_box")
-    
-    # Determine which input to use
-    final_input = operator_voice if operator_voice else d_reply_text
+    # Logic to handle whichever input you use (Voice or Text)
+    final_input = operator_v if operator_v else d_reply
 
     if st.button("📤 SEND COMMAND TO DRIVER"):
         if final_input:
-            with st.spinner("Translating for Driver..."):
-                # Convert Operator's English to Driver's Language
+            with st.spinner("Translating..."):
+                # The AI converts your English (Voice or Text) to the Driver's Language
                 trans = falcon_query(f"Translate to {d_lang}: {final_input}", "Driver Instruction")
-                st.success(f"**Sent in {d_lang}:** {trans}")
                 
-                # Play the translated audio
+                st.success(f"**Translated ({d_lang}):** {trans}")
+                
+                # Generate and play the audio for the driver
                 tts = gTTS(text=trans, lang=full_langs[d_lang])
                 stream = io.BytesIO()
                 tts.write_to_fp(stream)
                 st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
         else:
-            st.warning("Please speak or type a command first.")
-    st.markdown('</div>', unsafe_allow_html=True)
+            st.warning("Please provide a voice command or type a message.")
 # ====================== AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
