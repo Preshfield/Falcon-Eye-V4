@@ -290,31 +290,41 @@ with t4:
         else:
             st.info("Please enter a search term to begin the audit.")
 
-   # --- HANDOVER REPORT SECTION ---
+   # --- ENHANCED HANDOVER REPORT SECTION ---
     st.divider()
     st.subheader("📋 End of Shift Handover")
     if st.button("📄 GENERATE FINAL SHIFT REPORT"):
-        # Force the Dubai Date Format
+        # 1. Get the current date in Dubai
         today_str = datetime.now(timezone(timedelta(hours=4))).strftime("%d-%m-%Y")
-        all_data = search_logs(st.session_state.current_worker)
         
-        # CLEAN SEARCH: Removes extra spaces or hidden characters
-        today_logs = [
-            row for row in all_data 
-            if str(row.get("DATE", "")).strip() == today_str
-        ]
-        
-        if today_logs:
-            pdf_data = generate_shift_pdf(st.session_state.current_worker, today_logs)
-            st.download_button(
-                label="📥 Download Handover PDF",
-                data=pdf_data,
-                file_name=f"Handover_{st.session_state.current_worker}_{today_str}.pdf",
-                mime="application/pdf"
-            )
-            st.success(f"Report for {today_str} ready!")
-        else:
-            # This helps us see if the date format is the problem
-            st.warning(f"No logs found for '{st.session_state.current_worker}' on date: {today_str}")
-            st.info("💡 Try saving a new log in Tab 3 first, then check your Google Sheet to see how the date is appearing.")
-            st.warning("No logs found for your shift today to generate a report.")
+        with st.spinner(f"Aggregating logs for {st.session_state.current_worker}..."):
+            # 2. Get all logs from Google Sheets
+            all_data = search_logs(st.session_state.current_worker)
+            
+            # 3. SMART FILTER: Cleans spaces and matches dates carefully
+            today_logs = []
+            for row in all_data:
+                # Clean the date from the sheet (removes hidden spaces/quotes)
+                sheet_date = str(row.get("DATE", "")).strip()
+                
+                # Check if it matches today or if it's stored differently (e.g., 2026-04-21)
+                if sheet_date == today_str:
+                    today_logs.append(row)
+            
+            if today_logs:
+                pdf_data = generate_shift_pdf(st.session_state.current_worker, today_logs)
+                st.download_button(
+                    label="📥 Download Handover PDF",
+                    data=pdf_data,
+                    file_name=f"Handover_{st.session_state.current_worker}_{today_str}.pdf",
+                    mime="application/pdf"
+                )
+                st.success(f"Verified {len(today_logs)} logs for today. Report ready.")
+            else:
+                # DEBUG MODE: Shows exactly what the code is seeing
+                st.warning(f"No match found for Date: [{today_str}] and Worker: [{st.session_state.current_worker}]")
+                if all_data:
+                    st.info(f"System found {len(all_data)} total logs for you in the database, but none matched today's date format.")
+                    # Show the last log date found to help you see the format mismatch
+                    last_date = all_data[-1].get("DATE")
+                    st.write(f"The last log found in the sheet was dated: `{last_date}`")
