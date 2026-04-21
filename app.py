@@ -60,6 +60,7 @@ st.markdown('''
 
 # ====================== GOOGLE SHEETS ENGINE ======================
 # ====================== OFFICE-STANDARD LOGGING ENGINE ======================
+# ====================== OFFICE-STANDARD LOGGING ENGINE ======================
 def save_to_google_sheets(worker, log_text):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -67,19 +68,22 @@ def save_to_google_sheets(worker, log_text):
         client = gspread.authorize(creds)
         sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
         
+        # --- CLEAN TEXT FOR EXCEL ---
+        # This removes the ** bold markers and other markdown clutter
+        clean_log = log_text.replace("**", "").replace("###", "").replace("- ", "").strip()
+        
         # Dubai Timestamping
         now = datetime.now(timezone(timedelta(hours=4)))
         date_str = now.strftime("%d-%m-%Y")
         time_str = now.strftime("%H:%M:%S")
         
         # --- OFFICE FORMAT ROW ---
-        # Columns: [DATE, TIME, STATION, OPERATOR, LOG_DETAILS, STATUS]
         row_data = [
             date_str, 
             time_str, 
             "GATE 4", 
             worker, 
-            log_text, 
+            clean_log, 
             "VERIFIED"
         ]
         
@@ -88,7 +92,6 @@ def save_to_google_sheets(worker, log_text):
     except Exception as e:
         st.error(f"Data Synchronization Error: {e}")
         return False
-
 # ====================== PERSISTENT MEMORY ENGINE ======================
 def get_chat_file(username):
     return f"memory_{username.replace(' ', '_').lower()}.json"
