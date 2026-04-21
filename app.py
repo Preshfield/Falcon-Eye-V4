@@ -13,7 +13,7 @@ from fpdf import FPDF
 # ====================== 1. CRITICAL INITIALIZATION (THE "FIX") ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 
-# Initialize state BEFORE any sidebar or logic runs to prevent AttributeErrors
+# HARD INITIALIZATION: Force these to exist immediately
 if "auth" not in st.session_state:
     st.session_state.auth = False
 if "all_sessions" not in st.session_state:
@@ -22,6 +22,8 @@ if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = "New Conversation"
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "current_worker" not in st.session_state:
+    st.session_state.current_worker = "Guest"
 
 # ====================== 2. FULL RESTORED CSS ======================
 def local_css(file_name):
@@ -168,36 +170,36 @@ if not st.session_state.auth:
             st.rerun()
     st.stop()
 
-# ====================== 5. DASHBOARD UI (STABILIZED) ======================
+# ====================== 5. DASHBOARD UI (THE CRITICAL FIX) ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
 with st.sidebar:
     st.title("🦅 MISSION LOGS")
     
-    # SAFETY GUARD: Only process session history if auth is successful
-    if st.session_state.auth and "all_sessions" in st.session_state:
-        if st.button("➕ START NEW CHAT", use_container_width=True):
-            new_id = f"Session {len(st.session_state.all_sessions) + 1} ({dubai_time})"
-            st.session_state.all_sessions[new_id] = []
-            st.session_state.current_chat_id = new_id
-            st.rerun()
+    # We use .get() and an empty dictionary fallback to prevent the .keys() error
+    sessions_data = st.session_state.get("all_sessions", {"New Conversation": []})
+    chat_list = list(sessions_data.keys())
+    
+    if st.button("➕ START NEW CHAT", use_container_width=True):
+        new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
+        st.session_state.all_sessions[new_id] = []
+        st.session_state.current_chat_id = new_id
+        st.rerun()
 
-        st.divider()
-        chat_list = list(st.session_state.all_sessions.keys())
-        if st.session_state.current_chat_id not in chat_list:
-            st.session_state.current_chat_id = chat_list[0] if chat_list else "New Conversation"
-        
-        selected_chat = st.radio("History:", chat_list, index=chat_list.index(st.session_state.current_chat_id))
-        st.session_state.current_chat_id = selected_chat
-        st.session_state.messages = st.session_state.all_sessions.get(selected_chat, [])
+    st.divider()
+    
+    if st.session_state.current_chat_id not in chat_list:
+        st.session_state.current_chat_id = chat_list[0] if chat_list else "New Conversation"
+    
+    selected_chat = st.radio("History:", chat_list, index=chat_list.index(st.session_state.current_chat_id))
+    st.session_state.current_chat_id = selected_chat
+    st.session_state.messages = sessions_data.get(selected_chat, [])
 
-        st.divider()
-        if st.button("🔒 LOGOUT", type="secondary", use_container_width=True):
-            save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-            st.session_state.auth = False
-            st.rerun()
-    else:
-        st.info("Awaiting Authentication...")
+    st.divider()
+    if st.button("🔒 LOGOUT", type="secondary", use_container_width=True):
+        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        st.session_state.auth = False
+        st.rerun()
 
 st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 
@@ -212,6 +214,7 @@ st.markdown('''
 
 t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER"])
 
+# [THE REST OF YOUR ORIGINAL FUNCTIONAL CODE CONTINUES BELOW]
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
