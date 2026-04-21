@@ -183,44 +183,55 @@ with t1:
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
         save_chat_history(st.session_state.current_worker, st.session_state.messages)
-
-   st.divider()
+st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
 
-    # --- PASTE THE NEW CODE STARTING HERE ---
+    # --- GLOBAL LANGUAGE SUITE ---
     full_langs = {
-        "Arabic": "ar",
-        "Bengali": "bn",
-        "Chinese (Mandarin)": "zh-cn",
-        "English": "en",
-        "French": "fr",
-        "German": "de",
-        "Hindi": "hi",
-        "Indonesian": "id",
-        "Italian": "it",
-        "Japanese": "ja",
-        "Malayalam": "ml",
-        "Nigerian Pidgin": "en-ng", 
-        "Pashto": "ps",
-        "Persian": "fa",
-        "Portuguese": "pt",
-        "Punjabi": "pa",
-        "Russian": "ru",
-        "Spanish": "es",
-        "Swahili": "sw",
-        "Tagalog": "tl",
-        "Tamil": "ta",
-        "Telugu": "te",
-        "Turkish": "tr",
-        "Urdu": "ur",
-        "Vietnamese": "vi"
+        "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-cn",
+        "English": "en", "French": "fr", "German": "de",
+        "Hindi": "hi", "Indonesian": "id", "Italian": "it",
+        "Japanese": "ja", "Malayalam": "ml", "Nigerian Pidgin": "en-ng", 
+        "Pashto": "ps", "Persian": "fa", "Portuguese": "pt",
+        "Punjabi": "pa", "Russian": "ru", "Spanish": "es",
+        "Swahili": "sw", "Tagalog": "tl", "Tamil": "ta",
+        "Telugu": "te", "Turkish": "tr", "Urdu": "ur", "Vietnamese": "vi"
     }
     
-    # This keeps the menu alphabetized for the operator
     sorted_langs = dict(sorted(full_langs.items()))
     d_lang = st.selectbox("Select Driver Language:", list(sorted_langs.keys()))
-    # --- END OF NEW CODE SECTION ---
+
+    # LISTEN TO DRIVER
+    c1, c2 = st.columns([3, 1])
+    with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
+    with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
+
+    if driver_v:
+        intent = falcon_query(f"The driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
+        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
+
+    st.divider()
+
+    # REPLY TO DRIVER
+    st.write("💬 **Reply to Driver**")
+    op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK REPLY", key='op_mic')
+    d_reply_text = st.text_input("Type command here", key="driver_reply_box")
+    final_reply = op_voice if op_voice else d_reply_text
+
+    if st.button("📤 SEND COMMAND TO DRIVER"):
+        if final_reply:
+            with st.spinner("Translating..."):
+                trans = falcon_query(f"Translate to {d_lang}: {final_reply}", "Driver Instruction")
+                st.success(f"**Replied in {d_lang}:** {trans}")
+                tts = gTTS(text=trans, lang=full_langs[d_lang])
+                stream = io.BytesIO()
+                tts.write_to_fp(stream)
+                st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
+        else:
+            st.warning("Please speak or type a command first.")
+            
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # The rest of your Listen and Reply logic stays below this...
     # LISTEN
