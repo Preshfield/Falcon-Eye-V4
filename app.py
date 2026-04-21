@@ -117,8 +117,7 @@ def digest_manual():
         except: return ""
     return ""
 
-# --- DUAL-MODE OPERATOR REPLY (TEXT OR VOICE) ---
-  st.divider()
+st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
     
