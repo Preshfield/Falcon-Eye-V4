@@ -290,13 +290,19 @@ with t4:
         else:
             st.info("Please enter a search term to begin the audit.")
 
-    # --- HANDOVER REPORT SECTION MOVED INSIDE TAB 4 ---
+   # --- HANDOVER REPORT SECTION ---
     st.divider()
     st.subheader("📋 End of Shift Handover")
     if st.button("📄 GENERATE FINAL SHIFT REPORT"):
+        # Force the Dubai Date Format
         today_str = datetime.now(timezone(timedelta(hours=4))).strftime("%d-%m-%Y")
         all_data = search_logs(st.session_state.current_worker)
-        today_logs = [row for row in all_data if str(row.get("DATE")).strip() == today_str]
+        
+        # CLEAN SEARCH: Removes extra spaces or hidden characters
+        today_logs = [
+            row for row in all_data 
+            if str(row.get("DATE", "")).strip() == today_str
+        ]
         
         if today_logs:
             pdf_data = generate_shift_pdf(st.session_state.current_worker, today_logs)
@@ -306,6 +312,9 @@ with t4:
                 file_name=f"Handover_{st.session_state.current_worker}_{today_str}.pdf",
                 mime="application/pdf"
             )
-            st.success("Report Generated Successfully.")
+            st.success(f"Report for {today_str} ready!")
         else:
+            # This helps us see if the date format is the problem
+            st.warning(f"No logs found for '{st.session_state.current_worker}' on date: {today_str}")
+            st.info("💡 Try saving a new log in Tab 3 first, then check your Google Sheet to see how the date is appearing.")
             st.warning("No logs found for your shift today to generate a report.")
