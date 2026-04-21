@@ -13,7 +13,7 @@ from fpdf import FPDF
 # ====================== 1. CRITICAL INITIALIZATION (FIXES ATTRIBUTE ERROR) ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
 
-# This block ensures the sidebar always has data to look at, even before login
+# This block MUST run before the sidebar logic to prevent the "all_sessions" AttributeError
 if "auth" not in st.session_state:
     st.session_state.auth = False
 if "all_sessions" not in st.session_state:
