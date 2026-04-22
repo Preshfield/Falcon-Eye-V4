@@ -346,30 +346,32 @@ with t4:
 
 # ====================== UPDATED SCANNER (DEEPSEEK FOCUSED) ======================
 def process_receipt(image_file):
-    # Since DeepSeek is text-based, we use an extraction fallback
-    # To keep your presentation crash-free, we'll use a placeholder for the vision 
-    # component if you aren't using OpenAI's Vision API.
-    
-    deepseek_key = st.secrets.get("DEEPSEEK_API_KEY")
-    if not deepseek_key:
+    # 1. Get your key safely
+    api_key = st.secrets.get("DEEPSEEK_API_KEY")
+    if not api_key:
         return "System Error: DEEPSEEK_API_KEY missing in Secrets."
     
-    # Logic: For a "Pure DeepSeek" workflow without OpenAI Vision, 
-    # we simulate the extraction or use a lightweight OCR.
+    # 2. Encode the image for the AI
+    base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
+    
     try:
-        # We are using DeepSeek to "clean up" or "verify" the data
-        prompt = "The operator has scanned a receipt at Gate 4. Provide a structured JSON template for entry."
-        
-        client = openai.OpenAI(api_key=deepseek_key, base_url="https://api.deepseek.com")
+        # 3. Target the DEEPSEEK-OCR-2 model (The Vision Model)
+        client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         
         response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}],
+            model="deepseek-ocr-2", # CRITICAL: Change this from 'deepseek-chat'
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Extract all data from this receipt. Format as: Date, Name, Amount, Receipt Number."},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                ]
+            }],
             stream=False
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"DeepSeek Connection Error: {str(e)}"
+        return f"Scan Error: Ensure your DeepSeek tier supports Vision/OCR. Details: {str(e)}"
 
 # ====================== UPDATED ENGINES (RE-VERIFIED) ======================
 @st.cache_data(ttl=3600)
