@@ -96,31 +96,35 @@ import easyocr
 import numpy as np
 
 def process_receipt(image_file):
+    api_key = st.secrets.get("MISTRAL_API_KEY")
+    if not api_key:
+        return json.dumps({"category": "Error", "data": "MISTRAL_API_KEY missing in Secrets."})
+    
+    # Initialize Mistral Client using OpenAI format
+    client = openai.OpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1")
+    
     try:
-        # 1. Initialize the local "Brain" (English language)
-        # Note: The first time you run this, it will take 1 minute to download its model.
-        reader = easyocr.Reader(['en'])
+        # Convert image to Base64
+        base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
         
-        # 2. Convert camera image to a format the local brain understands
-        img_bytes = image_file.getvalue()
-        img_array = np.frombuffer(img_bytes, np.uint8)
+        response = client.chat.completions.create(
+            model="pixtral-12b-2409",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Analyze this Dubai South document. Identify if it is a 'MANUAL PASS' or 'LABOUR CHARGE'. Extract: GP No, Consignee, Cargo, Vehicle No, and Date. Return ONLY a JSON object."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                    ]
+                }
+            ],
+            response_format={"type": "json_object"}
+        )
         
-        # 3. Read the text
-        results = reader.readtext(img_array, detail=0) # detail=0 gives just the text
-        
-        # 4. Join all found words into one string
-        full_text = " ".join(results)
-        
-        # 5. Format it so it looks like your old JSON output
-        # Since local OCR isn't as "smart" as Gemini, we just put everything in the data
-        return json.dumps({
-            "category": "MANUAL PASS", 
-            "data": full_text
-        })
+        return response.choices[0].message.content
 
     except Exception as e:
-        return json.dumps({"category": "General", "data": f"Local Scanner Error: {str(e)}"})
-
+        return json.dumps({"category": "General", "data": f"Mistral Scanner Error: {str(e)}"})
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", 'B', 16)
