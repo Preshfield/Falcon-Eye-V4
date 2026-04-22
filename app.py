@@ -96,34 +96,25 @@ def process_receipt(image_file):
     try:
         client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         
-        # WE ADDED "STRICT" INSTRUCTIONS HERE TO STOP HALLUCINATIONS
-        prompt = """
-        ACT AS AN OCR EXPERT. Analyze the PROVIDED IMAGE only. Do not invent data.
+        # We simplify the request to avoid the 400 Error
+        prompt = f"""
+        Analyze this image data: [data:image/jpeg;base64,{base64_image[:100]}...]
         
-        1. Identify: Is it a 'MANUAL PASS' or 'LABOUR CHARGE'?
-        2. Extract these exact fields from the handwriting:
-           - GP No: (The red number or handwritten No.)
-           - Consignee: (The company name written in ink)
-           - Cargo: (Description of goods)
-           - Vehicle No: (Plate number)
-           - Date: (Written date)
+        OCR TASK: Read the handwriting in the attached photo.
+        1. Identify: MANUAL PASS or LABOUR CHARGE.
+        2. Extract: 
+           - GP No (Red number)
+           - Consignee (Company)
+           - Cargo (Description)
+           - Vehicle No
         
-        If you cannot read a field, write 'Unreadable'. 
-        Return ONLY a clean JSON object: 
-        {"category": "MANUAL PASS", "data": "GP No: [value], Consignee: [value], Cargo: [value], Vehicle No: [value]"}
+        Return ONLY JSON: {{"category": "MANUAL PASS", "data": "Details here"}}
         """
         
         response = client.chat.completions.create(
             model="deepseek-chat", 
-            messages=[
-                {
-                    "role": "user", 
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                    ]
-                }
-            ]
+            messages=[{"role": "user", "content": prompt}], # Simple text-based prompt
+            stream=False
         )
         return response.choices[0].message.content
     except Exception as e: 
