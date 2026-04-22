@@ -10,6 +10,7 @@ from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 from fpdf import FPDF
 import google.generativeai as genai
+from PIL import Image
 
 # ====================== 1. CRITICAL INITIALIZATION ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
@@ -87,56 +88,37 @@ def search_logs(query):
     except Exception as e:
         st.error(f"Audit Search Error: {e}"); return []
 
-
-
+# --- FINALIZED GEMINI SCANNER LOGIC ---
 def process_receipt(image_file):
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
-    img = Image.open(image_file)
-    prompt = "Read this Dubai South Gate Pass. Extract handwriting: GP No, Consignee, Cargo, Vehicle No. Format as JSON."
-    
-    response = model.generate_content([prompt, img])
-    return response.text
-
-# --- UPDATED SCANNER LOGIC: READS HANDWRITING & TARGETS BOOKS ---
-import google.generativeai as genai
-
-def process_receipt(image_file):
-    # Get your Gemini API Key from Streamlit Secrets
     api_key = st.secrets.get("GEMINI_API_KEY")
     if not api_key:
-        return json.dumps({"category": "Error", "data": "GEMINI_API_KEY missing."})
+        return json.dumps({"category": "Error", "data": "GEMINI_API_KEY missing in Secrets."})
     
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-1.5-flash')
     
     try:
-        # Convert the uploaded file to an image format Gemini understands
-        img = PIL.Image.open(image_file)
-        
+        img = Image.open(image_file)
         prompt = """
         Analyze this Dubai South document. 
         1. Identify if it is a 'MANUAL PASS' or 'LABOUR CHARGE'.
-        2. Extract the following accurately from the handwriting:
+        2. Extract these specific details from the handwriting accurately:
            - GP No: (The red number)
            - Consignee: (e.g., Agnice)
-           - Cargo: (e.g., Furniture)
-           - Vehicle No: (e.g., 24891 DXB)
-           - Date: (e.g., 22-04-2026)
+           - Cargo: (Description of goods)
+           - Vehicle No: (Plate number)
+           - Date: (Written date)
         
         Return ONLY a JSON object:
-        {"category": "MANUAL PASS", "data": "GP No: [value], Consignee: [value], Cargo: [value], Vehicle No: [value]"}
+        {"category": "MANUAL PASS", "data": "GP No: [value] | Consignee: [value] | Cargo: [value] | Vehicle No: [value]"}
         """
         
         response = model.generate_content([prompt, img])
-        # Clean the response to ensure it's pure JSON
         clean_json = response.text.replace('```json', '').replace('```', '').strip()
         return clean_json
-        
     except Exception as e:
-        return json.dumps({"category": "General", "data": f"Gemini Error: {str(e)}"})
-        
+        return json.dumps({"category": "General", "data": f"Scanner Error: {str(e)}"})
+
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", 'B', 16)
@@ -346,7 +328,7 @@ with t4:
             pdf_data = generate_shift_pdf(st.session_state.current_worker, all_data[-10:])
             st.download_button("📥 Download Handover PDF", pdf_data, f"Handover_{st.session_state.current_worker}.pdf", "application/pdf")
 
-# --- UPDATED UI: TARGETS YOUR SPECIFIC EXCEL SHEETS ---
+# --- FINALIZED SCANNER UI ---
 with t5:
     st.subheader("📟 Logistics Vision Scanner")
     st.info("Capture Dubai South Gate Passes or Labour Receipts.")
@@ -354,20 +336,17 @@ with t5:
     captured_image = st.camera_input("Scan Page")
     
     if captured_image:
-        with st.spinner("Falcon Eye (DeepSeek) reading handwriting..."):
+        with st.spinner("Falcon Eye (Gemini) reading handwriting..."):
             scan_output = process_receipt(captured_image)
             
             try:
-                # Clean and parse the AI response
-                clean_json = scan_output.replace("```json", "").replace("```", "").strip()
-                res_json = json.loads(clean_json)
+                res_json = json.loads(scan_output)
                 target_sheet = res_json.get("category", "MANUAL PASS")
                 extracted_info = res_json.get("data", "No data found")
                 
                 st.markdown(f"### 📋 Detected: **{target_sheet}**")
-                final_entry = st.text_area("Review Data:", value=extracted_info, height=200)
+                final_entry = st.text_area("Review Data:", value=extracted_info, height=150)
                 
-                # Routing Buttons to your specific tabs
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button("🚛 SYNC TO MANUAL PASS"):
@@ -379,10 +358,9 @@ with t5:
                             st.success("Logged in Labour Charge.")
                             
             except Exception:
-                # Fallback for messy AI outputs
                 st.warning("Manual classification required.")
                 route = st.selectbox("Select Target Tab:", ["MANUAL PASS", "LABOUR CHARGE"])
-                final_entry = st.text_area("Extracted Text:", value=scan_output, height=200)
+                final_entry = st.text_area("Extracted Text:", value=scan_output, height=150)
                 if st.button("✅ SYNC MANUALLY"):
                     if save_to_google_sheets(st.session_state.current_worker, final_entry, route):
                         st.success(f"Logged in {route}.")
