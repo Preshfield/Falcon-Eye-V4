@@ -86,24 +86,33 @@ def search_logs(query):
     except Exception as e:
         st.error(f"Audit Search Error: {e}"); return []
 
-# FIXED SCANNER: Now targets DeepSeek OCR vision model to solve ccc.jpeg error
+# UPGRADED SCANNER: Intelligence to Route to Specific Sheets
 def process_receipt(image_file):
-    api_key = st.secrets.get("DEEPSEEK_API_KEY") # Fixes KeyError from dppp.jpeg
+    api_key = st.secrets.get("DEEPSEEK_API_KEY")
     if not api_key:
-        return "System Error: DEEPSEEK_API_KEY missing in Secrets."
+        return json.dumps({"category": "Error", "data": "DEEPSEEK_API_KEY missing."})
         
     base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
     try:
         client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+        
+        # Explicit instruction to categorize and extract
+        prompt = """
+        Analyze this receipt or log image. 
+        1. Categorize it as exactly one of these: 'Manual Gate Pass', 'Labour Book', 'Gate 5', 'Gate 6', or 'General'.
+        2. Extract the key data points (Date, ID/Name, Reference Number).
+        Return ONLY a JSON object: {"category": "Exact Category Name", "data": "The extracted text summary"}
+        """
+        
         response = client.chat.completions.create(
-            model="deepseek-vl-7b-chat", # Paid DeepSeek Vision Model
+            model="deepseek-vl-7b-chat",
             messages=[{"role": "user", "content": [
-                {"type": "text", "text": "Extract details: Date, Name, Amount, and Receipt Number."},
+                {"type": "text", "text": prompt},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
             ]}],
         )
         return response.choices[0].message.content
-    except Exception as e: return f"Vision Error: {str(e)}"
+    except Exception as e: return json.dumps({"category": "General", "data": f"Scan Error: {str(e)}"})
 
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
@@ -180,14 +189,12 @@ if not st.session_state.auth:
             st.rerun()
     st.stop()
 
-# ====================== 5. DASHBOARD UI (IRONCLAD VERSION) ======================
+# ====================== 5. DASHBOARD UI ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
 if st.session_state.get("auth"):
     with st.sidebar:
         st.title("🦅 MISSION LOGS")
-        
-        # --- SHIELDED DATA FETCHING: Fixes AttributeError in di.jpeg ---
         sessions_data = st.session_state.get("all_sessions")
         if not isinstance(sessions_data, dict):
             sessions_data = {"New Conversation": []}
@@ -202,8 +209,6 @@ if st.session_state.get("auth"):
             st.rerun()
 
         st.divider()
-        
-        # --- SHIELDED SELECTION ---
         current_id = st.session_state.get("current_chat_id", "New Conversation")
         if current_id not in chat_list:
             current_id = chat_list[0] if chat_list else "New Conversation"
@@ -215,8 +220,6 @@ if st.session_state.get("auth"):
 
         selected_chat = st.radio("History:", chat_list, index=curr_index)
         st.session_state.current_chat_id = selected_chat
-        
-        # SHIELDED MESSAGE LOAD: Fixes rrr.jpeg crash
         st.session_state.messages = sessions_data.get(selected_chat, [])
 
         st.divider()
@@ -261,27 +264,19 @@ with t1:
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
-    full_langs = {
-        "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-cn",
-        "English": "en", "Hindi": "hi", "Malayalam": "ml", "Pashto": "ps", 
-        "Punjabi": "pa", "Russian": "ru", "Tagalog": "tl", "Urdu": "ur"
-    }
+    full_langs = {"Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-cn", "English": "en", "Hindi": "hi", "Malayalam": "ml", "Pashto": "ps", "Punjabi": "pa", "Russian": "ru", "Tagalog": "tl", "Urdu": "ur"}
     sorted_langs = dict(sorted(full_langs.items()))
     d_lang = st.selectbox("Select Driver Language:", list(sorted_langs.keys()))
-
     c1, c2 = st.columns([3, 1])
     with c1: st.write(f"🎤 **Listen to {d_lang} Driver**")
     with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
-
     if driver_v:
         intent = falcon_query(f"The driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
         st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
-
     st.write("💬 **Reply to Driver**")
     op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK REPLY", key='op_mic')
     d_reply_text = st.text_input("Type command here", key="driver_reply_box")
     final_reply = op_voice if op_voice else d_reply_text
-
     if st.button("📤 SEND COMMAND TO DRIVER"):
         if final_reply:
             with st.spinner("Translating..."):
@@ -296,16 +291,12 @@ with t2:
     st.subheader("📖 Active Protocols")
     st.markdown("### 🎧 Protocol Audio Briefing")
     audio_path = "protocol_lecture.wav.mp3"
-    if os.path.exists(audio_path):
-        st.audio(audio_path, format="audio/mpeg")
-    else:
-        st.info("📢 Audio briefing file not found.")
+    if os.path.exists(audio_path): st.audio(audio_path, format="audio/mpeg")
+    else: st.info("📢 Audio briefing file not found.")
     st.divider()
     st.markdown("### 📜 Standard Operating Procedures")
-    if os.path.exists("gate_manual.pdf"):
-        pdf_viewer("gate_manual.pdf", height=700)
-    else:
-        st.warning("Manual file 'gate_manual.pdf' not found.")
+    if os.path.exists("gate_manual.pdf"): pdf_viewer("gate_manual.pdf", height=700)
+    else: st.warning("Manual file 'gate_manual.pdf' not found.")
 
 with t3:
     st.subheader("📋 Security Logs")
@@ -315,7 +306,7 @@ with t3:
             with st.spinner("Processing..."):
                 report = falcon_query(f"Format this observation: {notes}", "Gate 4 Protocol")
                 st.code(report)
-                if save_to_google_sheets(st.session_state.current_worker, report): st.success("✅ Synchronized.")
+                if save_to_google_sheets(st.session_state.current_worker, report, "LOG"): st.success("✅ Synchronized.")
 
 with t4:
     st.subheader("🕵️ Supervisor Audit Terminal")
@@ -324,7 +315,6 @@ with t4:
         found = search_logs(audit_query)
         if found: st.table(found)
         else: st.info("No matching records found.")
-    
     st.divider()
     st.subheader("📋 Shift Handover")
     if st.button("📄 GENERATE HANDOVER PDF"):
@@ -334,13 +324,29 @@ with t4:
             st.download_button("📥 Download Handover PDF", pdf_data, f"Handover_{st.session_state.current_worker}.pdf", "application/pdf")
 
 with t5:
-    st.subheader("📟 Digital Ledger Scanner")
+    st.subheader("📟 Intelligence Ledger Scanner")
     captured_image = st.camera_input("Scan Document")
     if captured_image:
-        with st.spinner("Processing with DeepSeek Vision..."):
-            extracted = process_receipt(captured_image)
-            st.write("### Extracted Data")
-            final_entry = st.text_area("Edit if needed:", value=extracted, height=200)
-            if st.button("✅ SYNC TO FINANCE"):
-                if save_to_google_sheets(st.session_state.current_worker, final_entry, "FINANCE"):
-                    st.success("Logged to Finance database.")
+        with st.spinner("Analyzing and Routing Content..."):
+            scan_output = process_receipt(captured_image)
+            try:
+                # Attempt to parse the AI JSON routing response
+                res_json = json.loads(scan_output)
+                target_sheet = res_json.get("category", "General")
+                extracted_info = res_json.get("data", scan_output)
+                
+                st.markdown(f"### Detected Ledger: **{target_sheet}**")
+                final_entry = st.text_area("Confirm/Edit Details:", value=extracted_info, height=200)
+                
+                # The button now sends to the SPECIFIC sheet determined by the AI
+                if st.button(f"✅ SYNC TO {target_sheet.upper()} SHEET"):
+                    if save_to_google_sheets(st.session_state.current_worker, final_entry, target_sheet):
+                        st.success(f"Logged successfully in '{target_sheet}' ledger.")
+            except Exception:
+                # Fallback if AI output is not clean JSON
+                st.warning("Manual classification required.")
+                manual_sheet = st.selectbox("Route to Sheet:", ["Manual Gate Pass", "Labour Book", "Gate 5", "Gate 6", "General"])
+                final_entry = st.text_area("Extracted Text:", value=scan_output, height=200)
+                if st.button("✅ SYNC MANUALLY"):
+                    if save_to_google_sheets(st.session_state.current_worker, final_entry, manual_sheet):
+                        st.success(f"Logged in '{manual_sheet}'.")
