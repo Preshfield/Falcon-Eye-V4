@@ -11,3 +11,4 @@ pandas
 google-generativeai
 groq
 duckduckgo-search
+httpx
