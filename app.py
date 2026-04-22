@@ -139,6 +139,7 @@ def process_receipt(image_file):
         # it will return this error so we know to switch providers (like Gemini/OpenAI).
         return json.dumps({"category": "General", "data": f"Vision Error: {str(e)}"})
         
+        
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", 'B', 16)
