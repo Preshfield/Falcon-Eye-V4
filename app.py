@@ -89,35 +89,49 @@ def search_logs(query):
         st.error(f"Audit Search Error: {e}"); return []
 
 # --- FINALIZED GEMINI SCANNER LOGIC ---
+# 1. Add this to your imports at the very top of the file
+import httpx
+
+# 2. Replace the process_receipt function with this Mistral version
 def process_receipt(image_file):
-    api_key = st.secrets.get("GEMINI_API_KEY")
+    api_key = st.secrets.get("MISTRAL_API_KEY")
     if not api_key:
-        return json.dumps({"category": "Error", "data": "GEMINI_API_KEY missing in Secrets."})
-    
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+        return json.dumps({"category": "Error", "data": "MISTRAL_API_KEY missing in Secrets."})
     
     try:
-        img = Image.open(image_file)
-        prompt = """
-        Analyze this Dubai South document. 
-        1. Identify if it is a 'MANUAL PASS' or 'LABOUR CHARGE'.
-        2. Extract these specific details from the handwriting accurately:
-           - GP No: (The red number)
-           - Consignee: (e.g., Agnice)
-           - Cargo: (Description of goods)
-           - Vehicle No: (Plate number)
-           - Date: (Written date)
+        # Convert image to Base64 for Mistral
+        base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
         
-        Return ONLY a JSON object:
-        {"category": "MANUAL PASS", "data": "GP No: [value] | Consignee: [value] | Cargo: [value] | Vehicle No: [value]"}
-        """
-        
-        response = model.generate_content([prompt, img])
-        clean_json = response.text.replace('```json', '').replace('```', '').strip()
-        return clean_json
+        # Prepare the Mistral API Request
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        payload = {
+            "model": "pixtral-12b-2409",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Analyze this Dubai South document. Identify if it is a 'MANUAL PASS' or 'LABOUR CHARGE'. Extract: GP No, Consignee, Cargo, Vehicle No, and Date. Return ONLY JSON."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                    ]
+                }
+            ],
+            "response_format": {"type": "json_object"}
+        }
+
+        # Send to Mistral
+        with httpx.Client() as client:
+            response = client.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=30.0)
+            res_data = response.json()
+            
+        return res_data['choices'][0]['message']['content']
+
     except Exception as e:
-        return json.dumps({"category": "General", "data": f"Scanner Error: {str(e)}"})
+        return json.dumps({"category": "General", "data": f"Mistral Scanner Error: {str(e)}"})
 
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
