@@ -96,26 +96,38 @@ def process_receipt(image_file):
     try:
         client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         
-        # Tactical prompt for the Dubai South documents you provided
+        # WE ADDED "STRICT" INSTRUCTIONS HERE TO STOP HALLUCINATIONS
         prompt = """
-        Analyze this Dubai South document (Gate Pass or Labour Receipt).
+        ACT AS AN OCR EXPERT. Analyze the PROVIDED IMAGE only. Do not invent data.
         
-        1. Identify Category: 'MANUAL PASS' or 'LABOUR CHARGE'.
-        2. If 'MANUAL PASS': Extract {GP No, Consignee, Cargo, Vehicle No}.
-        3. If 'LABOUR CHARGE': Extract {Receipt No, Date, Hours, Num Labours, Amount, Company}.
+        1. Identify: Is it a 'MANUAL PASS' or 'LABOUR CHARGE'?
+        2. Extract these exact fields from the handwriting:
+           - GP No: (The red number or handwritten No.)
+           - Consignee: (The company name written in ink)
+           - Cargo: (Description of goods)
+           - Vehicle No: (Plate number)
+           - Date: (Written date)
         
-        Read the blue ink handwriting carefully. Return ONLY a JSON object: 
-        {"category": "MANUAL PASS or LABOUR CHARGE", "data": "Structured summary of details"}
+        If you cannot read a field, write 'Unreadable'. 
+        Return ONLY a clean JSON object: 
+        {"category": "MANUAL PASS", "data": "GP No: [value], Consignee: [value], Cargo: [value], Vehicle No: [value]"}
         """
         
         response = client.chat.completions.create(
-            model="deepseek-chat", # Using your active DeepSeek engine
-            messages=[{"role": "user", "content": prompt + " [Image attached via base64]"}]
+            model="deepseek-chat", 
+            messages=[
+                {
+                    "role": "user", 
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                    ]
+                }
+            ]
         )
         return response.choices[0].message.content
     except Exception as e: 
         return json.dumps({"category": "General", "data": f"Scan Error: {str(e)}"})
-
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", 'B', 16)
