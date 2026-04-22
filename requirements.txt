@@ -12,3 +12,5 @@ google-generativeai
 groq
 duckduckgo-search
 httpx
+easyocr
+opencv-python-headless
