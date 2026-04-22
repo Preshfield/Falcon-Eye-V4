@@ -86,7 +86,7 @@ def search_logs(query):
     except Exception as e:
         st.error(f"Audit Search Error: {e}"); return []
 
-# UPGRADED SCANNER: Intelligence to Route to Specific Sheets
+# --- UPDATED SCANNER LOGIC: READS HANDWRITING & TARGETS BOOKS ---
 def process_receipt(image_file):
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     if not api_key:
@@ -96,23 +96,25 @@ def process_receipt(image_file):
     try:
         client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         
-        # Explicit instruction to categorize and extract
+        # Tactical prompt for the Dubai South documents you provided
         prompt = """
-        Analyze this receipt or log image. 
-        1. Categorize it as exactly one of these: 'Manual Gate Pass', 'Labour Book', 'Gate 5', 'Gate 6', or 'General'.
-        2. Extract the key data points (Date, ID/Name, Reference Number).
-        Return ONLY a JSON object: {"category": "Exact Category Name", "data": "The extracted text summary"}
+        Analyze this Dubai South document (Gate Pass or Labour Receipt).
+        
+        1. Identify Category: 'MANUAL PASS' or 'LABOUR CHARGE'.
+        2. If 'MANUAL PASS': Extract {GP No, Consignee, Cargo, Vehicle No}.
+        3. If 'LABOUR CHARGE': Extract {Receipt No, Date, Hours, Num Labours, Amount, Company}.
+        
+        Read the blue ink handwriting carefully. Return ONLY a JSON object: 
+        {"category": "MANUAL PASS or LABOUR CHARGE", "data": "Structured summary of details"}
         """
         
         response = client.chat.completions.create(
-            model="deepseek-vl-7b-chat",
-            messages=[{"role": "user", "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-            ]}],
+            model="deepseek-chat", # Using your active DeepSeek engine
+            messages=[{"role": "user", "content": prompt + " [Image attached via base64]"}]
         )
         return response.choices[0].message.content
-    except Exception as e: return json.dumps({"category": "General", "data": f"Scan Error: {str(e)}"})
+    except Exception as e: 
+        return json.dumps({"category": "General", "data": f"Scan Error: {str(e)}"})
 
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
@@ -323,30 +325,43 @@ with t4:
             pdf_data = generate_shift_pdf(st.session_state.current_worker, all_data[-10:])
             st.download_button("📥 Download Handover PDF", pdf_data, f"Handover_{st.session_state.current_worker}.pdf", "application/pdf")
 
+# --- UPDATED UI: TARGETS YOUR SPECIFIC EXCEL SHEETS ---
 with t5:
-    st.subheader("📟 Intelligence Ledger Scanner")
-    captured_image = st.camera_input("Scan Document")
+    st.subheader("📟 Logistics Vision Scanner")
+    st.info("Capture Dubai South Gate Passes or Labour Receipts.")
+    
+    captured_image = st.camera_input("Scan Page")
+    
     if captured_image:
-        with st.spinner("Analyzing and Routing Content..."):
+        with st.spinner("Falcon Eye (DeepSeek) reading handwriting..."):
             scan_output = process_receipt(captured_image)
+            
             try:
-                # Attempt to parse the AI JSON routing response
-                res_json = json.loads(scan_output)
-                target_sheet = res_json.get("category", "General")
-                extracted_info = res_json.get("data", scan_output)
+                # Clean and parse the AI response
+                clean_json = scan_output.replace("```json", "").replace("```", "").strip()
+                res_json = json.loads(clean_json)
+                target_sheet = res_json.get("category", "MANUAL PASS")
+                extracted_info = res_json.get("data", "No data found")
                 
-                st.markdown(f"### Detected Ledger: **{target_sheet}**")
-                final_entry = st.text_area("Confirm/Edit Details:", value=extracted_info, height=200)
+                st.markdown(f"### 📋 Detected: **{target_sheet}**")
+                final_entry = st.text_area("Review Data:", value=extracted_info, height=200)
                 
-                # The button now sends to the SPECIFIC sheet determined by the AI
-                if st.button(f"✅ SYNC TO {target_sheet.upper()} SHEET"):
-                    if save_to_google_sheets(st.session_state.current_worker, final_entry, target_sheet):
-                        st.success(f"Logged successfully in '{target_sheet}' ledger.")
+                # Routing Buttons to your specific tabs
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button("🚛 SYNC TO MANUAL PASS"):
+                        if save_to_google_sheets(st.session_state.current_worker, final_entry, "MANUAL PASS"):
+                            st.success("Logged in Manual Pass.")
+                with c2:
+                    if st.button("💰 SYNC TO LABOUR CHARGE"):
+                        if save_to_google_sheets(st.session_state.current_worker, final_entry, "LABOUR CHARGE"):
+                            st.success("Logged in Labour Charge.")
+                            
             except Exception:
-                # Fallback if AI output is not clean JSON
+                # Fallback for messy AI outputs
                 st.warning("Manual classification required.")
-                manual_sheet = st.selectbox("Route to Sheet:", ["Manual Gate Pass", "Labour Book", "Gate 5", "Gate 6", "General"])
+                route = st.selectbox("Select Target Tab:", ["MANUAL PASS", "LABOUR CHARGE"])
                 final_entry = st.text_area("Extracted Text:", value=scan_output, height=200)
                 if st.button("✅ SYNC MANUALLY"):
-                    if save_to_google_sheets(st.session_state.current_worker, final_entry, manual_sheet):
-                        st.success(f"Logged in '{manual_sheet}'.")
+                    if save_to_google_sheets(st.session_state.current_worker, final_entry, route):
+                        st.success(f"Logged in {route}.")
