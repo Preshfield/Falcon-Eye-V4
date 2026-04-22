@@ -9,6 +9,7 @@ from google.oauth2.service_account import Credentials
 from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 from fpdf import FPDF
+import google.generativeai as genai
 
 # ====================== 1. CRITICAL INITIALIZATION ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
@@ -86,39 +87,58 @@ def search_logs(query):
     except Exception as e:
         st.error(f"Audit Search Error: {e}"); return []
 
+
+
+def process_receipt(image_file):
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    img = Image.open(image_file)
+    prompt = "Read this Dubai South Gate Pass. Extract handwriting: GP No, Consignee, Cargo, Vehicle No. Format as JSON."
+    
+    response = model.generate_content([prompt, img])
+    return response.text
+
 # --- UPDATED SCANNER LOGIC: READS HANDWRITING & TARGETS BOOKS ---
 def process_receipt(image_file):
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     if not api_key:
-        return json.dumps({"category": "Error", "data": "DEEPSEEK_API_KEY missing."})
+        return json.dumps({"category": "Error", "data": "API Key missing."})
         
+    # 1. Convert image to base64
     base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
+    
     try:
+        # 2. Initialize Client
         client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         
-        # We simplify the request to avoid the 400 Error
-        prompt = f"""
-        Analyze this image data: [data:image/jpeg;base64,{base64_image[:100]}...]
-        
-        OCR TASK: Read the handwriting in the attached photo.
-        1. Identify: MANUAL PASS or LABOUR CHARGE.
-        2. Extract: 
-           - GP No (Red number)
-           - Consignee (Company)
-           - Cargo (Description)
-           - Vehicle No
-        
-        Return ONLY JSON: {{"category": "MANUAL PASS", "data": "Details here"}}
-        """
-        
+        # 3. Use the Vision-capable prompt structure
+        # Note: Ensure your DeepSeek plan supports the 'deepseek-chat' vision features 
+        # or use a vision-specific model name if provided in your dashboard.
         response = client.chat.completions.create(
-            model="deepseek-chat", 
-            messages=[{"role": "user", "content": prompt}], # Simple text-based prompt
-            stream=False
+            model="deepseek-chat",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Read the handwriting in this Dubai South Gate Pass. Extract: GP No, Consignee, Cargo, and Vehicle No. Return ONLY JSON."},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=300
         )
         return response.choices[0].message.content
-    except Exception as e: 
-        return json.dumps({"category": "General", "data": f"Scan Error: {str(e)}"})
+    except Exception as e:
+        # Fallback: If the API version doesn't support the image_url variant, 
+        # it will return this error so we know to switch providers (like Gemini/OpenAI).
+        return json.dumps({"category": "General", "data": f"Vision Error: {str(e)}"})
+        
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", 'B', 16)
