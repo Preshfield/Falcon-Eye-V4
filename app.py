@@ -101,44 +101,49 @@ def process_receipt(image_file):
 
 # --- UPDATED SCANNER LOGIC: READS HANDWRITING & TARGETS BOOKS ---
 def process_receipt(image_file):
-    api_key = st.secrets.get("DEEPSEEK_API_KEY")
+    # This uses the OpenAI Key you just added to Streamlit Secrets
+    api_key = st.secrets.get("OPENAI_API_KEY")
     if not api_key:
-        return json.dumps({"category": "Error", "data": "API Key missing."})
+        return json.dumps({"category": "Error", "data": "OPENAI_API_KEY missing in Secrets."})
         
-    # 1. Convert image to base64
     base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
-    
     try:
-        # 2. Initialize Client
-        client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+        client = openai.OpenAI(api_key=api_key)
         
-        # 3. Use the Vision-capable prompt structure
-        # Note: Ensure your DeepSeek plan supports the 'deepseek-chat' vision features 
-        # or use a vision-specific model name if provided in your dashboard.
+        prompt = """
+        Read the handwriting in this Dubai South document carefully. 
+        Identify if it is a 'MANUAL PASS' or 'LABOUR CHARGE'.
+        
+        Extract these specific details from the ink:
+        - GP No (The red number or handwritten No.)
+        - Consignee (The company name, e.g., Agnice)
+        - Cargo (The description, e.g., Furniture)
+        - Vehicle No (Plate number)
+        
+        Return ONLY a clean JSON object:
+        {"category": "MANUAL PASS", "data": "GP No: [val], Consignee: [val], Cargo: [val], Vehicle No: [val]"}
+        """
+        
+        # GPT-4o is the specialized model for Vision/Handwriting
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Read the handwriting in this Dubai South Gate Pass. Extract: GP No, Consignee, Cargo, and Vehicle No. Return ONLY JSON."},
+                        {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            }
-                        }
-                    ]
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                        },
+                    ],
                 }
             ],
-            max_tokens=300
+            max_tokens=500,
         )
         return response.choices[0].message.content
-    except Exception as e:
-        # Fallback: If the API version doesn't support the image_url variant, 
-        # it will return this error so we know to switch providers (like Gemini/OpenAI).
-        return json.dumps({"category": "General", "data": f"Vision Error: {str(e)}"})
-        
+    except Exception as e: 
+        return json.dumps({"category": "General", "data": f"OpenAI Vision Error: {str(e)}"})
         
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
