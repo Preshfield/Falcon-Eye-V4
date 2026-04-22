@@ -100,50 +100,42 @@ def process_receipt(image_file):
     return response.text
 
 # --- UPDATED SCANNER LOGIC: READS HANDWRITING & TARGETS BOOKS ---
+import google.generativeai as genai
+
 def process_receipt(image_file):
-    # This uses the OpenAI Key you just added to Streamlit Secrets
-    api_key = st.secrets.get("OPENAI_API_KEY")
+    # Get your Gemini API Key from Streamlit Secrets
+    api_key = st.secrets.get("GEMINI_API_KEY")
     if not api_key:
-        return json.dumps({"category": "Error", "data": "OPENAI_API_KEY missing in Secrets."})
-        
-    base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
+        return json.dumps({"category": "Error", "data": "GEMINI_API_KEY missing."})
+    
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
     try:
-        client = openai.OpenAI(api_key=api_key)
+        # Convert the uploaded file to an image format Gemini understands
+        img = PIL.Image.open(image_file)
         
         prompt = """
-        Read the handwriting in this Dubai South document carefully. 
-        Identify if it is a 'MANUAL PASS' or 'LABOUR CHARGE'.
+        Analyze this Dubai South document. 
+        1. Identify if it is a 'MANUAL PASS' or 'LABOUR CHARGE'.
+        2. Extract the following accurately from the handwriting:
+           - GP No: (The red number)
+           - Consignee: (e.g., Agnice)
+           - Cargo: (e.g., Furniture)
+           - Vehicle No: (e.g., 24891 DXB)
+           - Date: (e.g., 22-04-2026)
         
-        Extract these specific details from the ink:
-        - GP No (The red number or handwritten No.)
-        - Consignee (The company name, e.g., Agnice)
-        - Cargo (The description, e.g., Furniture)
-        - Vehicle No (Plate number)
-        
-        Return ONLY a clean JSON object:
-        {"category": "MANUAL PASS", "data": "GP No: [val], Consignee: [val], Cargo: [val], Vehicle No: [val]"}
+        Return ONLY a JSON object:
+        {"category": "MANUAL PASS", "data": "GP No: [value], Consignee: [value], Cargo: [value], Vehicle No: [value]"}
         """
         
-        # GPT-4o is the specialized model for Vision/Handwriting
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
-                        },
-                    ],
-                }
-            ],
-            max_tokens=500,
-        )
-        return response.choices[0].message.content
-    except Exception as e: 
-        return json.dumps({"category": "General", "data": f"OpenAI Vision Error: {str(e)}"})
+        response = model.generate_content([prompt, img])
+        # Clean the response to ensure it's pure JSON
+        clean_json = response.text.replace('```json', '').replace('```', '').strip()
+        return clean_json
+        
+    except Exception as e:
+        return json.dumps({"category": "General", "data": f"Gemini Error: {str(e)}"})
         
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
