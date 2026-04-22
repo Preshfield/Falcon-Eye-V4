@@ -89,45 +89,47 @@ def search_logs(query):
         st.error(f"Audit Search Error: {e}"); return []
 
 # --- FINALIZED GEMINI SCANNER LOGIC ---
-# 1. Add this to your imports at the very top of the file
+
 import httpx
 
-# 2. Replace the process_receipt function with this Mistral version
 def process_receipt(image_file):
-    # --- Check for Keys ---
-    gemini_key = st.secrets.get("GEMINI_API_KEY")
-    openai_key = st.secrets.get("OPENAI_API_KEY")
-    mistral_key = st.secrets.get("MISTRAL_API_KEY")
+    api_key = st.secrets.get("MISTRAL_API_KEY")
+    if not api_key:
+        return json.dumps({"category": "Error", "data": "MISTRAL_API_KEY missing in Secrets."})
+    
+    try:
+        # Convert camera image to text for Mistral
+        base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
 
-    # 1. TRY OPENAI (Since it's already in your screenshot)
-    if openai_key:
-        try:
-            import base64
-            base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
-            client = openai.OpenAI(api_key=openai_key)
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": [
-                    {"type": "text", "text": "Analyze this Dubai South document. Return JSON: {category: 'MANUAL PASS', data: 'GP No: [val] | Consignee: [val]'}"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ]}],
-                response_format={"type": "json_object"}
-            )
-            return response.choices[0].message.content
-        except: pass # Try next if this fails
+        # The specific request Mistral expects for Pixtral
+        payload = {
+            "model": "pixtral-12b-2409",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Extract these from the Dubai South pass: GP No, Consignee, Cargo, Vehicle No. Also identify if it's a MANUAL PASS or LABOUR CHARGE. Return ONLY JSON."},
+                        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_image}"}
+                    ]
+                }
+            ],
+            "response_format": {"type": "json_object"}
+        }
 
-    # 2. TRY GEMINI (Fall back)
-    if gemini_key:
-        try:
-            genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            img = Image.open(image_file)
-            response = model.generate_content(["Extract data from this Dubai South pass as JSON.", img])
-            return response.text.replace('```json', '').replace('```', '').strip()
-        except: pass
+        response = httpx.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=45.0)
+        
+        if response.status_code == 200:
+            return response.json()['choices'][0]['message']['content']
+        else:
+            return json.dumps({"category": "Error", "data": f"API Error: {response.status_code}"})
 
-    # 3. FINAL ERROR IF NOTHING WORKS
-    return json.dumps({"category": "Error", "data": "All API Keys (OpenAI/Gemini/Mistral) are failing or missing in Secrets."})
+    except Exception as e:
+        return json.dumps({"category": "General", "data": f"Scanner Error: {str(e)}"})
 
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
