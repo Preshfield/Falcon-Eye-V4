@@ -301,83 +301,107 @@ with t4:
 
 with t5:
     st.subheader("📟 Digital Ledger Scanner & Logistics")
+    
+    # 1. SCANNER (Original Logic)
     captured_image = st.camera_input("Scan Document")
     if captured_image:
         with st.spinner("DeepSeek OCR 2 Reading..."):
             extracted = process_receipt(captured_image)
             st.write("### Extracted Data")
-            final_entry = st.text_area("Edit if needed:", value=extracted, height=200)
+            final_entry = st.text_area("Edit if needed:", value=extracted.upper(), height=200)
             if st.button("✅ SYNC TO FINANCE"):
                 if save_to_google_sheets(st.session_state.current_worker, final_entry, "FINANCE"):
                     st.success("Logged to Finance database.")
     
     st.divider()
-    
-    # ====================== LOGISTICS DATA SECTION ======================
+
+    # 2. DATA RECALL/CORRECTION TOOL
+    st.write("### 🛠️ Correction & Recall Terminal")
+    with st.expander("Find Data for Correction"):
+        search_col, search_btn = st.columns([3, 1])
+        recall_id = search_col.text_input("Enter Gate Pass / Receipt No to Recall:")
+        if search_btn.button("🔍 RECALL"):
+            # This searches your logs for that specific ID
+            found_records = search_logs(recall_id) 
+            if found_records:
+                st.info(f"Found record: {found_records[-1]}")
+                st.warning("Note: Manual correction is applied by submitting a new corrected entry.")
+            else:
+                st.error("No record found with that ID.")
+
+    st.divider()
+
+    # 3. LOGISTICS ENTRY WITH UPPERCASE & MEMORY
     st.write("### 🚛 Logistics Database Entry")
     doc_type = st.radio("Select Form:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
+
+    # For "Excel-style" memory, we pull previous Consignees from the sheet to suggest them
+    # Note: This requires the search_logs function to be working
+    prev_entries = search_logs("") # Gets recent history
+    consignee_list = list(set([str(r.get('CONSIGNEE', '')) for r in prev_entries if r.get('CONSIGNEE')]))
     
     with st.form("logistics_form", clear_on_submit=True):
         if doc_type == "Manual Gate Pass":
             c1, c2, c3 = st.columns(3)
-            sl_no = c1.text_input("SL NO")
-            book_no = c2.text_input("BOOK NO")
-            gp_no = c3.text_input("GATE PASS NO")
+            sl_no = c1.text_input("SL NO").upper()
+            book_no = c2.text_input("BOOK NO").upper()
+            gp_no = c3.text_input("GATE PASS NO").upper()
             
-            c4, c5 = st.columns(2)
-            consignee = c4.text_input("CONSIGNEE")
-            bill_no = c5.text_input("CUSTOMS BILL NO")
+            # Memory field for Consignee
+            consignee = st.selectbox("CONSIGNEE (Select Previous or Type New)", [""] + consignee_list)
+            new_consignee = st.text_input("OR Type New Consignee:").upper()
+            final_consignee = new_consignee if new_consignee else consignee
             
-            desc = st.text_area("DESCRIPTION OF CARGO")
+            bill_no = st.text_input("CUSTOMS BILL NO").upper()
+            desc = st.text_area("DESCRIPTION OF CARGO").upper()
             
             c6, c7, c8 = st.columns(3)
-            unit_type = c6.text_input("TYPE/UNIT")
-            cash_rec = c7.text_input("CASH RECEIPT NO")
-            amount = c8.text_input("AMOUNT")
+            unit_type = c6.text_input("TYPE/UNIT").upper()
+            cash_rec = c7.text_input("CASH RECEIPT NO").upper()
+            amount_val = c8.text_input("AMOUNT").upper()
             
-            rem_pass = st.text_input("REMARKS")
-            # PAYLOAD: SL NO, BOOK NO, GP NO, CONSIGNEE, BILL NO, DESC, UNIT, CASH NO, REMARKS, AMOUNT
-            payload = [sl_no, book_no, gp_no, consignee, bill_no, desc, unit_type, cash_rec, rem_pass, amount]
+            rem_pass = st.text_input("REMARKS").upper()
+            payload = [sl_no, book_no, gp_no, final_consignee, bill_no, desc, unit_type, cash_rec, rem_pass, amount_val]
             sheet_target = "MANUAL PASS"
             
         elif doc_type == "Labour Charge":
             c1, c2, c3 = st.columns(3)
-            t_start = c1.text_input("TIME START")
-            t_finish = c2.text_input("TIME FINISH")
-            r_book = c3.text_input("RECEIPT BOOK NO")
+            t_start = c1.text_input("TIME START").upper()
+            t_finish = c2.text_input("TIME FINISH").upper()
+            r_book = c3.text_input("RECEIPT BOOK NO").upper()
             
             c4, c5, c6 = st.columns(3)
-            vouch = c4.text_input("RECEIPT VOUCHER NO")
-            hrs = c5.text_input("NO OF HOURS")
-            labours = c6.text_input("NO OF LABOURS")
+            vouch = c4.text_input("RECEIPT VOUCHER NO").upper()
+            hrs = c5.text_input("NO OF HOURS").upper()
+            labours = c6.text_input("NO OF LABOURS").upper()
             
             c7, c8 = st.columns(2)
             forklift = c7.selectbox("FORK LIFT", ["YES", "NO"])
-            amt_labour = c8.text_input("AMOUNT")
+            amt_labour = c8.text_input("AMOUNT").upper()
             
-            received_from = st.text_input("RECEIVED FROM")
-            rem_labour = st.text_input("REMARKS")
-            # PAYLOAD: START, FINISH, BOOK, VOUCHER, HOURS, LABOURS, FORKLIFT, AMOUNT, FROM, REMARKS
+            received_from = st.text_input("RECEIVED FROM").upper()
+            rem_labour = st.text_input("REMARKS").upper()
             payload = [t_start, t_finish, r_book, vouch, hrs, labours, forklift, amt_labour, received_from, rem_labour]
             sheet_target = "LABOUR CHARGE"
 
         elif doc_type == "Official Report":
             c1, c2 = st.columns(2)
-            o_book = c1.text_input("BOOK NO")
-            o_gp = c2.text_input("GATE PASS NO")
+            o_book = c1.text_input("BOOK NO").upper()
+            o_gp = c2.text_input("GATE PASS NO").upper()
             
-            o_con = st.text_input("CONSIGNEE")
-            o_bill = st.text_input("CUSTOM BILL NO")
-            o_reason = st.text_area("REASON")
+            o_con = st.text_input("CONSIGNEE").upper()
+            o_bill = st.text_input("CUSTOM BILL NO").upper()
+            o_reason = st.text_area("REASON").upper()
             
             c3, c4 = st.columns(2)
-            o_rem = c3.text_input("REMARKS")
-            o_amt = c4.text_input("AMOUNT (AED)")
+            o_rem = c3.text_input("REMARKS").upper()
+            o_amt = c4.text_input("AMOUNT (AED)").upper()
             
-            # PAYLOAD: BOOK, GP, CONSIGNEE, BILL, REMARKS, AMOUNT, REASON
             payload = [o_book, o_gp, o_con, o_bill, o_rem, o_amt, o_reason]
             sheet_target = "OFFICIAL REPORT"
 
         if st.form_submit_button("🚀 SYNC TO LOGISTICS DATABASE"):
-            if save_to_google_sheets(st.session_state.current_worker, payload, sheet_target):
-                st.success(f"✅ Successfully transferred to {sheet_target} sheet.")
+            # Final safety check: force all items in payload to uppercase
+            final_payload = [str(x).upper() for x in payload]
+            if save_to_google_sheets(st.session_state.current_worker, final_payload, sheet_target):
+                st.success(f"✅ Successfully transferred to {sheet_target} in UPPERCASE.")
