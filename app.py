@@ -79,19 +79,42 @@ def save_to_google_sheets(worker, payload, sheet_name="LOG"):
     except Exception as e:
         st.error(f"❌ SYNC ERROR: {str(e)}"); return False
 
-def search_logs(query):
+def update_google_sheet(row_index, payload, sheet_name):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
         client = gspread.authorize(creds)
-        sheet = client.open("Falcon_Eye_Database").worksheet("LOG")
-        all_rows = sheet.get_all_values()
-        if not all_rows: return []
-        header = all_rows[0]
-        return [dict(zip(header, row)) for row in all_rows[1:] if any(query.lower() in str(c).lower() for c in row)]
+        sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
+        
+        now = datetime.now(timezone(timedelta(hours=4)))
+        date_s = now.strftime("%d-%m-%Y")
+        
+        # Prepare the corrected row (Date + Payload + Worker)
+        row_data = [date_s] + [str(i).upper() for i in payload] + [st.session_state.current_worker]
+        
+        # This replaces the old row with the new corrected data
+        sheet.update(f"A{row_index}", [row_data])
+        return True
     except Exception as e:
-        st.error(f"Audit Search Error: {e}"); return []
+        st.error(f"Update Failed: {e}"); return False
 
+def search_logs(query, sheet_name="LOG"):
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+        client = gspread.authorize(creds)
+        sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
+        all_rows = sheet.get_all_values()
+        if not all_rows: return [], None
+        
+        header = all_rows[0]
+        # We return the data AND the row index so we can update it later
+        for idx, row in enumerate(all_rows[1:], start=2): 
+            if any(query.upper() in str(c).upper() for c in row):
+                return dict(zip(header, row)), idx
+        return None, None
+    except Exception as e:
+        st.error(f"Search Error: {e}"); return None, None
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", 'B', 16)
@@ -302,43 +325,47 @@ with t4:
 with t5:
     st.subheader("📟 Digital Ledger Scanner & Logistics")
     
-    # 1. SCANNER (Original Logic)
+    # 1. SCANNER
     captured_image = st.camera_input("Scan Document")
     if captured_image:
-        with st.spinner("DeepSeek OCR 2 Reading..."):
+        with st.spinner("Reading Document..."):
             extracted = process_receipt(captured_image)
-            st.write("### Extracted Data")
-            final_entry = st.text_area("Edit if needed:", value=extracted.upper(), height=200)
+            final_entry = st.text_area("Edit scan if needed:", value=extracted.upper(), height=150)
             if st.button("✅ SYNC TO FINANCE"):
-                if save_to_google_sheets(st.session_state.current_worker, final_entry, "FINANCE"):
-                    st.success("Logged to Finance database.")
-    
+                save_to_google_sheets(st.session_state.current_worker, final_entry, "FINANCE")
+
     st.divider()
 
-    # 2. DATA RECALL/CORRECTION TOOL
-    st.write("### 🛠️ Correction & Recall Terminal")
-    with st.expander("Find Data for Correction"):
-        search_col, search_btn = st.columns([3, 1])
-        recall_id = search_col.text_input("Enter Gate Pass / Receipt No to Recall:")
-        if search_btn.button("🔍 RECALL"):
-            # This searches your logs for that specific ID
-            found_records = search_logs(recall_id) 
-            if found_records:
-                st.info(f"Found record: {found_records[-1]}")
-                st.warning("Note: Manual correction is applied by submitting a new corrected entry.")
+    # 2. CORRECTION TERMINAL (RECALL LOGIC)
+    st.write("### 🛠️ Logistics Correction Terminal")
+    with st.expander("RECALL & FIX ERRORS"):
+        search_tab = st.selectbox("Select Sheet to Fix:", ["MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"])
+        recall_id = st.text_input("Enter ID (Gate Pass/Receipt No):")
+        
+        if st.button("🔍 FETCH RECORD"):
+            record, row_idx = search_logs(recall_id, search_tab)
+            if record:
+                st.session_state.edit_row_idx = row_idx
+                st.session_state.target_sheet = search_tab
+                st.success(f"Record found at Row {row_idx}. Correct it in the form below.")
+                st.json(record)
             else:
-                st.error("No record found with that ID.")
+                st.error("No record found. Check the ID and Sheet name.")
 
     st.divider()
 
-    # 3. LOGISTICS ENTRY WITH UPPERCASE & MEMORY
+    # 3. SMART LOGISTICS FORM
     st.write("### 🚛 Logistics Database Entry")
-    doc_type = st.radio("Select Form:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
+    
+    # Check if we are in "Edit Mode"
+    is_editing = "edit_row_idx" in st.session_state
+    if is_editing:
+        st.warning(f"⚠️ EDITING MODE: Correcting Row {st.session_state.edit_row_idx}")
+        if st.button("❌ CANCEL & START NEW"):
+            del st.session_state.edit_row_idx
+            st.rerun()
 
-    # For "Excel-style" memory, we pull previous Consignees from the sheet to suggest them
-    # Note: This requires the search_logs function to be working
-    prev_entries = search_logs("") # Gets recent history
-    consignee_list = list(set([str(r.get('CONSIGNEE', '')) for r in prev_entries if r.get('CONSIGNEE')]))
+    doc_type = st.radio("Select Form:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
     
     with st.form("logistics_form", clear_on_submit=True):
         if doc_type == "Manual Gate Pass":
@@ -346,22 +373,16 @@ with t5:
             sl_no = c1.text_input("SL NO").upper()
             book_no = c2.text_input("BOOK NO").upper()
             gp_no = c3.text_input("GATE PASS NO").upper()
-            
-            # Memory field for Consignee
-            consignee = st.selectbox("CONSIGNEE (Select Previous or Type New)", [""] + consignee_list)
-            new_consignee = st.text_input("OR Type New Consignee:").upper()
-            final_consignee = new_consignee if new_consignee else consignee
-            
+            consignee = st.text_input("CONSIGNEE").upper()
             bill_no = st.text_input("CUSTOMS BILL NO").upper()
             desc = st.text_area("DESCRIPTION OF CARGO").upper()
-            
-            c6, c7, c8 = st.columns(3)
-            unit_type = c6.text_input("TYPE/UNIT").upper()
-            cash_rec = c7.text_input("CASH RECEIPT NO").upper()
-            amount_val = c8.text_input("AMOUNT").upper()
-            
+            c4, c5, c6 = st.columns(3)
+            unit_type = c4.text_input("TYPE/UNIT").upper()
+            cash_rec = c5.text_input("CASH RECEIPT NO").upper()
+            amount_v = c6.text_input("AMOUNT").upper()
             rem_pass = st.text_input("REMARKS").upper()
-            payload = [sl_no, book_no, gp_no, final_consignee, bill_no, desc, unit_type, cash_rec, rem_pass, amount_val]
+            
+            payload = [sl_no, book_no, gp_no, consignee, bill_no, desc, unit_type, cash_rec, rem_pass, amount_v]
             sheet_target = "MANUAL PASS"
             
         elif doc_type == "Labour Charge":
@@ -369,30 +390,26 @@ with t5:
             t_start = c1.text_input("TIME START").upper()
             t_finish = c2.text_input("TIME FINISH").upper()
             r_book = c3.text_input("RECEIPT BOOK NO").upper()
-            
             c4, c5, c6 = st.columns(3)
             vouch = c4.text_input("RECEIPT VOUCHER NO").upper()
             hrs = c5.text_input("NO OF HOURS").upper()
             labours = c6.text_input("NO OF LABOURS").upper()
-            
             c7, c8 = st.columns(2)
             forklift = c7.selectbox("FORK LIFT", ["YES", "NO"])
-            amt_labour = c8.text_input("AMOUNT").upper()
-            
+            amt_l = c8.text_input("AMOUNT").upper()
             received_from = st.text_input("RECEIVED FROM").upper()
-            rem_labour = st.text_input("REMARKS").upper()
-            payload = [t_start, t_finish, r_book, vouch, hrs, labours, forklift, amt_labour, received_from, rem_labour]
+            rem_l = st.text_input("REMARKS").upper()
+            
+            payload = [t_start, t_finish, r_book, vouch, hrs, labours, forklift, amt_l, received_from, rem_l]
             sheet_target = "LABOUR CHARGE"
 
         elif doc_type == "Official Report":
             c1, c2 = st.columns(2)
             o_book = c1.text_input("BOOK NO").upper()
             o_gp = c2.text_input("GATE PASS NO").upper()
-            
             o_con = st.text_input("CONSIGNEE").upper()
             o_bill = st.text_input("CUSTOM BILL NO").upper()
             o_reason = st.text_area("REASON").upper()
-            
             c3, c4 = st.columns(2)
             o_rem = c3.text_input("REMARKS").upper()
             o_amt = c4.text_input("AMOUNT (AED)").upper()
@@ -400,8 +417,17 @@ with t5:
             payload = [o_book, o_gp, o_con, o_bill, o_rem, o_amt, o_reason]
             sheet_target = "OFFICIAL REPORT"
 
-        if st.form_submit_button("🚀 SYNC TO LOGISTICS DATABASE"):
-            # Final safety check: force all items in payload to uppercase
+        # --- THE SMART SYNC BUTTON ---
+        submit_label = "💾 OVERWRITE ERROR" if is_editing else "🚀 SYNC TO DATABASE"
+        if st.form_submit_button(submit_label):
             final_payload = [str(x).upper() for x in payload]
-            if save_to_google_sheets(st.session_state.current_worker, final_payload, sheet_target):
-                st.success(f"✅ Successfully transferred to {sheet_target} in UPPERCASE.")
+            
+            if is_editing:
+                # Runs the UPDATE logic if we recalled a record
+                if update_google_sheet(st.session_state.edit_row_idx, final_payload, st.session_state.target_sheet):
+                    st.success(f"✅ ROW {st.session_state.edit_row_idx} CORRECTED!")
+                    del st.session_state.edit_row_idx # Clear edit mode after success
+            else:
+                # Runs the standard SAVE logic for new entries
+                if save_to_google_sheets(st.session_state.current_worker, final_payload, sheet_target):
+                    st.success(f"✅ NEW ENTRY SAVED TO {sheet_target}")
