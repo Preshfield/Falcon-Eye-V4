@@ -348,28 +348,23 @@ with t5:
 
     # --- OPTION 1: MANUAL ENTRY FORM ---
     if entry_method == "⚡ Manual Entry Form":
-        doc_type = st.radio("Document Category:", ["Manual Gate Pass", "Labour Charge Book"], horizontal=True)
+        doc_type = st.radio("Document Category:", ["Manual Gate Pass", "Labour Charge Book", "Official Report"], horizontal=True)
         
         if doc_type == "Manual Gate Pass":
             with st.form("manual_gp_form", clear_on_submit=True):
                 st.markdown("### 🚛 Manual Gate Pass Detail")
-                
-                # Row 1
                 r1_c1, r1_c2, r1_c3 = st.columns(3)
                 sl_no = r1_c1.text_input("SL NO")
-                date_gp = r1_c2.date_input("DATE", datetime.now())
+                date_gp = r1_c2.date_input("DATE (GP)", datetime.now())
                 book_no = r1_c3.text_input("BOOK NO")
                 
-                # Row 2
                 r2_c1, r2_c2, r2_c3 = st.columns(3)
                 gp_no = r2_c1.text_input("GATE PASS NO")
                 consignee = r2_c2.text_input("CONSIGNEE")
                 customs_bill = r2_c3.text_input("CUSTOMS BILL NO")
                 
-                # Row 3
                 description = st.text_area("DESCRIPTION OF CARGO")
                 
-                # Row 4
                 r4_c1, r4_c2, r4_c3 = st.columns(3)
                 type_unit = r4_c1.text_input("TYPE / UNIT")
                 cash_receipt = r4_c2.text_input("CASH RECEIPT NO")
@@ -378,45 +373,93 @@ with t5:
                 remarks = st.text_input("REMARKS")
                 
                 if st.form_submit_button("🚀 SYNC TO MANUAL PASS"):
-                    # Combine all fields into one clean string for your Google Sheet
                     log_data = f"SL:{sl_no} | GP:{gp_no} | Book:{book_no} | Consignee:{consignee} | Bill:{customs_bill} | Cargo:{description} | Unit:{type_unit} | Receipt:{cash_receipt} | Amt:{amount} | Remarks:{remarks}"
                     if save_to_google_sheets(st.session_state.current_worker, log_data, "MANUAL PASS"):
-                        st.success(f"✅ GP {gp_no} Synchronized to Cloud.")
+                        st.success(f"✅ GP {gp_no} Synchronized.")
 
-        else:
+        elif doc_type == "Labour Charge Book":
             with st.form("labour_book_form", clear_on_submit=True):
                 st.markdown("### 💰 Labour Charge Book Entry")
-                
-                # Row 1
                 l1_c1, l1_c2, l1_c3 = st.columns(3)
-                l_date = l1_c1.date_input("DATE", datetime.now())
+                l_date = l1_c1.date_input("DATE (Labour)", datetime.now())
                 t_start = l1_c2.text_input("TIME START (HH:MM)")
                 t_finish = l1_c3.text_input("TIME FINISH (HH:MM)")
                 
-                # Row 2
                 l2_c1, l2_c2, l2_c3 = st.columns(3)
                 rec_book = l2_c1.text_input("RECEIPT BOOK NO")
                 rec_voucher = l2_c2.text_input("RECEIPT VOUCHER NO")
                 hrs = l2_c3.text_input("NO OF HOURS")
                 
-                # Row 3
                 l3_c1, l3_c2, l3_c3 = st.columns(3)
                 labour_qty = l3_c1.text_input("NO OF LABOURS")
                 forklift = l3_c2.selectbox("FORK LIFT", ["No", "Yes - 3T", "Yes - 5T", "Yes - 10T"])
                 l_amount = l3_c3.text_input("AMOUNT (AED)")
                 
-                # Row 4
-                received_from = st.text_input("RECEIVED FROM (Company/Person)")
+                received_from = st.text_input("RECEIVED FROM")
                 l_remarks = st.text_input("LABOUR REMARKS")
                 
                 if st.form_submit_button("💰 SYNC TO LABOUR CHARGE"):
-                    # Combine all labour fields
                     labour_data = f"Date:{l_date} | Start:{t_start} | End:{t_finish} | Book:{rec_book} | Voucher:{rec_voucher} | Hrs:{hrs} | Labours:{labour_qty} | Forklift:{forklift} | Amt:{l_amount} | From:{received_from} | Notes:{l_remarks}"
                     if save_to_google_sheets(st.session_state.current_worker, labour_data, "LABOUR CHARGE"):
                         st.success(f"✅ Labour Entry for {received_from} Saved.")
 
-    # --- OPTION 2: AI VISION SCANNER ---
+        elif doc_type == "Official Report":
+            with st.form("official_report_form", clear_on_submit=True):
+                st.markdown("### 📋 Official Report Entry")
+                o1_c1, o1_c2, o1_c3 = st.columns(3)
+                o_date = o1_c1.date_input("DATE (Report)", datetime.now())
+                o_book = o1_c2.text_input("BOOK NO")
+                o_gp = o1_c3.text_input("GATE PASS NO")
+                
+                o2_c1, o2_c2, o2_c3 = st.columns(3)
+                o_consignee = o2_c1.text_input("CONSIGNEE")
+                o_bill = o2_c2.text_input("CUSTOM BILL NO")
+                o_amount = o2_c3.text_input("AMOUNT (AED)")
+                
+                o_reason = st.text_area("REASON / DESCRIPTION")
+                o_remarks = st.text_input("REMARKS")
+                
+                if st.form_submit_button("📝 SYNC TO OFFICIAL REPORT"):
+                    report_data = f"Date:{o_date} | Book:{o_book} | GP:{o_gp} | Consignee:{o_consignee} | Bill:{o_bill} | Amt:{o_amount} | Reason:{o_reason} | Remarks:{o_remarks}"
+                    if save_to_google_sheets(st.session_state.current_worker, report_data, "OFFICIAL REPORT"):
+                        st.success("✅ Official Report Synchronized.")
+
+    # --- OPTION 2: AI VISION SCANNER (Mistral Optimized) ---
     else:
-        st.info("Scanner Mode: Capture a clear photo for AI analysis.")
+        st.info("Scanner Mode: Capture a clear photo of the document.")
         captured_image = st.camera_input("Scan Page")
-        # [Existing AI Scan code remains here]
+        
+        if captured_image:
+            with st.spinner("Falcon Eye reading document..."):
+                scan_output = process_receipt(captured_image)
+                
+                try:
+                    res_json = json.loads(scan_output)
+                    target_sheet = res_json.get("category", "MANUAL PASS")
+                    extracted_info = res_json.get("data", "No data found")
+                    
+                    st.markdown(f"### 📋 AI Detected: **{target_sheet}**")
+                    final_entry = st.text_area("Review Extracted Details:", value=extracted_info, height=150)
+                    
+                    # Routing Buttons
+                    cc1, cc2, cc3 = st.columns(3)
+                    with cc1:
+                        if st.button("🚛 TO MANUAL PASS"):
+                            save_to_google_sheets(st.session_state.current_worker, final_entry, "MANUAL PASS")
+                            st.success("Synced to Manual Pass.")
+                    with cc2:
+                        if st.button("💰 TO LABOUR CHARGE"):
+                            save_to_google_sheets(st.session_state.current_worker, final_entry, "LABOUR CHARGE")
+                            st.success("Synced to Labour Charge.")
+                    with cc3:
+                        if st.button("📋 TO OFFICIAL REPORT"):
+                            save_to_google_sheets(st.session_state.current_worker, final_entry, "OFFICIAL REPORT")
+                            st.success("Synced to Official Report.")
+                
+                except Exception:
+                    st.warning("AI format error. Please sync manually.")
+                    raw_text = st.text_area("Raw Scanned Text:", value=scan_output)
+                    route = st.selectbox("Select Target Sheet:", ["MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"])
+                    if st.button("✅ FORCE SYNC"):
+                        save_to_google_sheets(st.session_state.current_worker, raw_text, route)
+                        st.success(f"Manually Synced to {route}.")
