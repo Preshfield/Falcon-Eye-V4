@@ -109,21 +109,35 @@ def search_logs(query):
 
 def process_receipt(image_file):
     api_key = st.secrets.get("MISTRAL_API_KEY")
-    if not api_key: return json.dumps({"category": "Error", "data": "MISTRAL_API_KEY missing."})
-    client = openai.OpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1")
+    if not api_key:
+        return json.dumps({"category": "Error", "data": "MISTRAL_API_KEY missing in Secrets."})
+    
     try:
+        # Convert camera image to Base64
         base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
+        
+        # Initialize Mistral Client
+        client = openai.OpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1")
+        
+        # Correctly formatted Vision Request
         response = client.chat.completions.create(
             model="pixtral-12b-2409",
-            messages=[{"role": "user", "content": [
-                {"type": "text", "text": "Extract document data for Dubai South. Identify category: MANUAL PASS or LABOUR CHARGE. Return ONLY JSON."},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-            ]}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Extract these handwriting details from the Dubai South Gate Pass: GP No, Consignee, Cargo, Vehicle No. Return ONLY JSON."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                    ]
+                }
+            ],
             response_format={"type": "json_object"}
         )
+        
         return response.choices[0].message.content
-    except Exception as e: return json.dumps({"category": "General", "data": str(e)})
 
+    except Exception as e:
+        return json.dumps({"category": "General", "data": f"Scanner Error: {str(e)}"})
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", 'B', 16)
