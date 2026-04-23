@@ -58,29 +58,27 @@ def save_to_google_sheets(worker, payload, sheet_name="LOG"):
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
         client = gspread.authorize(creds)
-        
-        # This line fails if the tab name isn't EXACT
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
-        
         now = datetime.now(timezone(timedelta(hours=4)))
         date_s = now.strftime("%d-%m-%Y")
         
+        # ORIGINAL LOGIC FOR SECURITY LOGS & FINANCE SCANNER
         if sheet_name in ["LOG", "FINANCE"]:
             clean_log = str(payload).replace("**", "").replace("###", "").replace("- ", "").strip()
             row_data = [date_s, now.strftime("%H:%M:%S"), "GATE 4", worker, clean_log, "VERIFIED"]
+        
+        # LOGISTICS LAW: DATE + PAYLOAD FIELDS + UPDATED BY
         else:
-            # Ensuring all data is converted to string to prevent JSON errors
             row_data = [date_s] + [str(i) for i in payload] + [worker]
             
         sheet.append_row(row_data)
         return True
     except gspread.exceptions.WorksheetNotFound:
-        st.error(f"❌ ERROR: Tab named '{sheet_name}' not found in the Google Sheet!")
+        st.error(f"❌ DATABASE ERROR: Tab '{sheet_name}' not found. Check Google Sheets tab names.")
         return False
     except Exception as e:
-        st.error(f"❌ SYNC ERROR: {str(e)}")
-        print(f"Detailed Error: {e}") # This shows in your console
-        return False
+        st.error(f"❌ SYNC ERROR: {str(e)}"); return False
+
 def search_logs(query):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -338,7 +336,7 @@ with t5:
             amount = c8.text_input("AMOUNT")
             
             rem_pass = st.text_input("REMARKS")
-            # PAYLOAD ORDER: SL NO, BOOK NO, GP NO, CONSIGNEE, BILL NO, DESC, UNIT, CASH NO, REMARKS, AMOUNT
+            # PAYLOAD: SL NO, BOOK NO, GP NO, CONSIGNEE, BILL NO, DESC, UNIT, CASH NO, REMARKS, AMOUNT
             payload = [sl_no, book_no, gp_no, consignee, bill_no, desc, unit_type, cash_rec, rem_pass, amount]
             sheet_target = "MANUAL PASS"
             
@@ -359,7 +357,7 @@ with t5:
             
             received_from = st.text_input("RECEIVED FROM")
             rem_labour = st.text_input("REMARKS")
-            # PAYLOAD ORDER: START, FINISH, BOOK, VOUCHER, HOURS, LABOURS, FORKLIFT, AMOUNT, FROM, REMARKS
+            # PAYLOAD: START, FINISH, BOOK, VOUCHER, HOURS, LABOURS, FORKLIFT, AMOUNT, FROM, REMARKS
             payload = [t_start, t_finish, r_book, vouch, hrs, labours, forklift, amt_labour, received_from, rem_labour]
             sheet_target = "LABOUR CHARGE"
 
@@ -376,9 +374,9 @@ with t5:
             o_rem = c3.text_input("REMARKS")
             o_amt = c4.text_input("AMOUNT (AED)")
             
-            # PAYLOAD ORDER: BOOK, GP, CONSIGNEE, BILL, REMARKS, AMOUNT, REASON
+            # PAYLOAD: BOOK, GP, CONSIGNEE, BILL, REMARKS, AMOUNT, REASON
             payload = [o_book, o_gp, o_con, o_bill, o_rem, o_amt, o_reason]
-            sheet_target = "OFFICIAL"
+            sheet_target = "OFFICIAL REPORT"
 
         if st.form_submit_button("🚀 SYNC TO LOGISTICS DATABASE"):
             if save_to_google_sheets(st.session_state.current_worker, payload, sheet_target):
