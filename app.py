@@ -270,25 +270,47 @@ with t1:
                 st.session_state.messages.append({"role": "assistant", "content": response})
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-    st.divider()
+   st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
-    full_langs = {"Arabic": "ar", "Bengali": "bn", "English": "en", "Hindi": "hi", "Urdu": "ur"}
-    d_lang = st.selectbox("Select Driver Language:", list(full_langs.keys()))
+    
+    # Expanded Language Database for Dubai Logistics
+    full_langs = {
+        "Arabic": "ar", "Bengali": "bn", "English": "en", "Hindi": "hi", 
+        "Urdu": "ur", "Pashto": "ps", "Punjabi": "pa", "Malayalam": "ml",
+        "Tamil": "ta", "Telugu": "te", "Gujarati": "gu", "Kannada": "kn",
+        "Marathi": "mr", "Farsi": "fa", "Turkish": "tr", "Russian": "ru",
+        "French": "fr", "Chinese": "zh", "Tagalog": "tl", "Swahili": "sw"
+    }
+    
+    # Using a selectbox - Streamlit allows you to type to search or scroll
+    d_lang = st.selectbox("Select Driver Language:", sorted(list(full_langs.keys())), index=0)
+    
     c1, c2 = st.columns([3, 1])
-    with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
+    with c2: 
+        driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
+    
     if driver_v:
         intent = falcon_query(f"Driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver:</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="driver-msg"><b>Driver ({d_lang}):</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
+    
     op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK", key='op_mic')
-    final_reply = op_voice if op_voice else st.text_input("Type command")
+    final_reply = op_voice if op_voice else st.text_input("Type command to driver (English)")
+    
     if st.button("📤 SEND COMMAND"):
         if final_reply:
             trans = falcon_query(f"Translate to {d_lang}: {final_reply}", "Driver Instruction")
-            st.success(f"**Replied:** {trans}")
-            tts = gTTS(text=trans, lang=full_langs[d_lang])
-            stream = io.BytesIO(); tts.write_to_fp(stream)
-            st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
+            st.success(f"**Replied in {d_lang}:** {trans}")
+            
+            # Generate and play audio for the driver
+            try:
+                tts = gTTS(text=trans, lang=full_langs[d_lang])
+                stream = io.BytesIO()
+                tts.write_to_fp(stream)
+                st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
+            except Exception as e:
+                st.error(f"TTS Audio Error: {e}")
+                
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
