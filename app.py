@@ -225,9 +225,7 @@ with t1:
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
-        
-  # --- GLOBAL UNIVERSAL INTERPRETER ---
-# --- GLOBAL UNIVERSAL INTERPRETER (INFUSED VERSION) ---
+# --- GLOBAL UNIVERSAL INTERPRETER (RESTORED WORKING CODE) ---
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🌍 Global Universal Interpreter")
@@ -243,28 +241,16 @@ with t1:
     
     d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
     
-    # 1. INCOMING SECTION (Listen to Driver/Guest)
-    incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN TO GUEST", key='global_mic_in')
-    if incoming_v:
-        interpretation = falcon_query(f"Direct interpretation to English ONLY: '{incoming_v}'", "Global Knowledge")
-        st.markdown(f'<div class="driver-msg"><b>Original:</b> {incoming_v}<br><b>Interpretation:</b> {interpretation}</div>', unsafe_allow_html=True)
-
-    st.write("---")
-
-    # 2. OUTGOING SECTION (Your Response)
+    # INPUT SECTION
     col_v1, col_v2 = st.columns([0.3, 0.7])
-    
     with col_v1:
-        # Voice capture for your response
-        outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 RECORD RESPONSE", key='global_mic_out')
-    
+        outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 RECORD", key='global_mic_out')
     with col_v2:
-        # Manual Type/Edit Column - Takes voice input automatically but lets you type/fix it
-        op_text = st.text_input("Type or Edit your response:", value=outgoing_v if outgoing_v else "", key="global_text_in")
+        # This is your typing column that also catches the voice
+        op_text = st.text_input("Your Response (English):", value=outgoing_v if outgoing_v else "", key="global_text_in")
 
-    # 3. GENERATION & AUDIO
     if st.button("🚀 SEND & GENERATE AUDIO") and op_text:
-        # Engine picks best interpretation, straight and precise
+        # THE ENGINE: Direct, no-fluff interpretation
         response_trans = falcon_query(
             f"Act as a master interpreter. Translate this to {d_lang}: '{op_text}'. Provide ONLY the direct translation. No explanations.", 
             "Global Knowledge"
@@ -272,24 +258,30 @@ with t1:
         
         st.success(f"**Interpretation ({d_lang}):** {response_trans}")
         
-        # Audio execution
-       # Force-Build Audio Execution
+        # --- THE WORKING AUDIO LOGIC ---
         try:
-            # 1. Generate the speech
+            import io
+            from gtts import gTTS
+            
+            # 1. Create the TTS object
             tts = gTTS(text=response_trans, lang=full_langs[d_lang])
             
-            # 2. Save to a byte stream
-            audio_bytes = io.BytesIO()
-            tts.write_to_fp(audio_bytes)
+            # 2. Use BytesIO to store it in memory
+            mp3_fp = io.BytesIO()
+            tts.write_to_fp(mp3_fp)
             
-            # 3. Display the player
-            st.audio(audio_bytes.getvalue(), format="audio/mpeg")
-            st.success("✅ Audio generated. Press Play above.")
+            # 3. CRITICAL: Reset the pointer to the beginning of the stream
+            mp3_fp.seek(0)
+            
+            # 4. Read the bytes and display the player
+            audio_bytes = mp3_fp.read()
+            st.audio(audio_bytes, format="audio/mpeg")
             
         except Exception as e:
-            # This will now tell you EXACTLY why it failed
-            st.error(f"Audio Engine Error: {str(e)}")
-            st.info("The language might not support voice synthesis, but you can read the text above.")
+            # If it's Pidgin, it will hit this error because gTTS has no 'pcm' voice
+            st.warning(f"Audio display skipped for this dialect. Use text above.")
+            
+    st.markdown('</div>', unsafe_allow_html=True)
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
