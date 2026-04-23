@@ -298,27 +298,6 @@ with t5:
     except: next_sl = ""; next_gp = ""
     if "PASS" in quick_code: next_gp = quick_code.replace("PASS", "").strip()
 
-    # --- PRECISION TRANSLATOR (SAFE PLUG-IN) ---
-    with st.expander("🗣️ FIELD INTERPRETER (Dual-Way)", expanded=False):
-        t_col1, t_col2 = st.columns(2)
-        with t_col1:
-            st.caption("📥 FROM DRIVER")
-            dr_text = st.text_input("Paste driver text here:", key="dr_val")
-            if dr_text:
-                # Forced prompt: No chatter, just the translation
-                dr_res = falcon_query(f"Direct interpretation to English ONLY. Be precise: {dr_text}", "Global Knowledge")
-                st.info(f"**English:** {dr_res}")
-
-        with t_col2:
-            st.caption("📤 TO DRIVER")
-            my_lang = st.selectbox("Language:", ["Arabic", "Urdu", "Hindi", "Russian", "Chinese"], key="target_l")
-            my_text = st.text_input(f"Your instruction in {my_lang}:", key="my_val")
-            if my_text:
-                # Forced prompt: Straight and precise for a driver
-                my_res = falcon_query(f"Direct interpretation to {my_lang} ONLY. Straight and precise: {my_text}", "Global Knowledge")
-                st.warning(f"**{my_lang}:** {my_res}")
-    st.divider()
-    # --- END OF TRANSLATOR ---
 
     is_editing = "edit_row_idx" in st.session_state
     doc_type = st.radio("Form Type:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
@@ -396,6 +375,29 @@ with t5:
     else:
         st.info("Scanner is currently OFF. Check the box above to start scanning.")
     # --- SCANNER PLUGIN END ---
+
+    # --- PRECISION TRANSLATOR PLUGIN ---
+    with st.expander("🗣️ FIELD INTERPRETER (Dual-Way)", expanded=False):
+        t_col1, t_col2 = st.columns(2)
+        
+        with t_col1:
+            st.caption("📥 FROM DRIVER")
+            dr_text = st.text_input("Paste driver text here:", key="dr_val", placeholder="Input foreign text...")
+            if dr_text:
+                # Using Global Knowledge for translation, forced to be direct
+                dr_res = falcon_query(f"Direct interpretation to English ONLY. Be precise: {dr_text}", "Global Knowledge")
+                st.info(f"**English:** {dr_res}")
+
+        with t_col2:
+            st.caption("📤 TO DRIVER")
+            my_lang = st.selectbox("Select Target Language:", ["Arabic", "Urdu", "Hindi", "Russian", "Chinese"], key="target_l")
+            my_text = st.text_input(f"Type your instruction for the driver:", key="my_val", placeholder="e.g. Park in lane 4")
+            if my_text:
+                # Straight and precise for the driver to understand
+                my_res = falcon_query(f"Direct interpretation to {my_lang} ONLY. Straight and precise: {my_text}", "Global Knowledge")
+                st.warning(f"**{my_lang}:** {my_res}")
+    
+    st.divider() # Keeps a clean line between the translator and your database form
 
     # --- CORRECTION TERMINAL (Outside the main form) ---
    # --- CORRECTION TERMINAL (Outside the main form) ---
