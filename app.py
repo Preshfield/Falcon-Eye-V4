@@ -225,30 +225,67 @@ with t1:
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
-
+        
+  # --- GLOBAL UNIVERSAL INTERPRETER ---
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🚛 Driver Intercom")
-    full_langs = {"Arabic": "ar", "Bengali": "bn", "English": "en", "Hindi": "hi", "Urdu": "ur", "Tagalog": "tl", "Malayalam": "ml"}
-    d_lang = st.selectbox("Driver Language:", sorted(list(full_langs.keys())))
+    st.subheader("🌍 Global Universal Interpreter")
+    
+    # Massive language library including Nigerian Pidgin
+    full_langs = {
+        "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-CN",
+        "English": "en", "French": "fr", "German": "de", "Hindi": "hi", 
+        "Italian": "it", "Japanese": "ja", "Korean": "ko", "Malayalam": "ml", 
+        "Nigerian Pidgin": "pcm", "Portuguese": "pt", "Russian": "ru", 
+        "Spanish": "es", "Swahili": "sw", "Tagalog": "tl", "Tamil": "ta", 
+        "Urdu": "ur", "Vietnamese": "vi"
+    }
+    
+    d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
     
     col_v1, col_v2 = st.columns(2)
     with col_v1:
-        driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN TO DRIVER", key='d_mic')
+        incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='global_mic_in')
     with col_v2:
-        operator_v = speech_to_text(language='en-US', start_prompt="🎤 SPEAK TO DRIVER", key='op_mic')
+        outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
 
-    if driver_v:
-        intent = falcon_query(f"Translate to English: {driver_v}", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver said:</b> {driver_v}<br><b>Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
+    # 1. INCOMING: Foreign/Pidgin to English
+    if incoming_v:
+        # Prompt forces a natural English interpretation of the original intent
+        interpretation = falcon_query(
+            f"Act as a master interpreter. Translate to clear English: '{incoming_v}'. Provide ONLY the interpretation. No explanations.", 
+            "Global Knowledge"
+        )
+        st.markdown(f'''
+            <div class="driver-msg">
+                <b>Original ({d_lang}):</b> {incoming_v}<br>
+                <b>English Interpretation:</b> {interpretation}
+            </div>
+        ''', unsafe_allow_html=True)
 
-    op_text = st.text_input("Response to Driver (English):", value=operator_v if operator_v else "")
-    if st.button("📤 SEND COMMAND") and op_text:
-        trans = falcon_query(f"Translate to {d_lang}: {op_text}", "Driver Instruction")
-        st.success(f"**Replied in {d_lang}:** {trans}")
-        tts = gTTS(text=trans, lang=full_langs[d_lang])
-        stream = io.BytesIO(); tts.write_to_fp(stream)
-        st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
+    # 2. OUTGOING: English to Foreign/Pidgin
+    op_text = st.text_input("Your Message (English):", value=outgoing_v if outgoing_v else "", key="global_text_in")
+    
+    if st.button("🚀 SEND RESPONSE") and op_text:
+        # Engine picks the best interpretation for the target language
+        response_trans = falcon_query(
+            f"Act as a master interpreter. Translate this to {d_lang}: '{op_text}'. Provide ONLY the direct translation. No explanations.", 
+            "Global Knowledge"
+        )
+        
+        st.success(f"**Interpreted as ({d_lang}):** {response_trans}")
+        
+        # Audio execution with safety for unsupported voice codes
+        try:
+            from gtts import gTTS
+            tts = gTTS(text=response_trans, lang=full_langs[d_lang])
+            stream = io.BytesIO()
+            tts.write_to_fp(stream)
+            st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
+        except Exception:
+            # If gTTS doesn't support the language (like Nigerian Pidgin), text-only is shown
+            st.info(f"Note: Audio playback is not available for {d_lang}, but the text interpretation is ready.")
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
