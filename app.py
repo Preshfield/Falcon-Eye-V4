@@ -286,6 +286,8 @@ with t4:
 
 with t5:
     st.subheader("📟 Logistics Command Center")
+    
+    # 1. EXPRESS ENTRY LOGIC
     quick_code = st.text_input("⚡ EXPRESS ENTRY (e.g. PASS 1234):").upper()
     st.write("📌 Quick Fill:")
     col_q1, col_q2, col_q3 = st.columns(3)
@@ -294,17 +296,18 @@ with t5:
     if col_q2.button("FEDEX"): smart_con = "FEDEX LOGISTICS"
     if col_q3.button("ARAMEX"): smart_con = "ARAMEX DUBAI"
 
+    # 2. AUTO-ID GENERATION
     last_sl, last_gp = get_last_ids("MANUAL PASS")
     try: next_sl = str(int(last_sl) + 1); next_gp = str(int(last_gp) + 1)
     except: next_sl = ""; next_gp = ""
     if "PASS" in quick_code: next_gp = quick_code.replace("PASS", "").strip()
 
-
+    # 3. MODE STATUS
     is_editing = "edit_row_idx" in st.session_state
     doc_type = st.radio("Form Type:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
 
+    # 4. THE MAIN FORM
     with st.form("logistics_form", clear_on_submit=True):
-        # --- DATE SELECTION ---
         f_date = st.date_input("SELECT DATE:", value=datetime.now(timezone(timedelta(hours=4))))
         formatted_date = f_date.strftime("%d-%m-%Y")
         
@@ -318,7 +321,7 @@ with t5:
             f_desc = st.text_area("DESCRIPTION").upper()
             c4, c5, c6 = st.columns(3)
             f_unit = c4.text_input("UNIT").upper()
-            f_cash = c5.text_input("CASH RECEIPT NO").upper()
+            f_cash = c5.text_input("CASH NO").upper()
             f_amt = c6.number_input("AMOUNT", min_value=0.0, format="%.2f")
             f_rem = st.text_input("REMARKS").upper()
             payload = [f_sl, f_bk, f_gp, f_con, f_bill, f_desc, f_unit, f_cash, f_rem, str(f_amt)]
@@ -336,75 +339,64 @@ with t5:
                        st.text_input("BILL NO").upper(), st.text_input("REMARKS").upper(), st.number_input("AMOUNT", min_value=0.0), st.text_area("REASON").upper()]
             sheet_target, check_id = "OFFICIAL REPORT", payload[1]
 
-        if st.form_submit_button("💾 OVERWRITE" if is_editing else "🚀 SYNC TO DATABASE"):
-            if not is_editing:
-                dup, _ = search_logs(check_id, sheet_target)
-                if dup: st.error(f"⚠️ DUPLICATE ENTRY! Gate Pass {check_id} exists."); st.stop()
-            
-            success = update_google_sheet(st.session_state.edit_row_idx, payload, sheet_target, custom_date=formatted_date) if is_editing else save_to_google_sheets(st.session_state.current_worker, payload, sheet_target, custom_date=formatted_date)
-            if success:
-                st.success(f"✅ DATABASE UPDATED FOR {formatted_date}")
-                if is_editing: 
+        # --- DYNAMIC ACTION BUTTONS ---
+        st.divider()
+        if is_editing:
+            st.warning(f"🛠️ EDITING MODE: ROW {st.session_state.edit_row_idx}")
+            btn_col1, btn_col2 = st.columns(2)
+            with btn_col1:
+                if st.form_submit_button("✅ SUBMIT EDIT", use_container_width=True):
+                    if update_google_sheet(st.session_state.edit_row_idx, payload, sheet_target, custom_date=formatted_date):
+                        st.success("✅ UPDATED")
+                        del st.session_state.edit_row_idx
+                        st.rerun()
+            with btn_col2:
+                if st.form_submit_button("❌ CANCEL", use_container_width=True):
                     del st.session_state.edit_row_idx
                     st.rerun()
+        else:
+            if st.form_submit_button("🚀 SYNC TO DATABASE", use_container_width=True):
+                dup, _ = search_logs(check_id, sheet_target)
+                if dup: st.error(f"⚠️ DUPLICATE! {check_id} exists."); st.stop()
+                if save_to_google_sheets(st.session_state.current_worker, payload, sheet_target, custom_date=formatted_date):
+                    st.success(f"✅ SYNCED FOR {formatted_date}")
+                    st.rerun()
 
-   # --- SAFE SCANNER PLUGIN ---
-    st.write("---")
-    # This checkbox acts as your manual "Power Switch"
-    enable_camera = st.checkbox("📷 ACTIVATE DOCUMENT SCANNER")
-
-    if enable_camera:
-        cam_image = st.camera_input("Scan Gate Pass / Invoice")
-        
-        if cam_image:
-            try:
-                from PIL import Image
-                import pytesseract
-                
-                img = Image.open(cam_image)
-                with st.spinner("Extracting Intelligence..."):
-                    extracted_text = pytesseract.image_to_string(img).upper()
-                
-                st.subheader("Extracted Data:")
-                st.code(extracted_text)
-                
-                # Smart detection logic stays here
-                if "DHL" in extracted_text: st.info("Detected: DHL")
-                
-            except Exception as e:
-                st.error("Scanner Error: Check dependencies.")
-    else:
-        st.info("Scanner is currently OFF. Check the box above to start scanning.")
-    # --- SCANNER PLUGIN END ---
-
-   # --- CORRECTION TERMINAL (Outside the main form) ---
-    with st.expander("🛠️ CORRECTION TERMINAL"):
-        col_c1, col_c2 = st.columns([0.7, 0.3])
-        
-        with col_c1:
-            recall_id = st.text_input("Recall ID for Correction:")
-        
-        with col_c2:
-            st.write(" ") # Alignment spacer
-            if st.button("🔍 FETCH"):
-                record, row_idx = search_logs(recall_id, "MANUAL PASS")
-                if record:
-                    st.session_state.edit_row_idx = row_idx
-                    st.success(f"✅ Row {row_idx} Recalled.")
-                    st.json(record)
-                else:
-                    st.error("❌ Not found.")
-
-        # --- CANCEL FUNCTION ---
-        if is_editing:
-            st.divider()
-            st.warning(f"⚠️ Currently Editing Row: {st.session_state.edit_row_idx}")
-            if st.button("❌ CANCEL CORRECTION & START NEW"):
-                if "edit_row_idx" in st.session_state:
-
-
-
-
-                    
-                    del st.session_state.edit_row_idx
+    # 5. RECALL SECTION
+    with st.expander("🛠️ SEARCH & RECALL FOR CORRECTION"):
+        recall_id = st.text_input("Enter ID to edit:")
+        if st.button("🔍 FETCH DATA"):
+            record, row_idx = search_logs(recall_id, "MANUAL PASS")
+            if record:
+                st.session_state.edit_row_idx = row_idx
+                st.success(f"Loaded Row {row_idx}. Form updated above.")
+                st.json(record)
                 st.rerun()
+            else:
+                st.error("❌ Not found.")
+
+# --- TAB 6: DUAL-WAY FIELD INTERPRETER ---
+with t6:
+    st.subheader("🗣️ Dual-Way Field Interpreter")
+    st.write("Direct interpretations for Gate 4 communication. No chatter.")
+    
+    t_col1, t_col2 = st.columns(2)
+    
+    with t_col1:
+        st.info("📥 FROM DRIVER")
+        dr_text = st.text_area("Paste foreign text here:", key="t6_dr_in", height=150)
+        if dr_text:
+            # Strictly English interpretation
+            dr_res = falcon_query(f"Direct interpretation to English ONLY. Precise and brief: {dr_text}", "Global Knowledge")
+            st.subheader("English Interpretation:")
+            st.success(dr_res)
+
+    with t_col2:
+        st.warning("📤 TO DRIVER")
+        target_lang = st.selectbox("Select Driver's Language:", ["Arabic", "Urdu", "Hindi", "Russian", "Chinese", "Farsi"], key="t6_lang")
+        my_text = st.text_area(f"Type instructions in {target_lang}:", key="t6_my_in", height=150)
+        if my_text:
+            # Strictly Target Language interpretation
+            my_res = falcon_query(f"Direct interpretation to {target_lang} ONLY. Straight and precise command: {my_text}", "Global Knowledge")
+            st.subheader(f"{target_lang} Interpretation:")
+            st.error(my_res) # Using error (red) makes it highly visible for the driver to see
