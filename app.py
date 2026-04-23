@@ -302,7 +302,7 @@ with t5:
     doc_type = st.radio("Form Type:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
 
     with st.form("logistics_form", clear_on_submit=True):
-        # --- NEW DATE INPUT FIELD ---
+        # --- DATE SELECTION ---
         f_date = st.date_input("SELECT DATE:", value=datetime.now(timezone(timedelta(hours=4))))
         formatted_date = f_date.strftime("%d-%m-%Y")
         
@@ -339,9 +339,21 @@ with t5:
                 dup, _ = search_logs(check_id, sheet_target)
                 if dup: st.error(f"⚠️ DUPLICATE ENTRY! Gate Pass {check_id} exists."); st.stop()
             
-            # Pass the formatted_date to the functions
             success = update_google_sheet(st.session_state.edit_row_idx, payload, sheet_target, custom_date=formatted_date) if is_editing else save_to_google_sheets(st.session_state.current_worker, payload, sheet_target, custom_date=formatted_date)
             if success:
                 st.success(f"✅ DATABASE UPDATED FOR {formatted_date}")
-                if is_editing: del st.session_state.edit_row_idx; st.rerun()
-                st.success(f"Recalled Row {row_idx}."); st.json(record)
+                if is_editing: 
+                    del st.session_state.edit_row_idx
+                    st.rerun()
+
+    # --- CORRECTION TERMINAL (Outside the main form) ---
+    with st.expander("🛠️ CORRECTION TERMINAL"):
+        recall_id = st.text_input("Recall ID for Correction:")
+        if st.button("🔍 FETCH RECORD"):
+            record, row_idx = search_logs(recall_id, "MANUAL PASS")
+            if record:
+                st.session_state.edit_row_idx = row_idx
+                st.success(f"✅ Recalled Row {row_idx}. You can edit in the form above.")
+                st.json(record)
+            else:
+                st.error("❌ No record found.")
