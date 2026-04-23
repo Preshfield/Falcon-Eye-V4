@@ -185,7 +185,8 @@ with st.sidebar:
 st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
-t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER"])
+# TABS
+t1, t2, t3, t4, t5, t6 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 LOGISTIC DOCUMENTATION", "🗣️ TRANSLATOR"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
@@ -376,30 +377,6 @@ with t5:
         st.info("Scanner is currently OFF. Check the box above to start scanning.")
     # --- SCANNER PLUGIN END ---
 
-    # --- PRECISION TRANSLATOR PLUGIN ---
-    with st.expander("🗣️ FIELD INTERPRETER (Dual-Way)", expanded=False):
-        t_col1, t_col2 = st.columns(2)
-        
-        with t_col1:
-            st.caption("📥 FROM DRIVER")
-            dr_text = st.text_input("Paste driver text here:", key="dr_val", placeholder="Input foreign text...")
-            if dr_text:
-                # Using Global Knowledge for translation, forced to be direct
-                dr_res = falcon_query(f"Direct interpretation to English ONLY. Be precise: {dr_text}", "Global Knowledge")
-                st.info(f"**English:** {dr_res}")
-
-        with t_col2:
-            st.caption("📤 TO DRIVER")
-            my_lang = st.selectbox("Select Target Language:", ["Arabic", "Urdu", "Hindi", "Russian", "Chinese"], key="target_l")
-            my_text = st.text_input(f"Type your instruction for the driver:", key="my_val", placeholder="e.g. Park in lane 4")
-            if my_text:
-                # Straight and precise for the driver to understand
-                my_res = falcon_query(f"Direct interpretation to {my_lang} ONLY. Straight and precise: {my_text}", "Global Knowledge")
-                st.warning(f"**{my_lang}:** {my_res}")
-    
-    st.divider() # Keeps a clean line between the translator and your database form
-
-    # --- CORRECTION TERMINAL (Outside the main form) ---
    # --- CORRECTION TERMINAL (Outside the main form) ---
     with st.expander("🛠️ CORRECTION TERMINAL"):
         col_c1, col_c2 = st.columns([0.7, 0.3])
@@ -424,5 +401,34 @@ with t5:
             st.warning(f"⚠️ Currently Editing Row: {st.session_state.edit_row_idx}")
             if st.button("❌ CANCEL CORRECTION & START NEW"):
                 if "edit_row_idx" in st.session_state:
+
+# --- TAB 6: DUAL-WAY FIELD INTERPRETER ---
+with t6:
+    st.subheader("🗣️ Dual-Way Field Interpreter")
+    st.write("Direct interpretations for Gate 4 communication. No chatter.")
+    
+    t_col1, t_col2 = st.columns(2)
+    
+    with t_col1:
+        st.info("📥 FROM DRIVER")
+        dr_text = st.text_area("Paste foreign text here:", key="t6_dr_in", height=150)
+        if dr_text:
+            # Strictly English interpretation
+            dr_res = falcon_query(f"Direct interpretation to English ONLY. Precise and brief: {dr_text}", "Global Knowledge")
+            st.subheader("English Interpretation:")
+            st.success(dr_res)
+
+    with t_col2:
+        st.warning("📤 TO DRIVER")
+        target_lang = st.selectbox("Select Driver's Language:", ["Arabic", "Urdu", "Hindi", "Russian", "Chinese", "Farsi"], key="t6_lang")
+        my_text = st.text_area(f"Type instructions in {target_lang}:", key="t6_my_in", height=150)
+        if my_text:
+            # Strictly Target Language interpretation
+            my_res = falcon_query(f"Direct interpretation to {target_lang} ONLY. Straight and precise command: {my_text}", "Global Knowledge")
+            st.subheader(f"{target_lang} Interpretation:")
+            st.error(my_res) # Using error (red) makes it highly visible for the driver to see
+
+
+                    
                     del st.session_state.edit_row_idx
                 st.rerun()
