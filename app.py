@@ -259,65 +259,28 @@ with t1:
     st.write("---")
 
     # 2. OUTGOING: Listener Response (Speak or Type)
-  # --- STEP 2: YOUR RESPONSE (FIXED FOR VOICE) ---
-    st.write("### 🎙️ Step 2: Your Response")
-    
-    # Initialization
-    if 'locked_response' not in st.session_state:
-        st.session_state.locked_response = ""
+ with t6:
+    st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
+    st.subheader("🌍 Global Universal Interpreter")
 
-    # This function "locks" the voice into memory the instant it is recorded
-    def lock_voice():
-        if st.session_state.global_mic_out:
-            st.session_state.locked_response = st.session_state.global_mic_out
-
-    col_v1, col_v2 = st.columns([0.3, 0.7])
+    # --- PART 1: LANGUAGE SELECTION & INCOMING (Keep this) ---
+    d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
     
-    with col_v1:
-        # We add the "on_change" callback here to trigger the lock
-        outgoing_v = speech_to_text(
-            language='en-US', 
-            start_prompt="🎤 SPEAK", 
-            key='global_mic_out',
-            on_change=lock_voice # This is the secret fix
-        )
+    st.write("### 👂 Step 1: Listen")
+    incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN TO {d_lang.upper()}", key='global_mic_in')
     
-    with col_v2:
-        # The text input now monitors the 'locked_response'
-        op_text = st.text_input(
-            "Type or Edit Response:", 
-            value=st.session_state.locked_response, 
-            key="global_text_in"
-        )
-        # Update the lock if you decide to type instead
-        st.session_state.locked_response = op_text
+    if incoming_v:
+        # (Your existing English-only interpretation logic goes here)
+        interpretation = falcon_query(f"Translate to English ONLY: {incoming_v}", "Global Knowledge")
+        st.markdown(f'<div class="driver-msg"><b>Interpretation:</b> {interpretation}</div>', unsafe_allow_html=True)
 
-    # --- STEP 3: THE ACTION BUTTON ---
-    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.locked_response:
-        # Use the locked content so it can't be lost during the rerun
-        final_msg = st.session_state.locked_response
-        
-        response_trans = falcon_query(
-            f"Translate to {d_lang} ONLY. No chatter: {final_msg}", 
-            "Global Knowledge"
-        )
-        
-        st.success(f"**Interpretation ({d_lang}):** {response_trans}")
-        
-        try:
-            import io
-            from gtts import gTTS
-            
-            tts = gTTS(text=response_trans, lang=full_langs[d_lang])
-            stream = io.BytesIO()
-            tts.write_to_fp(stream)
-            stream.seek(0) 
-            
-            st.audio(stream.read(), format="audio/mpeg")
-            st.caption("👆 Hit play for the listener.")
-            
-        except Exception as e:
-            st.error(f"Audio Error: {str(e)}")
+    st.divider()
+
+    # --- PART 2: PASTE THE NEW "STEP 2" CODE HERE ---
+    # (This is where you insert the callback, the locked response, 
+    # and the new button logic I just gave you)
+
+    st.markdown('</div>', unsafe_allow_html=True)
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
