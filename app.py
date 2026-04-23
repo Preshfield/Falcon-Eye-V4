@@ -186,7 +186,7 @@ st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.curre
 st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
 # TABS
-t1, t2, t3, t4, t5, t6 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 LOGISTIC DOCUMENTATION"])
+t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 LOGISTIC DOCUMENTATION"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
