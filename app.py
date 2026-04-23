@@ -259,7 +259,6 @@ with t1:
     st.write("---")
 
     # 2. OUTGOING: Listener Response (Speak or Type)
- with t6:
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🌍 Global Universal Interpreter")
 
