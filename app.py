@@ -228,73 +228,72 @@ with t1:
 
     
 # --- GLOBAL UNIVERSAL INTERPRETER (RESTORED WORKING CODE) ---
- 
-
-# --- THE INTERCOM ---
+ # --- GLOBAL UNIVERSAL INTERPRETER ---
+    st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🌍 Real-Time Global Intercom")
-
-    # 1. SETUP: Language selection for the Guest
+    st.subheader("🌍 Global Universal Interpreter")
+    
     full_langs = {
-        "Arabic": "ar", "Bengali": "bn", "Chinese": "zh-CN", "English": "en", 
-        "French": "fr", "Hindi": "hi", "Malayalam": "ml", "Nigerian Pidgin": "pcm", 
-        "Russian": "ru", "Spanish": "es", "Tagalog": "tl", "Urdu": "ur"
+        "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-CN",
+        "English": "en", "French": "fr", "German": "de", "Hindi": "hi", 
+        "Italian": "it", "Japanese": "ja", "Korean": "ko", "Malayalam": "ml", 
+        "Nigerian Pidgin": "pcm", "Portuguese": "pt", "Russian": "ru", 
+        "Spanish": "es", "Swahili": "sw", "Tagalog": "tl", "Tamil": "ta", 
+        "Urdu": "ur", "Vietnamese": "vi"
     }
-    guest_lang = st.selectbox("Guest Language:", sorted(list(full_langs.keys())), key="guest_lang_set")
+    
+    d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
 
-    # --- STEP 1 & 2: LISTEN TO GUEST -> ENGLISH ONLY ---
-    st.write("### 👂 Step 1: Listen to Guest")
-    # This uses your existing speech_to_text plugin
-    guest_voice = speech_to_text(language=full_langs[guest_lang], start_prompt=f"LISTEN ({guest_lang})", key='guest_mic')
-
-    if guest_voice:
-        # Engine: Only outputs the plain English translation
-        english_interpretation = falcon_query(
-            f"Act as a professional interpreter. Translate this to plain English ONLY. No chatter, no original text: {guest_voice}", 
+    # 1. INCOMING: Listen to Guest -> Show English ONLY
+    st.write("### 👂 Step 1: Listen")
+    incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN TO {d_lang.upper()}", key='global_mic_in')
+    
+    if incoming_v:
+        # Prompt ensures only the English result is shown for the listener
+        interpretation = falcon_query(
+            f"Act as a professional interpreter. Translate to English ONLY. No commentary, no original text: {incoming_v}", 
             "Global Knowledge"
         )
-        st.info(f"**Guest says (English):** {english_interpretation}")
+        st.markdown(f'<div class="driver-msg"><b>Interpretation:</b> {interpretation}</div>', unsafe_allow_html=True)
 
-    st.divider()
+    st.write("---")
 
-    # --- STEP 3: LISTENER RESPONSE (SPEAK OR TYPE) ---
+    # 2. OUTGOING: Listener Response (Speak or Type)
     st.write("### 🎙️ Step 2: Your Response")
-    c1, c2 = st.columns([0.3, 0.7])
-    
-    with c1:
-        # Listen to you in English
-        my_voice = speech_to_text(language='en-US', start_prompt="SPEAK YOUR REPLY", key='my_mic')
-    
-    with c2:
-        # Type or Edit the response
-        my_response = st.text_input("Edit/Type Response:", value=my_voice if my_voice else "", key="my_text_reply")
+    col_v1, col_v2 = st.columns([0.3, 0.7])
+    with col_v1:
+        # Voice input for the operator
+        outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
+    with col_v2:
+        # Type/Edit column - Takes the voice input but allows manual typing
+        op_text = st.text_input("Type or Edit Response:", value=outgoing_v if outgoing_v else "", key="global_text_in")
 
-    # --- STEP 4 & 5: TRANSLATE BACK -> AUDIO OUTPUT ---
-    if st.button("🚀 SEND & PLAY AUDIO") and my_response:
-        # Engine: Translates back to guest language
-        back_to_guest = falcon_query(
-            f"Translate this English text to {guest_lang} ONLY. No explanations: {my_response}", 
+    # 3. ACTION: Translate back to Original Language + Audio
+    if st.button("🚀 SEND & GENERATE AUDIO") and op_text:
+        # Engine picks the best interpretation back to the target language
+        response_trans = falcon_query(
+            f"Act as a master interpreter. Translate to {d_lang} ONLY. Straight and precise, no explanations: {op_text}", 
             "Global Knowledge"
         )
         
-        st.success(f"**Reply in {guest_lang}:** {back_to_guest}")
-
-        # Generate Audio file for playback
+        st.success(f"**Replied in {d_lang}:** {response_trans}")
+        
+        # Audio execution with reset pointer for stability
         try:
-            # We use gTTS for natural-sounding audio
-            tts = gTTS(text=back_to_guest, lang=full_langs[guest_lang])
-            audio_stream = io.BytesIO()
-            tts.write_to_fp(audio_stream)
+            import io
+            from gtts import gTTS
             
-            # Reset pointer so Streamlit can read from start
-            audio_stream.seek(0)
+            tts = gTTS(text=response_trans, lang=full_langs[d_lang])
+            stream = io.BytesIO()
+            tts.write_to_fp(stream)
+            stream.seek(0) # Critical reset
             
-            # Display player
-            st.audio(audio_stream.read(), format="audio/mpeg")
-            st.caption("👆 Play this for the guest.")
+            # Generates the playable bar for the guest to hear
+            st.audio(stream.read(), format="audio/mpeg")
+            st.caption(f"👆 Play for the {d_lang} speaker.")
             
         except Exception:
-            st.warning(f"Audio playback not available for {guest_lang}. Show the text above.")
+            st.info(f"Audio not available for {d_lang}. Please show the text above.")
 
     st.markdown('</div>', unsafe_allow_html=True)
 with t2:
