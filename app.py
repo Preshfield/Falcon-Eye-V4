@@ -346,6 +346,39 @@ with t5:
                     del st.session_state.edit_row_idx
                     st.rerun()
 
+    # --- SCANNER PLUGIN START ---
+    with st.expander("📸 SCAN DOCUMENT (OCR)"):
+        cam_image = st.camera_input("Scan Gate Pass / Invoice")
+        
+        if cam_image:
+            try:
+                from PIL import Image
+                import pytesseract
+                
+                # Convert the camera image for processing
+                img = Image.open(cam_image)
+                
+                # Perform OCR (Extract text)
+                with st.spinner("Extracting Intelligence..."):
+                    extracted_text = pytesseract.image_to_string(img).upper()
+                
+                st.subheader("Extracted Data:")
+                st.code(extracted_text)
+                
+                # Optional: Smart Auto-Fill Logic
+                if "DHL" in extracted_text:
+                    st.info("Detecting: DHL EXPRESS")
+                    smart_con = "DHL EXPRESS"
+                elif "FEDEX" in extracted_text:
+                    st.info("Detecting: FEDEX LOGISTICS")
+                    smart_con = "FEDEX LOGISTICS"
+                
+                st.success("You can now copy relevant info into the form below.")
+                
+            except Exception as e:
+                st.error("Scanner Error: Ensure 'pytesseract' and 'Pillow' are installed.")
+    # --- SCANNER PLUGIN END ---
+
     # --- CORRECTION TERMINAL (Outside the main form) ---
    # --- CORRECTION TERMINAL (Outside the main form) ---
     with st.expander("🛠️ CORRECTION TERMINAL"):
