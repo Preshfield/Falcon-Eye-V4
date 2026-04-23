@@ -116,17 +116,17 @@ def process_receipt(image_file):
         # Convert camera image to Base64
         base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
         
-        # Initialize Mistral Client
+        # Mistral-specific client setup
         client = openai.OpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1")
         
-        # Correctly formatted Vision Request
+        # Mistral requires this exact list structure for vision
         response = client.chat.completions.create(
             model="pixtral-12b-2409",
             messages=[
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Extract these handwriting details from the Dubai South Gate Pass: GP No, Consignee, Cargo, Vehicle No. Return ONLY JSON."},
+                        {"type": "text", "text": "Extract these from the Dubai South Gate Pass: GP No, Consignee, Cargo, Vehicle No. Return ONLY JSON."},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                     ]
                 }
