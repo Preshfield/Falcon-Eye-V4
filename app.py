@@ -24,7 +24,7 @@ if "messages" not in st.session_state:
 if "current_worker" not in st.session_state:
     st.session_state.current_worker = "Guest"
 
-# ====================== 2. FULL RESTORED CSS ======================
+# ====================== 2.  CSS ======================
 def local_css(file_name):
     if os.path.exists(file_name):
         with open(file_name) as f:
