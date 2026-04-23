@@ -58,24 +58,29 @@ def save_to_google_sheets(worker, payload, sheet_name="LOG"):
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
         client = gspread.authorize(creds)
+        
+        # This line fails if the tab name isn't EXACT
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
+        
         now = datetime.now(timezone(timedelta(hours=4)))
         date_s = now.strftime("%d-%m-%Y")
         
-        # ORIGINAL LOGIC FOR SECURITY LOGS & FINANCE SCANNER
         if sheet_name in ["LOG", "FINANCE"]:
             clean_log = str(payload).replace("**", "").replace("###", "").replace("- ", "").strip()
             row_data = [date_s, now.strftime("%H:%M:%S"), "GATE 4", worker, clean_log, "VERIFIED"]
-        
-        # LOGISTICS LAW: DATE + PAYLOAD FIELDS + UPDATED BY
         else:
+            # Ensuring all data is converted to string to prevent JSON errors
             row_data = [date_s] + [str(i) for i in payload] + [worker]
             
         sheet.append_row(row_data)
         return True
+    except gspread.exceptions.WorksheetNotFound:
+        st.error(f"❌ ERROR: Tab named '{sheet_name}' not found in the Google Sheet!")
+        return False
     except Exception as e:
-        st.error(f"Cloud Sync Unavailable: {e}"); return False
-
+        st.error(f"❌ SYNC ERROR: {str(e)}")
+        print(f"Detailed Error: {e}") # This shows in your console
+        return False
 def search_logs(query):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
