@@ -15,10 +15,6 @@ st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅
 
 if "auth" not in st.session_state:
     st.session_state.auth = False
-if "all_sessions" not in st.session_state:
-    st.session_state.all_sessions = {"New Conversation": []}
-if "current_chat_id" not in st.session_state:
-    st.session_state.current_chat_id = "New Conversation"
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "current_worker" not in st.session_state:
@@ -46,61 +42,50 @@ def local_css(file_name):
 
 local_css("css/style.css")
 
-# ====================== 3. UTILITY ENGINES (CORRECTED MAPPING) ======================
+# ====================== 3. UTILITY ENGINES ======================
+def get_gsheet_client():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+    return gspread.authorize(creds)
+
 def save_to_google_sheets(worker, payload, sheet_name="LOG"):
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-        client = gspread.authorize(creds)
+        client = get_gsheet_client()
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
         now = datetime.now(timezone(timedelta(hours=4)))
         date_s = now.strftime("%d-%m-%Y")
         
         if sheet_name == "LOG":
-            # [DATE, TIME, STATION, OPERATOR, LOG DETAILS, STATUS]
             row_data = [date_s, now.strftime("%H:%M:%S"), "GATE 4", worker, str(payload), "VERIFIED"]
-        
         elif sheet_name == "MANUAL PASS":
-            # Header Order: SL NO, DATE, BOOK NO, GP NO, CONSIGNEE, CUSTOMS BILL NO, DESCRIPTION, TYPE/UNIT, CASH REC, UPDATED BY, REMARKS, AMOUNT
-            # Payload order from form: [sl, bk, gp, con, bill, desc, unit, cash, rem, amt]
+            # ALIGNMENT FIX: [SL NO, DATE, BOOK NO, GP NO, CONSIGNEE, BILL NO, DESC, UNIT, CASH, WORKER, REMARKS, AMT]
             row_data = [payload[0], date_s, payload[1], payload[2], payload[3], payload[4], payload[5], payload[6], payload[7], worker, payload[8], payload[9]]
-            
-        elif sheet_name == "FINANCE":
-            row_data = [date_s, worker, str(payload).upper(), "SCANNED"]
-            
         else:
-            # For Labour Charge & Official Report: [DATE, ...PAYLOAD, WORKER]
             row_data = [date_s] + [str(i).upper() for i in payload] + [worker]
             
         sheet.append_row(row_data)
         return True
     except Exception as e:
-        st.error(f"❌ SYNC ERROR: {str(e)}"); return False
+        st.error(f"❌ DATABASE ERROR: {str(e)}"); return False
 
 def update_google_sheet(row_index, payload, sheet_name):
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-        client = gspread.authorize(creds)
+        client = get_gsheet_client()
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
         now = datetime.now(timezone(timedelta(hours=4)))
         date_s = now.strftime("%d-%m-%Y")
-        
         if sheet_name == "MANUAL PASS":
             row_data = [payload[0], date_s, payload[1], payload[2], payload[3], payload[4], payload[5], payload[6], payload[7], st.session_state.current_worker, payload[8], payload[9]]
         else:
             row_data = [date_s] + [str(i).upper() for i in payload] + [st.session_state.current_worker]
-            
         sheet.update(f"A{row_index}", [row_data])
         return True
     except Exception as e:
         st.error(f"Update Failed: {e}"); return False
 
-def search_logs(query, sheet_name="LOG"):
+def search_logs(query, sheet_name):
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-        client = gspread.authorize(creds)
+        client = get_gsheet_client()
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
         all_rows = sheet.get_all_values()
         if len(all_rows) < 2: return None, None
@@ -113,14 +98,12 @@ def search_logs(query, sheet_name="LOG"):
 
 def get_last_ids(sheet_name):
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-        client = gspread.authorize(creds)
+        client = get_gsheet_client()
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
         vals = sheet.get_all_values()
         if len(vals) < 2: return "1", "1"
         last_row = vals[-1]
-        return last_row[0], last_row[3] # Return SL NO and GP NO
+        return last_row[0], last_row[3] # SL NO and GP NO
     except: return "1", "1"
 
 # ====================== 4. AI ENGINES ======================
@@ -128,7 +111,7 @@ def get_last_ids(sheet_name):
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-    sys_rules = "Tactical Security AI Gate 4 Dubai DWC. Date: April 23, 2026."
+    sys_rules = "Tactical Security AI Gate 4 Dubai DWC."
     if mode == "Driver Instruction": sys_rules = "Translator for truck drivers. Short & clear."
     
     conversation = [{"role": "system", "content": sys_rules}]
@@ -168,16 +151,26 @@ with t1:
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
-    full_langs = {"Arabic": "ar", "Bengali": "bn", "English": "en", "Hindi": "hi", "Urdu": "ur", "Pashto": "ps", "Punjabi": "pa", "Malayalam": "ml", "Tamil": "ta", "Tagalog": "tl"}
+    full_langs = {"Arabic": "ar", "Bengali": "bn", "English": "en", "Hindi": "hi", "Urdu": "ur", "Pashto": "ps", "Malayalam": "ml"}
     d_lang = st.selectbox("Driver Language:", sorted(list(full_langs.keys())))
-    driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
+    
+    col_mic1, col_mic2 = st.columns(2)
+    with col_mic1:
+        driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN TO DRIVER", key='d_mic')
+    with col_mic2:
+        operator_v = speech_to_text(language='en-US', start_prompt="🎤 SPEAK TO DRIVER", key='o_mic')
+
+    # DRIVER SPEAKS -> OPERATOR READS
     if driver_v:
         intent = falcon_query(f"Translate to English: {driver_v}", "Driver Instruction")
-        st.info(f"Driver said: {driver_v} | Interpretation: {intent}")
-    op_cmd = st.text_input("Command to driver (English)")
-    if st.button("📤 SEND") and op_cmd:
+        st.info(f"DRIVER: {driver_v}\n\nINTEL: {intent}")
+
+    # OPERATOR SPEAKS OR TYPES -> DRIVER HEARS
+    op_cmd = st.text_input("Type response to driver (English):", value=operator_v if operator_v else "")
+    
+    if st.button("📤 SEND TO DRIVER") and op_cmd:
         trans = falcon_query(f"Translate to {d_lang}: {op_cmd}", "Driver Instruction")
-        st.success(f"Replied: {trans}")
+        st.success(f"Sent: {trans}")
         tts = gTTS(text=trans, lang=full_langs[d_lang])
         stream = io.BytesIO(); tts.write_to_fp(stream)
         st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
@@ -196,37 +189,17 @@ with t4:
     if st.button("🔍 RUN AUDIT"):
         res, _ = search_logs(aq, "MANUAL PASS")
         if res: st.table(res)
-        else: st.info("No matching records found in Logistics.")
+        else: st.info("No matching records found.")
 
 with t5:
     st.subheader("📟 Logistics Command Center")
-    captured_img = st.camera_input("Scan Document")
-    if captured_img:
-        st.warning("OCR Scanning Active...")
-
-    st.divider()
-    with st.expander("🛠️ CORRECTION TERMINAL"):
-        st_tab = st.selectbox("Sheet:", ["MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"])
-        rid = st.text_input("ID to recall:")
-        if st.button("🔍 FETCH"):
-            rec, row_idx = search_logs(rid, st_tab)
-            if rec: 
-                st.session_state.edit_row_idx, st.session_state.target_sheet = row_idx, st_tab
-                st.success(f"Recalled Row {row_idx}. Update below."); st.json(rec)
-
-    st.divider()
-    is_editing = "edit_row_idx" in st.session_state
-    if is_editing:
-        if st.button("❌ EXIT EDIT MODE"): del st.session_state.edit_row_idx; st.rerun()
-
-    dtype = st.radio("Form:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
-    
     # Auto-Increment Logic
     last_sl, last_gp = get_last_ids("MANUAL PASS")
-    try: next_sl = str(int(last_sl) + 1)
-    except: next_sl = ""
-    try: next_gp = str(int(last_gp) + 1)
-    except: next_gp = ""
+    try: next_sl = str(int(last_sl) + 1); next_gp = str(int(last_gp) + 1)
+    except: next_sl = ""; next_gp = ""
+
+    is_editing = "edit_row_idx" in st.session_state
+    dtype = st.radio("Form:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
 
     with st.form("main_form", clear_on_submit=True):
         if dtype == "Manual Gate Pass":
@@ -243,30 +216,33 @@ with t5:
             f_amt = c6.text_input("AMOUNT").upper()
             f_rem = st.text_input("REMARKS").upper()
             payload = [f_sl, f_bk, f_gp, f_con, f_bill, f_desc, f_unit, f_cash, f_rem, f_amt]
-            target = "MANUAL PASS"
-            
+            target, check_id = "MANUAL PASS", f_gp
+        
         elif dtype == "Labour Charge":
             c1, c2, c3 = st.columns(3)
-            payload = [c1.text_input("TIME START").upper(), c2.text_input("TIME FINISH").upper(), c3.text_input("RECEIPT BOOK").upper(),
-                       st.text_input("VOUCHER NO").upper(), st.text_input("HRS").upper(), st.text_input("LABOURS").upper(),
+            payload = [c1.text_input("START").upper(), c2.text_input("FINISH").upper(), c3.text_input("BOOK").upper(),
+                       st.text_input("VOUCHER").upper(), st.text_input("HRS").upper(), st.text_input("LABOURS").upper(),
                        st.selectbox("FORKLIFT", ["YES", "NO"]), st.text_input("AMOUNT").upper(), st.text_input("FROM").upper(), st.text_input("REMARKS").upper()]
-            target = "LABOUR CHARGE"
-            
+            target, check_id = "LABOUR CHARGE", payload[3]
         else:
-            payload = [st.text_input("BOOK NO").upper(), st.text_input("GATE PASS NO").upper(), st.text_input("CONSIGNEE").upper(),
-                       st.text_input("BILL NO").upper(), st.text_input("REMARKS").upper(), st.text_input("AMOUNT").upper(), st.text_area("REASON").upper()]
-            target = "OFFICIAL REPORT"
+            payload = [st.text_input("BOOK").upper(), st.text_input("GP").upper(), st.text_input("CONSIGNEE").upper(),
+                       st.text_input("BILL").upper(), st.text_input("REMARKS").upper(), st.text_input("AMOUNT").upper(), st.text_area("REASON").upper()]
+            target, check_id = "OFFICIAL REPORT", payload[1]
 
-        btn_label = "💾 OVERWRITE RECORD" if is_editing else "🚀 SYNC TO DATABASE"
-        if st.form_submit_button(btn_label):
-            # Duplicate Guard
+        if st.form_submit_button("💾 OVERWRITE" if is_editing else "🚀 SYNC TO DATABASE"):
             if not is_editing:
-                dup, _ = search_logs(payload[2] if dtype != "Labour Charge" else payload[3], target)
+                dup, _ = search_logs(check_id, target)
                 if dup: st.error("⚠️ DUPLICATE ID FOUND!"); st.stop()
             
-            if is_editing:
-                if update_google_sheet(st.session_state.edit_row_idx, payload, st.session_state.target_sheet):
-                    st.success("✅ UPDATED"); del st.session_state.edit_row_idx
-            else:
-                if save_to_google_sheets(st.session_state.current_worker, payload, target):
-                    st.success(f"✅ SAVED TO {target}")
+            success = update_google_sheet(st.session_state.edit_row_idx, payload, target) if is_editing else save_to_google_sheets(st.session_state.current_worker, payload, target)
+            if success:
+                st.success("✅ SYNCED")
+                if is_editing: del st.session_state.edit_row_idx; st.rerun()
+
+    with st.expander("🛠️ CORRECTION TERMINAL"):
+        rid = st.text_input("ID to recall:")
+        if st.button("🔍 FETCH"):
+            rec, row_idx = search_logs(rid, "MANUAL PASS")
+            if rec:
+                st.session_state.edit_row_idx, st.session_state.target_sheet = row_idx, "MANUAL PASS"
+                st.success(f"Recalled Row {row_idx}. Ready to edit."); st.json(rec)
