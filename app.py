@@ -316,7 +316,7 @@ with t5:
             f_desc = st.text_area("DESCRIPTION").upper()
             c4, c5, c6 = st.columns(3)
             f_unit = c4.text_input("UNIT").upper()
-            f_cash = c5.text_input("CASH NO").upper()
+            f_cash = c5.text_input("CASH RECEIPT NO").upper()
             f_amt = c6.number_input("AMOUNT", min_value=0.0, format="%.2f")
             f_rem = st.text_input("REMARKS").upper()
             payload = [f_sl, f_bk, f_gp, f_con, f_bill, f_desc, f_unit, f_cash, f_rem, str(f_amt)]
