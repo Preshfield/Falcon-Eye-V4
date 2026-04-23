@@ -347,13 +347,29 @@ with t5:
                     st.rerun()
 
     # --- CORRECTION TERMINAL (Outside the main form) ---
+   # --- CORRECTION TERMINAL (Outside the main form) ---
     with st.expander("🛠️ CORRECTION TERMINAL"):
-        recall_id = st.text_input("Recall ID for Correction:")
-        if st.button("🔍 FETCH RECORD"):
-            record, row_idx = search_logs(recall_id, "MANUAL PASS")
-            if record:
-                st.session_state.edit_row_idx = row_idx
-                st.success(f"✅ Recalled Row {row_idx}. You can edit in the form above.")
-                st.json(record)
-            else:
-                st.error("❌ No record found.")
+        col_c1, col_c2 = st.columns([0.7, 0.3])
+        
+        with col_c1:
+            recall_id = st.text_input("Recall ID for Correction:")
+        
+        with col_c2:
+            st.write(" ") # Alignment spacer
+            if st.button("🔍 FETCH"):
+                record, row_idx = search_logs(recall_id, "MANUAL PASS")
+                if record:
+                    st.session_state.edit_row_idx = row_idx
+                    st.success(f"✅ Row {row_idx} Recalled.")
+                    st.json(record)
+                else:
+                    st.error("❌ Not found.")
+
+        # --- CANCEL FUNCTION ---
+        if is_editing:
+            st.divider()
+            st.warning(f"⚠️ Currently Editing Row: {st.session_state.edit_row_idx}")
+            if st.button("❌ CANCEL CORRECTION & START NEW"):
+                if "edit_row_idx" in st.session_state:
+                    del st.session_state.edit_row_idx
+                st.rerun()
