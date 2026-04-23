@@ -61,20 +61,20 @@ def save_to_google_sheets(worker, payload, sheet_name="LOG"):
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
         now = datetime.now(timezone(timedelta(hours=4)))
         date_s = now.strftime("%d-%m-%Y")
-
-        # KEEPING YOUR ORIGINAL LOG/FINANCE LOGIC EXACTLY THE SAME
+        
+        # ORIGINAL LOGIC FOR SECURITY LOGS & FINANCE SCANNER
         if sheet_name in ["LOG", "FINANCE"]:
             clean_log = str(payload).replace("**", "").replace("###", "").replace("- ", "").strip()
             row_data = [date_s, now.strftime("%H:%M:%S"), "GATE 4", worker, clean_log, "VERIFIED"]
         
-        # NEW LOGISTICS LAW: DATE, PAYLOAD, WORKER
+        # LOGISTICS LAW: DATE + PAYLOAD FIELDS + UPDATED BY
         else:
             row_data = [date_s] + [str(i) for i in payload] + [worker]
             
         sheet.append_row(row_data)
         return True
     except Exception as e:
-        st.error(f"Sync Error: {e}"); return False
+        st.error(f"Cloud Sync Unavailable: {e}"); return False
 
 def search_logs(query):
     try:
@@ -225,7 +225,7 @@ st.markdown('''
     </div>
 ''', unsafe_allow_html=True)
 
-t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER & LOGISTICS"])
+t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
@@ -281,7 +281,7 @@ with t3:
     if st.button("🚀 SAVE LOG") and notes:
         report = falcon_query(f"Format this observation: {notes}", "Gate 4 Protocol")
         st.code(report)
-        if save_to_google_sheets(st.session_state.current_worker, report, "LOG"): st.success("✅ Synchronized.")
+        if save_to_google_sheets(st.session_state.current_worker, report): st.success("✅ Synchronized.")
 
 with t4:
     st.subheader("🕵️ Audit Terminal")
@@ -296,9 +296,23 @@ with t4:
             pdf_data = generate_shift_pdf(st.session_state.current_worker, all_data[-10:])
             st.download_button("📥 Download PDF", pdf_data, f"Handover_{st.session_state.current_worker}.pdf", "application/pdf")
 
-st.divider()
-    st.write("### Logistics Entry Forms")
-    doc_type = st.radio("Select Category:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
+with t5:
+    st.subheader("📟 Digital Ledger Scanner & Logistics")
+    captured_image = st.camera_input("Scan Document")
+    if captured_image:
+        with st.spinner("DeepSeek OCR 2 Reading..."):
+            extracted = process_receipt(captured_image)
+            st.write("### Extracted Data")
+            final_entry = st.text_area("Edit if needed:", value=extracted, height=200)
+            if st.button("✅ SYNC TO FINANCE"):
+                if save_to_google_sheets(st.session_state.current_worker, final_entry, "FINANCE"):
+                    st.success("Logged to Finance database.")
+    
+    st.divider()
+    
+    # ====================== LOGISTICS DATA SECTION ======================
+    st.write("### 🚛 Logistics Database Entry")
+    doc_type = st.radio("Select Form:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
     
     with st.form("logistics_form", clear_on_submit=True):
         if doc_type == "Manual Gate Pass":
@@ -318,10 +332,10 @@ st.divider()
             cash_rec = c7.text_input("CASH RECEIPT NO")
             amount = c8.text_input("AMOUNT")
             
-            remarks = st.text_input("REMARKS")
+            rem_pass = st.text_input("REMARKS")
             # PAYLOAD ORDER: SL NO, BOOK NO, GP NO, CONSIGNEE, BILL NO, DESC, UNIT, CASH NO, REMARKS, AMOUNT
-            payload = [sl_no, book_no, gp_no, consignee, bill_no, desc, unit_type, cash_rec, remarks, amount]
-            sheet = "MANUAL PASS"
+            payload = [sl_no, book_no, gp_no, consignee, bill_no, desc, unit_type, cash_rec, rem_pass, amount]
+            sheet_target = "MANUAL PASS"
             
         elif doc_type == "Labour Charge":
             c1, c2, c3 = st.columns(3)
@@ -336,13 +350,13 @@ st.divider()
             
             c7, c8 = st.columns(2)
             forklift = c7.selectbox("FORK LIFT", ["YES", "NO"])
-            amt = c8.text_input("AMOUNT")
+            amt_labour = c8.text_input("AMOUNT")
             
             received_from = st.text_input("RECEIVED FROM")
-            rem = st.text_input("REMARKS")
+            rem_labour = st.text_input("REMARKS")
             # PAYLOAD ORDER: START, FINISH, BOOK, VOUCHER, HOURS, LABOURS, FORKLIFT, AMOUNT, FROM, REMARKS
-            payload = [t_start, t_finish, r_book, vouch, hrs, labours, forklift, amt, received_from, rem]
-            sheet = "LABOUR CHARGE"
+            payload = [t_start, t_finish, r_book, vouch, hrs, labours, forklift, amt_labour, received_from, rem_labour]
+            sheet_target = "LABOUR CHARGE"
 
         elif doc_type == "Official Report":
             c1, c2 = st.columns(2)
@@ -359,9 +373,8 @@ st.divider()
             
             # PAYLOAD ORDER: BOOK, GP, CONSIGNEE, BILL, REMARKS, AMOUNT, REASON
             payload = [o_book, o_gp, o_con, o_bill, o_rem, o_amt, o_reason]
-            sheet = "OFFICIAL"
+            sheet_target = "OFFICIAL"
 
-        if st.form_submit_button("📤 SYNC TO CLOUD"):
-            if save_to_google_sheets(st.session_state.current_worker, payload, sheet):
-                st.success(f"Data successfully synced to {sheet} sheet.")
-                st.success(f"Successfully logged to {sheet}")
+        if st.form_submit_button("🚀 SYNC TO LOGISTICS DATABASE"):
+            if save_to_google_sheets(st.session_state.current_worker, payload, sheet_target):
+                st.success(f"✅ Successfully transferred to {sheet_target} sheet.")
