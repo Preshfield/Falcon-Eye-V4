@@ -225,62 +225,78 @@ with t1:
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
-# --- GLOBAL UNIVERSAL INTERPRETER (RESTORED WORKING CODE) ---
-    st.divider()
-    st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🌍 Global Universal Interpreter")
-    
-    full_langs = {
-        "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-CN",
-        "English": "en", "French": "fr", "German": "de", "Hindi": "hi", 
-        "Italian": "it", "Japanese": "ja", "Korean": "ko", "Malayalam": "ml", 
-        "Nigerian Pidgin": "pcm", "Portuguese": "pt", "Russian": "ru", 
-        "Spanish": "es", "Swahili": "sw", "Tagalog": "tl", "Tamil": "ta", 
-        "Urdu": "ur", "Vietnamese": "vi"
-    }
-    
-    d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
-    
-    # INPUT SECTION
-    col_v1, col_v2 = st.columns([0.3, 0.7])
-    with col_v1:
-        outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 RECORD", key='global_mic_out')
-    with col_v2:
-        # This is your typing column that also catches the voice
-        op_text = st.text_input("Your Response (English):", value=outgoing_v if outgoing_v else "", key="global_text_in")
 
-    if st.button("🚀 SEND & GENERATE AUDIO") and op_text:
-        # THE ENGINE: Direct, no-fluff interpretation
-        response_trans = falcon_query(
-            f"Act as a master interpreter. Translate this to {d_lang}: '{op_text}'. Provide ONLY the direct translation. No explanations.", 
+    
+# --- GLOBAL UNIVERSAL INTERPRETER (RESTORED WORKING CODE) ---
+ 
+
+# --- T6: THE INTERCOM ---
+with t6:
+    st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
+    st.subheader("🌍 Real-Time Global Intercom")
+
+    # 1. SETUP: Language selection for the Guest
+    full_langs = {
+        "Arabic": "ar", "Bengali": "bn", "Chinese": "zh-CN", "English": "en", 
+        "French": "fr", "Hindi": "hi", "Malayalam": "ml", "Nigerian Pidgin": "pcm", 
+        "Russian": "ru", "Spanish": "es", "Tagalog": "tl", "Urdu": "ur"
+    }
+    guest_lang = st.selectbox("Guest Language:", sorted(list(full_langs.keys())), key="guest_lang_set")
+
+    # --- STEP 1 & 2: LISTEN TO GUEST -> ENGLISH ONLY ---
+    st.write("### 👂 Step 1: Listen to Guest")
+    # This uses your existing speech_to_text plugin
+    guest_voice = speech_to_text(language=full_langs[guest_lang], start_prompt=f"LISTEN ({guest_lang})", key='guest_mic')
+
+    if guest_voice:
+        # Engine: Only outputs the plain English translation
+        english_interpretation = falcon_query(
+            f"Act as a professional interpreter. Translate this to plain English ONLY. No chatter, no original text: {guest_voice}", 
+            "Global Knowledge"
+        )
+        st.info(f"**Guest says (English):** {english_interpretation}")
+
+    st.divider()
+
+    # --- STEP 3: LISTENER RESPONSE (SPEAK OR TYPE) ---
+    st.write("### 🎙️ Step 2: Your Response")
+    c1, c2 = st.columns([0.3, 0.7])
+    
+    with c1:
+        # Listen to you in English
+        my_voice = speech_to_text(language='en-US', start_prompt="SPEAK YOUR REPLY", key='my_mic')
+    
+    with c2:
+        # Type or Edit the response
+        my_response = st.text_input("Edit/Type Response:", value=my_voice if my_voice else "", key="my_text_reply")
+
+    # --- STEP 4 & 5: TRANSLATE BACK -> AUDIO OUTPUT ---
+    if st.button("🚀 SEND & PLAY AUDIO") and my_response:
+        # Engine: Translates back to guest language
+        back_to_guest = falcon_query(
+            f"Translate this English text to {guest_lang} ONLY. No explanations: {my_response}", 
             "Global Knowledge"
         )
         
-        st.success(f"**Interpretation ({d_lang}):** {response_trans}")
-        
-        # --- THE WORKING AUDIO LOGIC ---
+        st.success(f"**Reply in {guest_lang}:** {back_to_guest}")
+
+        # Generate Audio file for playback
         try:
-            import io
-            from gtts import gTTS
+            # We use gTTS for natural-sounding audio
+            tts = gTTS(text=back_to_guest, lang=full_langs[guest_lang])
+            audio_stream = io.BytesIO()
+            tts.write_to_fp(audio_stream)
             
-            # 1. Create the TTS object
-            tts = gTTS(text=response_trans, lang=full_langs[d_lang])
+            # Reset pointer so Streamlit can read from start
+            audio_stream.seek(0)
             
-            # 2. Use BytesIO to store it in memory
-            mp3_fp = io.BytesIO()
-            tts.write_to_fp(mp3_fp)
+            # Display player
+            st.audio(audio_stream.read(), format="audio/mpeg")
+            st.caption("👆 Play this for the guest.")
             
-            # 3. CRITICAL: Reset the pointer to the beginning of the stream
-            mp3_fp.seek(0)
-            
-            # 4. Read the bytes and display the player
-            audio_bytes = mp3_fp.read()
-            st.audio(audio_bytes, format="audio/mpeg")
-            
-        except Exception as e:
-            # If it's Pidgin, it will hit this error because gTTS has no 'pcm' voice
-            st.warning(f"Audio display skipped for this dialect. Use text above.")
-            
+        except Exception:
+            st.warning(f"Audio playback not available for {guest_lang}. Show the text above.")
+
     st.markdown('</div>', unsafe_allow_html=True)
 with t2:
     if os.path.exists("gate_manual.pdf"):
