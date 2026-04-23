@@ -273,21 +273,23 @@ with t1:
         st.success(f"**Interpretation ({d_lang}):** {response_trans}")
         
         # Audio execution
+       # Force-Build Audio Execution
         try:
-            from gtts import gTTS
-            import io
+            # 1. Generate the speech
             tts = gTTS(text=response_trans, lang=full_langs[d_lang])
-            stream = io.BytesIO()
-            tts.write_to_fp(stream)
             
-            # This creates the physical play button for your listener
-            st.audio(stream.getvalue(), format="audio/mpeg")
-            st.caption(f"👆 Play this for the {d_lang} speaker.")
+            # 2. Save to a byte stream
+            audio_bytes = io.BytesIO()
+            tts.write_to_fp(audio_bytes)
             
-        except Exception:
-            st.info(f"Audio playback not available for {d_lang}. Please show the text above.")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+            # 3. Display the player
+            st.audio(audio_bytes.getvalue(), format="audio/mpeg")
+            st.success("✅ Audio generated. Press Play above.")
+            
+        except Exception as e:
+            # This will now tell you EXACTLY why it failed
+            st.error(f"Audio Engine Error: {str(e)}")
+            st.info("The language might not support voice synthesis, but you can read the text above.")
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
