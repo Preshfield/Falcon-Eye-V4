@@ -259,32 +259,46 @@ with t1:
     st.write("---")
 
     # 2. OUTGOING: Listener Response (Speak or Type)
+  # --- STEP 2: YOUR RESPONSE (FIXED FOR VOICE) ---
     st.write("### 🎙️ Step 2: Your Response")
     
-    # We use session_state to "lock" the voice input so it doesn't vanish
-    if 'op_voice_locked' not in st.session_state:
-        st.session_state.op_voice_locked = ""
+    # Initialization
+    if 'locked_response' not in st.session_state:
+        st.session_state.locked_response = ""
+
+    # This function "locks" the voice into memory the instant it is recorded
+    def lock_voice():
+        if st.session_state.global_mic_out:
+            st.session_state.locked_response = st.session_state.global_mic_out
 
     col_v1, col_v2 = st.columns([0.3, 0.7])
+    
     with col_v1:
-        # Voice capture
-        outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
-        if outgoing_v:
-            st.session_state.op_voice_locked = outgoing_v
+        # We add the "on_change" callback here to trigger the lock
+        outgoing_v = speech_to_text(
+            language='en-US', 
+            start_prompt="🎤 SPEAK", 
+            key='global_mic_out',
+            on_change=lock_voice # This is the secret fix
+        )
     
     with col_v2:
-        # This box now watches both the voice input and your typing
-        op_text = st.text_input("Type or Edit Response:", value=st.session_state.op_voice_locked, key="global_text_in")
-        # Update session state if you manually type something else
-        st.session_state.op_voice_locked = op_text
+        # The text input now monitors the 'locked_response'
+        op_text = st.text_input(
+            "Type or Edit Response:", 
+            value=st.session_state.locked_response, 
+            key="global_text_in"
+        )
+        # Update the lock if you decide to type instead
+        st.session_state.locked_response = op_text
 
-    # 3. ACTION: Translate and Generate Audio (Works for both Voice and Typed)
-    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.op_voice_locked:
-        # Use the "locked" text for translation
-        final_input = st.session_state.op_voice_locked
+    # --- STEP 3: THE ACTION BUTTON ---
+    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.locked_response:
+        # Use the locked content so it can't be lost during the rerun
+        final_msg = st.session_state.locked_response
         
         response_trans = falcon_query(
-            f"Direct translation to {d_lang} ONLY. No chatter: {final_input}", 
+            f"Translate to {d_lang} ONLY. No chatter: {final_msg}", 
             "Global Knowledge"
         )
         
@@ -294,20 +308,16 @@ with t1:
             import io
             from gtts import gTTS
             
-            # Generate the audio stream
             tts = gTTS(text=response_trans, lang=full_langs[d_lang])
             stream = io.BytesIO()
             tts.write_to_fp(stream)
             stream.seek(0) 
             
-            # Show the audio player
             st.audio(stream.read(), format="audio/mpeg")
-            st.caption(f"👆 Play for the {d_lang} speaker.")
+            st.caption("👆 Hit play for the listener.")
             
         except Exception as e:
-            st.info(f"Audio display skipped. Error: {str(e)}")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+            st.error(f"Audio Error: {str(e)}")
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
