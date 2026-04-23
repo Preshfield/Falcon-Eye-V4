@@ -230,8 +230,7 @@ with t1:
 # --- GLOBAL UNIVERSAL INTERPRETER (RESTORED WORKING CODE) ---
  
 
-# --- T6: THE INTERCOM ---
-with t6:
+# --- THE INTERCOM ---
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🌍 Real-Time Global Intercom")
 
