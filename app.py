@@ -194,22 +194,30 @@ with t1:
             with st.chat_message(message["role"]): 
                 st.markdown(message["content"])
     
-    # 3. CHAT INPUT LOGIC
+    # 3. CHAT & AUDIO LOGIC
     if k_query := st.chat_input("Ask Falcon..."):
-        # Add user message
         st.session_state.messages.append({"role": "user", "content": k_query})
         
-        # Get AI response based on selected mode
+        # Get AI response
         ans = falcon_query(k_query, k_mode, st.session_state.messages)
-        
-        # Add assistant message
         st.session_state.messages.append({"role": "assistant", "content": ans})
         
+        # --- LECTURE AUDIO ENGINE ---
+        # Converts the AI's response into audio immediately
+        try:
+            tts_lang = 'en' # Default to English for lectures
+            tts = gTTS(text=ans, lang=tts_lang)
+            audio_fp = io.BytesIO()
+            tts.write_to_fp(audio_fp)
+            st.audio(audio_fp.getvalue(), format="audio/mpeg", autoplay=True)
+        except Exception as e:
+            st.warning("Audio playback unavailable.")
+        # ----------------------------
+
         # Save to memory and refresh
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
-
 
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
