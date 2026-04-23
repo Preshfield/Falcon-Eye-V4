@@ -183,18 +183,33 @@ t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LO
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
-    chat_container = st.container(height=350)
+    
+    # 1. SCOPE TOGGLE
+    k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
+    
+    # 2. CHAT CONTAINER
+    chat_container = st.container(height=400)
     with chat_container:
         for message in st.session_state.messages:
-            with st.chat_message(message["role"]): st.markdown(message["content"])
+            with st.chat_message(message["role"]): 
+                st.markdown(message["content"])
     
+    # 3. CHAT INPUT LOGIC
     if k_query := st.chat_input("Ask Falcon..."):
+        # Add user message
         st.session_state.messages.append({"role": "user", "content": k_query})
-        ans = falcon_query(k_query, "Gate 4 Protocol", st.session_state.messages)
+        
+        # Get AI response based on selected mode
+        ans = falcon_query(k_query, k_mode, st.session_state.messages)
+        
+        # Add assistant message
         st.session_state.messages.append({"role": "assistant", "content": ans})
+        
+        # Save to memory and refresh
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
+
 
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
