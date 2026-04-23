@@ -62,20 +62,14 @@ def save_to_google_sheets(worker, payload, sheet_name="LOG"):
         now = datetime.now(timezone(timedelta(hours=4)))
         date_s = now.strftime("%d-%m-%Y")
         
-        # ORIGINAL LOGIC FOR SECURITY LOGS & FINANCE SCANNER
         if sheet_name in ["LOG", "FINANCE"]:
             clean_log = str(payload).replace("**", "").replace("###", "").replace("- ", "").strip()
             row_data = [date_s, now.strftime("%H:%M:%S"), "GATE 4", worker, clean_log, "VERIFIED"]
-        
-        # LOGISTICS LAW: DATE + PAYLOAD FIELDS + UPDATED BY
         else:
-            row_data = [date_s] + [str(i) for i in payload] + [worker]
+            row_data = [date_s] + [str(i).upper() for i in payload] + [worker]
             
         sheet.append_row(row_data)
         return True
-    except gspread.exceptions.WorksheetNotFound:
-        st.error(f"❌ DATABASE ERROR: Tab '{sheet_name}' not found. Check Google Sheets tab names.")
-        return False
     except Exception as e:
         st.error(f"❌ SYNC ERROR: {str(e)}"); return False
 
@@ -85,14 +79,9 @@ def update_google_sheet(row_index, payload, sheet_name):
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
         client = gspread.authorize(creds)
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
-        
         now = datetime.now(timezone(timedelta(hours=4)))
         date_s = now.strftime("%d-%m-%Y")
-        
-        # Prepare the corrected row (Date + Payload + Worker)
         row_data = [date_s] + [str(i).upper() for i in payload] + [st.session_state.current_worker]
-        
-        # This replaces the old row with the new corrected data
         sheet.update(f"A{row_index}", [row_data])
         return True
     except Exception as e:
@@ -105,31 +94,27 @@ def search_logs(query, sheet_name="LOG"):
         client = gspread.authorize(creds)
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
         all_rows = sheet.get_all_values()
-        if not all_rows: return [], None
-        
+        if not all_rows: return None, None
         header = all_rows[0]
-        # We return the data AND the row index so we can update it later
         for idx, row in enumerate(all_rows[1:], start=2): 
             if any(query.upper() in str(c).upper() for c in row):
                 return dict(zip(header, row)), idx
         return None, None
     except Exception as e:
         st.error(f"Search Error: {e}"); return None, None
+
 def generate_shift_pdf(worker_name, logs):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", 'B', 16)
     pdf.cell(190, 10, "FALCON EYE - SHIFT HANDOVER REPORT", ln=True, align='C')
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(190, 10, f"Station: GATE 4 | Date: {datetime.now().strftime('%d-%m-%Y')}", ln=True, align='C')
     pdf.ln(10); pdf.set_font("Arial", 'B', 12)
-    pdf.cell(190, 10, f"Operator: {worker_name}", ln=True); pdf.ln(5)
-    pdf.set_fill_color(173, 255, 47); pdf.set_font("Arial", 'B', 10)
+    pdf.cell(190, 10, f"Operator: {worker_name}", ln=True)
+    pdf.ln(5); pdf.set_fill_color(173, 255, 47)
     pdf.cell(30, 10, "TIME", 1, 0, 'C', True); pdf.cell(160, 10, "LOG DETAILS", 1, 1, 'C', True)
     pdf.set_font("Arial", '', 9)
     for log in logs:
-        log_txt = str(log.get("LOG DETAILS", "N/A")).encode('latin-1', 'replace').decode('latin-1')
         pdf.cell(30, 10, str(log.get("TIME", "N/A")), 1)
-        pdf.multi_cell(160, 10, log_txt, 1)
+        pdf.multi_cell(160, 10, str(log.get("LOG DETAILS", "N/A")), 1)
     return pdf.output(dest='S').encode('latin-1')
 
 def get_chat_file(username): return f"memory_{username.replace(' ', '_').lower()}.json"
@@ -151,42 +136,37 @@ def digest_manual():
         except: return ""
     return ""
 
-# ====================== 4. AI ENGINES (PURE DEEPSEEK) ======================
+# ====================== 4. AI ENGINES ======================
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     manual_context = digest_manual()
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-    
     if mode == "Gate 4 Protocol":
         sys_rules = f"You are the Falcon Eye Gate 4 Security AI. Use ONLY: {manual_context}."
     elif mode == "Driver Instruction":
         sys_rules = "You are a tactical translator for truck drivers at Dubai DWC. Be short and clear."
     else:
-        sys_rules = "Real-Time Intelligence Engine. Current Date: April 22, 2026."
-    
+        sys_rules = "Real-Time Intelligence Engine. Current Date: April 23, 2026."
     conversation = [{"role": "system", "content": sys_rules}]
     if chat_history: conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
-    
     try:
         completion = client.chat.completions.create(model="deepseek-chat", messages=conversation, stream=False)
         return completion.choices[0].message.content
-    except Exception as e: return f"DEEPSEEK ERROR: {str(e)}"
+    except Exception as e: return f"AI ERROR: {str(e)}"
 
 def process_receipt(image_file):
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
-    if not api_key: return "System Error: DEEPSEEK_API_KEY missing in Secrets."
     base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
     try:
         client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         response = client.chat.completions.create(
             model="deepseek-ocr-2",
             messages=[{"role": "user", "content": [
-                {"type": "text", "text": "Extract all data from this receipt. Format as: Date, Name, Amount, Receipt Number."},
+                {"type": "text", "text": "Extract Date, Name, Amount, Receipt Number."},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-            ]}],
-            stream=False
+            ]}]
         )
         return response.choices[0].message.content
     except Exception as e: return f"Scan Error: {str(e)}"
@@ -211,45 +191,23 @@ dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
 with st.sidebar:
     st.title("🦅 MISSION LOGS")
-    sessions_data = st.session_state.get("all_sessions")
-    if not isinstance(sessions_data, dict):
-        sessions_data = {"New Conversation": []}
-        st.session_state.all_sessions = sessions_data
-    
-    chat_list = list(sessions_data.keys())
+    chat_list = list(st.session_state.all_sessions.keys())
     if st.button("➕ START NEW CHAT", use_container_width=True):
         new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
         st.session_state.all_sessions[new_id] = []
         st.session_state.current_chat_id = new_id
         st.rerun()
-    
     st.divider()
-    current_id = st.session_state.get("current_chat_id", "New Conversation")
-    if current_id not in chat_list: current_id = chat_list[0] if chat_list else "New Conversation"
-    
-    try: curr_index = chat_list.index(current_id)
-    except (ValueError, IndexError): curr_index = 0
-
-    selected_chat = st.radio("History:", chat_list, index=curr_index)
+    selected_chat = st.radio("History:", chat_list)
     st.session_state.current_chat_id = selected_chat
-    st.session_state.messages = sessions_data.get(selected_chat, [])
-
-    st.divider()
-    if st.button("🔒 LOGOUT", type="secondary", use_container_width=True):
+    st.session_state.messages = st.session_state.all_sessions.get(selected_chat, [])
+    if st.button("🔒 LOGOUT", use_container_width=True):
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.session_state.auth = False
         st.rerun()
 
-st.markdown(f'<div class="custom-header"><b>Station Active:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
-
-st.markdown('''
-    <div class="hero-container">
-        <h1 class="hero-title">FALCON EYE</h1>
-        <h2 class="hero-subtitle">GATE 4 <span class="status-dot">● ONLINE</span></h2>
-        <div class="hero-divider"></div>
-        <p class="hero-tagline">Tactical AI Intelligence & Protocol Management</p>
-    </div>
-''', unsafe_allow_html=True)
+st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
 t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER"])
 
@@ -270,11 +228,11 @@ with t1:
                 st.session_state.messages.append({"role": "assistant", "content": response})
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-   st.divider()
+    
+    st.divider()
+    # ====================== TRANSLATION SECTION ======================
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🚛 Driver Intercom")
-    
-    # Expanded Language Database for Dubai Logistics
     full_langs = {
         "Arabic": "ar", "Bengali": "bn", "English": "en", "Hindi": "hi", 
         "Urdu": "ur", "Pashto": "ps", "Punjabi": "pa", "Malayalam": "ml",
@@ -282,174 +240,96 @@ with t1:
         "Marathi": "mr", "Farsi": "fa", "Turkish": "tr", "Russian": "ru",
         "French": "fr", "Chinese": "zh", "Tagalog": "tl", "Swahili": "sw"
     }
-    
-    # Using a selectbox - Streamlit allows you to type to search or scroll
-    d_lang = st.selectbox("Select Driver Language:", sorted(list(full_langs.keys())), index=0)
-    
+    d_lang = st.selectbox("Select Driver Language:", sorted(list(full_langs.keys())))
     c1, c2 = st.columns([3, 1])
-    with c2: 
-        driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
-    
+    with c2: driver_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN", key='d_mic')
     if driver_v:
         intent = falcon_query(f"Driver said: {driver_v} in {d_lang}. Translate to English.", "Driver Instruction")
-        st.markdown(f'<div class="driver-msg"><b>Driver ({d_lang}):</b> {driver_v}<br><b>AI Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
-    
+        st.markdown(f'<div class="driver-msg"><b>Driver ({d_lang}):</b> {driver_v}<br><b>Interpretation:</b> {intent}</div>', unsafe_allow_html=True)
     op_voice = speech_to_text(language='en', start_prompt="🎤 TAP TO SPEAK", key='op_mic')
     final_reply = op_voice if op_voice else st.text_input("Type command to driver (English)")
-    
     if st.button("📤 SEND COMMAND"):
         if final_reply:
             trans = falcon_query(f"Translate to {d_lang}: {final_reply}", "Driver Instruction")
             st.success(f"**Replied in {d_lang}:** {trans}")
-            
-            # Generate and play audio for the driver
             try:
                 tts = gTTS(text=trans, lang=full_langs[d_lang])
-                stream = io.BytesIO()
-                tts.write_to_fp(stream)
+                stream = io.BytesIO(); tts.write_to_fp(stream)
                 st.audio(stream.getvalue(), format="audio/mpeg", autoplay=True)
-            except Exception as e:
-                st.error(f"TTS Audio Error: {e}")
-                
+            except: st.error("TTS Audio Error.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
     st.subheader("📖 Active Protocols")
-    st.markdown("### 🎧 Protocol Audio Briefing")
-    audio_path = "protocol_lecture.wav.mp3"
-    if os.path.exists(audio_path): st.audio(audio_path, format="audio/mpeg")
-    else: st.info("Audio briefing file not found.")
-    st.divider()
+    if os.path.exists("protocol_lecture.wav.mp3"): st.audio("protocol_lecture.wav.mp3", format="audio/mpeg")
     if os.path.exists("gate_manual.pdf"): pdf_viewer("gate_manual.pdf", height=700)
-    else: st.warning("Manual file 'gate_manual.pdf' not found.")
 
 with t3:
     st.subheader("📋 Security Logs")
     notes = st.text_area("Observations:", key="logs_input")
     if st.button("🚀 SAVE LOG") and notes:
         report = falcon_query(f"Format this observation: {notes}", "Gate 4 Protocol")
-        st.code(report)
         if save_to_google_sheets(st.session_state.current_worker, report): st.success("✅ Synchronized.")
 
 with t4:
     st.subheader("🕵️ Audit Terminal")
     audit_query = st.text_input("Search archives:")
     if st.button("🔍 RUN AUDIT"):
-        found = search_logs(audit_query)
+        found, _ = search_logs(audit_query)
         if found: st.table(found)
         else: st.info("No records.")
-    if st.button("📄 GENERATE HANDOVER PDF"):
-        all_data = search_logs(st.session_state.current_worker)
-        if all_data:
-            pdf_data = generate_shift_pdf(st.session_state.current_worker, all_data[-10:])
-            st.download_button("📥 Download PDF", pdf_data, f"Handover_{st.session_state.current_worker}.pdf", "application/pdf")
 
 with t5:
     st.subheader("📟 Digital Ledger Scanner & Logistics")
-    
-    # 1. SCANNER
     captured_image = st.camera_input("Scan Document")
     if captured_image:
-        with st.spinner("Reading Document..."):
+        with st.spinner("Scanning..."):
             extracted = process_receipt(captured_image)
-            final_entry = st.text_area("Edit scan if needed:", value=extracted.upper(), height=150)
+            final_entry = st.text_area("Edit scan:", value=extracted.upper(), height=150)
             if st.button("✅ SYNC TO FINANCE"):
                 save_to_google_sheets(st.session_state.current_worker, final_entry, "FINANCE")
 
     st.divider()
-
-    # 2. CORRECTION TERMINAL (RECALL LOGIC)
     st.write("### 🛠️ Logistics Correction Terminal")
     with st.expander("RECALL & FIX ERRORS"):
-        search_tab = st.selectbox("Select Sheet to Fix:", ["MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"])
+        search_tab = st.selectbox("Select Sheet:", ["MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"])
         recall_id = st.text_input("Enter ID (Gate Pass/Receipt No):")
-        
         if st.button("🔍 FETCH RECORD"):
             record, row_idx = search_logs(recall_id, search_tab)
             if record:
-                st.session_state.edit_row_idx = row_idx
-                st.session_state.target_sheet = search_tab
-                st.success(f"Record found at Row {row_idx}. Correct it in the form below.")
-                st.json(record)
-            else:
-                st.error("No record found. Check the ID and Sheet name.")
+                st.session_state.edit_row_idx, st.session_state.target_sheet = row_idx, search_tab
+                st.success(f"Record found at Row {row_idx}. Correct below."); st.json(record)
+            else: st.error("No record found.")
 
     st.divider()
-
-    # 3. SMART LOGISTICS FORM
-    st.write("### 🚛 Logistics Database Entry")
-    
-    # Check if we are in "Edit Mode"
     is_editing = "edit_row_idx" in st.session_state
     if is_editing:
-        st.warning(f"⚠️ EDITING MODE: Correcting Row {st.session_state.edit_row_idx}")
-        if st.button("❌ CANCEL & START NEW"):
-            del st.session_state.edit_row_idx
-            st.rerun()
+        st.warning(f"⚠️ EDITING Row {st.session_state.edit_row_idx}")
+        if st.button("❌ CANCEL EDIT"): del st.session_state.edit_row_idx; st.rerun()
 
-    doc_type = st.radio("Select Form:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
-    
+    doc_type = st.radio("Form Type:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
     with st.form("logistics_form", clear_on_submit=True):
         if doc_type == "Manual Gate Pass":
             c1, c2, c3 = st.columns(3)
-            sl_no = c1.text_input("SL NO").upper()
-            book_no = c2.text_input("BOOK NO").upper()
-            gp_no = c3.text_input("GATE PASS NO").upper()
-            consignee = st.text_input("CONSIGNEE").upper()
-            bill_no = st.text_input("CUSTOMS BILL NO").upper()
-            desc = st.text_area("DESCRIPTION OF CARGO").upper()
-            c4, c5, c6 = st.columns(3)
-            unit_type = c4.text_input("TYPE/UNIT").upper()
-            cash_rec = c5.text_input("CASH RECEIPT NO").upper()
-            amount_v = c6.text_input("AMOUNT").upper()
-            rem_pass = st.text_input("REMARKS").upper()
-            
-            payload = [sl_no, book_no, gp_no, consignee, bill_no, desc, unit_type, cash_rec, rem_pass, amount_v]
+            payload = [c1.text_input("SL NO").upper(), c2.text_input("BOOK NO").upper(), c3.text_input("GATE PASS NO").upper(), 
+                       st.text_input("CONSIGNEE").upper(), st.text_input("CUSTOMS BILL NO").upper(), st.text_area("DESCRIPTION").upper(),
+                       st.text_input("UNIT").upper(), st.text_input("CASH NO").upper(), st.text_input("REMARKS").upper(), st.text_input("AMOUNT").upper()]
             sheet_target = "MANUAL PASS"
-            
         elif doc_type == "Labour Charge":
             c1, c2, c3 = st.columns(3)
-            t_start = c1.text_input("TIME START").upper()
-            t_finish = c2.text_input("TIME FINISH").upper()
-            r_book = c3.text_input("RECEIPT BOOK NO").upper()
-            c4, c5, c6 = st.columns(3)
-            vouch = c4.text_input("RECEIPT VOUCHER NO").upper()
-            hrs = c5.text_input("NO OF HOURS").upper()
-            labours = c6.text_input("NO OF LABOURS").upper()
-            c7, c8 = st.columns(2)
-            forklift = c7.selectbox("FORK LIFT", ["YES", "NO"])
-            amt_l = c8.text_input("AMOUNT").upper()
-            received_from = st.text_input("RECEIVED FROM").upper()
-            rem_l = st.text_input("REMARKS").upper()
-            
-            payload = [t_start, t_finish, r_book, vouch, hrs, labours, forklift, amt_l, received_from, rem_l]
+            payload = [c1.text_input("START").upper(), c2.text_input("FINISH").upper(), c3.text_input("RECEIPT BOOK").upper(),
+                       st.text_input("VOUCHER").upper(), st.text_input("HOURS").upper(), st.text_input("LABOURS").upper(),
+                       st.selectbox("FORKLIFT", ["YES", "NO"]), st.text_input("AMOUNT").upper(), st.text_input("FROM").upper(), st.text_input("REMARKS").upper()]
             sheet_target = "LABOUR CHARGE"
-
-        elif doc_type == "Official Report":
-            c1, c2 = st.columns(2)
-            o_book = c1.text_input("BOOK NO").upper()
-            o_gp = c2.text_input("GATE PASS NO").upper()
-            o_con = st.text_input("CONSIGNEE").upper()
-            o_bill = st.text_input("CUSTOM BILL NO").upper()
-            o_reason = st.text_area("REASON").upper()
-            c3, c4 = st.columns(2)
-            o_rem = c3.text_input("REMARKS").upper()
-            o_amt = c4.text_input("AMOUNT (AED)").upper()
-            
-            payload = [o_book, o_gp, o_con, o_bill, o_rem, o_amt, o_reason]
+        else:
+            payload = [st.text_input("BOOK NO").upper(), st.text_input("GATE PASS NO").upper(), st.text_input("CONSIGNEE").upper(),
+                       st.text_input("BILL NO").upper(), st.text_input("REMARKS").upper(), st.text_input("AMOUNT").upper(), st.text_area("REASON").upper()]
             sheet_target = "OFFICIAL REPORT"
 
-        # --- THE SMART SYNC BUTTON ---
-        submit_label = "💾 OVERWRITE ERROR" if is_editing else "🚀 SYNC TO DATABASE"
-        if st.form_submit_button(submit_label):
-            final_payload = [str(x).upper() for x in payload]
-            
+        if st.form_submit_button("💾 OVERWRITE" if is_editing else "🚀 SYNC TO DATABASE"):
             if is_editing:
-                # Runs the UPDATE logic if we recalled a record
-                if update_google_sheet(st.session_state.edit_row_idx, final_payload, st.session_state.target_sheet):
-                    st.success(f"✅ ROW {st.session_state.edit_row_idx} CORRECTED!")
-                    del st.session_state.edit_row_idx # Clear edit mode after success
+                if update_google_sheet(st.session_state.edit_row_idx, payload, st.session_state.target_sheet):
+                    st.success("✅ CORRECTED!"); del st.session_state.edit_row_idx
             else:
-                # Runs the standard SAVE logic for new entries
-                if save_to_google_sheets(st.session_state.current_worker, final_payload, sheet_target):
-                    st.success(f"✅ NEW ENTRY SAVED TO {sheet_target}")
+                if save_to_google_sheets(st.session_state.current_worker, payload, sheet_target):
+                    st.success(f"✅ SAVED TO {sheet_target}")
