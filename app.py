@@ -260,40 +260,52 @@ with t1:
 
     # 2. OUTGOING: Listener Response (Speak or Type)
     st.write("### 🎙️ Step 2: Your Response")
+    
+    # We use session_state to "lock" the voice input so it doesn't vanish
+    if 'op_voice_locked' not in st.session_state:
+        st.session_state.op_voice_locked = ""
+
     col_v1, col_v2 = st.columns([0.3, 0.7])
     with col_v1:
-        # Voice input for the operator
+        # Voice capture
         outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
+        if outgoing_v:
+            st.session_state.op_voice_locked = outgoing_v
+    
     with col_v2:
-        # Type/Edit column - Takes the voice input but allows manual typing
-        op_text = st.text_input("Type or Edit Response:", value=outgoing_v if outgoing_v else "", key="global_text_in")
+        # This box now watches both the voice input and your typing
+        op_text = st.text_input("Type or Edit Response:", value=st.session_state.op_voice_locked, key="global_text_in")
+        # Update session state if you manually type something else
+        st.session_state.op_voice_locked = op_text
 
-    # 3. ACTION: Translate back to Original Language + Audio
-    if st.button("🚀 SEND & GENERATE AUDIO") and op_text:
-        # Engine picks the best interpretation back to the target language
+    # 3. ACTION: Translate and Generate Audio (Works for both Voice and Typed)
+    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.op_voice_locked:
+        # Use the "locked" text for translation
+        final_input = st.session_state.op_voice_locked
+        
         response_trans = falcon_query(
-            f"Act as a master interpreter. Translate to {d_lang} ONLY. Straight and precise, no explanations: {op_text}", 
+            f"Direct translation to {d_lang} ONLY. No chatter: {final_input}", 
             "Global Knowledge"
         )
         
-        st.success(f"**Replied in {d_lang}:** {response_trans}")
+        st.success(f"**Interpretation ({d_lang}):** {response_trans}")
         
-        # Audio execution with reset pointer for stability
         try:
             import io
             from gtts import gTTS
             
+            # Generate the audio stream
             tts = gTTS(text=response_trans, lang=full_langs[d_lang])
             stream = io.BytesIO()
             tts.write_to_fp(stream)
-            stream.seek(0) # Critical reset
+            stream.seek(0) 
             
-            # Generates the playable bar for the guest to hear
+            # Show the audio player
             st.audio(stream.read(), format="audio/mpeg")
             st.caption(f"👆 Play for the {d_lang} speaker.")
             
-        except Exception:
-            st.info(f"Audio not available for {d_lang}. Please show the text above.")
+        except Exception as e:
+            st.info(f"Audio display skipped. Error: {str(e)}")
 
     st.markdown('</div>', unsafe_allow_html=True)
 with t2:
