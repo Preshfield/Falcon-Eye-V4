@@ -58,17 +58,19 @@ def get_gsheet_client():
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     return gspread.authorize(creds)
 
-def save_to_google_sheets(worker, payload, sheet_name="LOG"):
+def save_to_google_sheets(worker, payload, sheet_name="LOG", custom_date=None):
     try:
         client = get_gsheet_client()
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
-        now = datetime.now(timezone(timedelta(hours=4)))
-        date_s = now.strftime("%d-%m-%Y")
+        # Use custom_date if provided, otherwise use Dubai current date
+        if custom_date:
+            date_s = custom_date
+        else:
+            now = datetime.now(timezone(timedelta(hours=4)))
+            date_s = now.strftime("%d-%m-%Y")
         
-        if sheet_name in ["LOG", "FINANCE"]:
-            clean_log = str(payload).replace("**", "").replace("###", "").replace("- ", "").strip()
-            row_data = [date_s, now.strftime("%H:%M:%S"), "GATE 4", worker, clean_log, "VERIFIED"]
-        elif sheet_name == "MANUAL PASS":
+        if sheet_name == "MANUAL PASS":
+            # SL NO, DATE, BOOK NO, GP NO...
             row_data = [payload[0], date_s, payload[1], payload[2], payload[3], payload[4], payload[5], payload[6], payload[7], worker, payload[8], payload[9]]
         else:
             row_data = [date_s] + [str(i).upper() for i in payload] + [worker]
@@ -78,12 +80,16 @@ def save_to_google_sheets(worker, payload, sheet_name="LOG"):
     except Exception as e:
         st.error(f"❌ SYNC ERROR: {str(e)}"); return False
 
-def update_google_sheet(row_index, payload, sheet_name):
+def update_google_sheet(row_index, payload, sheet_name, custom_date=None):
     try:
         client = get_gsheet_client()
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
-        now = datetime.now(timezone(timedelta(hours=4)))
-        date_s = now.strftime("%d-%m-%Y")
+        if custom_date:
+            date_s = custom_date
+        else:
+            now = datetime.now(timezone(timedelta(hours=4)))
+            date_s = now.strftime("%d-%m-%Y")
+
         if sheet_name == "MANUAL PASS":
             row_data = [payload[0], date_s, payload[1], payload[2], payload[3], payload[4], payload[5], payload[6], payload[7], st.session_state.current_worker, payload[8], payload[9]]
         else:
@@ -296,6 +302,10 @@ with t5:
     doc_type = st.radio("Form Type:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
 
     with st.form("logistics_form", clear_on_submit=True):
+        # --- NEW DATE INPUT FIELD ---
+        f_date = st.date_input("SELECT DATE:", value=datetime.now(timezone(timedelta(hours=4))))
+        formatted_date = f_date.strftime("%d-%m-%Y")
+        
         if doc_type == "Manual Gate Pass":
             c1, c2, c3 = st.columns(3)
             f_sl = c1.text_input("SL NO", value=next_sl).upper()
@@ -329,15 +339,9 @@ with t5:
                 dup, _ = search_logs(check_id, sheet_target)
                 if dup: st.error(f"⚠️ DUPLICATE ENTRY! Gate Pass {check_id} exists."); st.stop()
             
-            success = update_google_sheet(st.session_state.edit_row_idx, payload, sheet_target) if is_editing else save_to_google_sheets(st.session_state.current_worker, payload, sheet_target)
+            # Pass the formatted_date to the functions
+            success = update_google_sheet(st.session_state.edit_row_idx, payload, sheet_target, custom_date=formatted_date) if is_editing else save_to_google_sheets(st.session_state.current_worker, payload, sheet_target, custom_date=formatted_date)
             if success:
-                st.success("✅ DATABASE UPDATED")
+                st.success(f"✅ DATABASE UPDATED FOR {formatted_date}")
                 if is_editing: del st.session_state.edit_row_idx; st.rerun()
-
-    with st.expander("🛠️ CORRECTION TERMINAL"):
-        recall_id = st.text_input("Recall ID:")
-        if st.button("🔍 FETCH RECORD"):
-            record, row_idx = search_logs(recall_id, "MANUAL PASS")
-            if record:
-                st.session_state.edit_row_idx, st.session_state.target_sheet = row_idx, "MANUAL PASS"
                 st.success(f"Recalled Row {row_idx}."); st.json(record)
