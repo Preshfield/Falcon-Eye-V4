@@ -402,31 +402,7 @@ with t5:
             if st.button("❌ CANCEL CORRECTION & START NEW"):
                 if "edit_row_idx" in st.session_state:
 
-# --- TAB 6: DUAL-WAY FIELD INTERPRETER ---
-with t6:
-    st.subheader("🗣️ Dual-Way Field Interpreter")
-    st.write("Direct interpretations for Gate 4 communication. No chatter.")
-    
-    t_col1, t_col2 = st.columns(2)
-    
-    with t_col1:
-        st.info("📥 FROM DRIVER")
-        dr_text = st.text_area("Paste foreign text here:", key="t6_dr_in", height=150)
-        if dr_text:
-            # Strictly English interpretation
-            dr_res = falcon_query(f"Direct interpretation to English ONLY. Precise and brief: {dr_text}", "Global Knowledge")
-            st.subheader("English Interpretation:")
-            st.success(dr_res)
 
-    with t_col2:
-        st.warning("📤 TO DRIVER")
-        target_lang = st.selectbox("Select Driver's Language:", ["Arabic", "Urdu", "Hindi", "Russian", "Chinese", "Farsi"], key="t6_lang")
-        my_text = st.text_area(f"Type instructions in {target_lang}:", key="t6_my_in", height=150)
-        if my_text:
-            # Strictly Target Language interpretation
-            my_res = falcon_query(f"Direct interpretation to {target_lang} ONLY. Straight and precise command: {my_text}", "Global Knowledge")
-            st.subheader(f"{target_lang} Interpretation:")
-            st.error(my_res) # Using error (red) makes it highly visible for the driver to see
 
 
                     
