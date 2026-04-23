@@ -1,4 +1,3 @@
-
 import streamlit as st
 import os, io, json, base64
 from datetime import datetime, timedelta, timezone
@@ -54,15 +53,23 @@ def local_css(file_name):
 local_css("css/style.css")
 
 # ====================== 3. UTILITY ENGINES ======================
-def save_to_google_sheets(worker, log_text, sheet_name="LOG"):
+def save_to_google_sheets(worker, payload, sheet_name="LOG"):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
         client = gspread.authorize(creds)
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
-        clean_log = log_text.replace("**", "").replace("###", "").replace("- ", "").strip()
         now = datetime.now(timezone(timedelta(hours=4)))
-        row_data = [now.strftime("%d-%m-%Y"), now.strftime("%H:%M:%S"), "GATE 4", worker, clean_log, "VERIFIED"]
+        date_s, time_s = now.strftime("%d-%m-%Y"), now.strftime("%H:%M:%S")
+
+        if sheet_name in ["LOG", "FINANCE"]:
+            # Single text payload
+            clean_log = str(payload).replace("**", "").replace("###", "").replace("- ", "").strip()
+            row_data = [date_s, time_s, "GATE 4", worker, clean_log, "VERIFIED"]
+        else:
+            # List payload from Logistics forms
+            row_data = [date_s, time_s] + [str(i) for i in payload] + [worker]
+            
         sheet.append_row(row_data)
         return True
     except Exception as e:
@@ -217,7 +224,7 @@ st.markdown('''
     </div>
 ''', unsafe_allow_html=True)
 
-t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER"])
+t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 SCANNER & LOGISTICS"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
@@ -273,7 +280,7 @@ with t3:
     if st.button("🚀 SAVE LOG") and notes:
         report = falcon_query(f"Format this observation: {notes}", "Gate 4 Protocol")
         st.code(report)
-        if save_to_google_sheets(st.session_state.current_worker, report): st.success("✅ Synchronized.")
+        if save_to_google_sheets(st.session_state.current_worker, report, "LOG"): st.success("✅ Synchronized.")
 
 with t4:
     st.subheader("🕵️ Audit Terminal")
@@ -289,13 +296,51 @@ with t4:
             st.download_button("📥 Download PDF", pdf_data, f"Handover_{st.session_state.current_worker}.pdf", "application/pdf")
 
 with t5:
-    st.subheader("📟 Digital Ledger Scanner")
+    st.subheader("📟 Scanner & Logistics")
+    
+    # --- SCANNER SECTION ---
+    st.write("### AI Document Scanner")
     captured_image = st.camera_input("Scan Document")
     if captured_image:
         with st.spinner("DeepSeek OCR 2 Reading..."):
             extracted = process_receipt(captured_image)
-            st.write("### Extracted Data")
-            final_entry = st.text_area("Edit if needed:", value=extracted, height=200)
+            st.write("#### Extracted Data")
+            final_entry = st.text_area("Edit if needed:", value=extracted, height=150)
             if st.button("✅ SYNC TO FINANCE"):
                 if save_to_google_sheets(st.session_state.current_worker, final_entry, "FINANCE"):
                     st.success("Logged to Finance database.")
+    
+    st.divider()
+    
+    # --- LOGISTICS DATABASE SECTION ---
+    st.write("### Logistics Entry Forms")
+    doc_type = st.radio("Select Form Category:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
+    
+    with st.form("logistics_form", clear_on_submit=True):
+        if doc_type == "Manual Gate Pass":
+            c1, c2, c3 = st.columns(3)
+            gp_no = c1.text_input("GATE PASS NO")
+            book = c2.text_input("BOOK NO")
+            consignee = c3.text_input("CONSIGNEE")
+            cargo = st.text_area("DESCRIPTION")
+            payload = [gp_no, book, consignee, cargo]
+            sheet = "MANUAL PASS"
+            
+        elif doc_type == "Labour Charge":
+            c1, c2, c3 = st.columns(3)
+            voucher = c1.text_input("VOUCHER NO")
+            hrs = c2.text_input("HOURS")
+            amt = c3.text_input("AMOUNT (AED)")
+            remarks = st.text_input("REMARKS")
+            payload = [voucher, hrs, amt, remarks]
+            sheet = "LABOUR CHARGE"
+
+        elif doc_type == "Official Report":
+            o_gp = st.text_input("REPORT REF NO")
+            o_reason = st.text_area("REPORT DETAILS")
+            payload = [o_gp, o_reason]
+            sheet = "OFFICIAL REPORT"
+
+        if st.form_submit_button("📤 SYNC TO DATABASE"):
+            if save_to_google_sheets(st.session_state.current_worker, payload, sheet):
+                st.success(f"Successfully logged to {sheet}")
