@@ -336,37 +336,87 @@ with t4:
 
 # --- FINALIZED SCANNER UI ---
 with t5:
-    st.subheader("📟 Logistics Vision Scanner")
-    st.info("Capture Dubai South Gate Passes or Labour Receipts.")
+    st.subheader("📟 Logistics Intelligence Terminal")
     
-    captured_image = st.camera_input("Scan Page")
-    
-    if captured_image:
-        with st.spinner("Falcon Eye (Gemini) reading handwriting..."):
-            scan_output = process_receipt(captured_image)
-            
-            try:
-                res_json = json.loads(scan_output)
-                target_sheet = res_json.get("category", "MANUAL PASS")
-                extracted_info = res_json.get("data", "No data found")
-                
-                st.markdown(f"### 📋 Detected: **{target_sheet}**")
-                final_entry = st.text_area("Review Data:", value=extracted_info, height=150)
-                
+    # Selection for Input Method
+    entry_method = st.radio(
+        "Select Operation Mode:",
+        ["⚡ Manual Entry Form", "👁️ AI Vision Scanner"],
+        horizontal=True,
+        help="Use Manual for speed, AI Vision for complex passes."
+    )
+
+    st.divider()
+
+    # --- OPTION 1: MANUAL ENTRY FORM ---
+    if entry_method == "⚡ Manual Entry Form":
+        entry_type = st.radio("Document Type:", ["Manual Gate Pass", "Labour Charge Book"], horizontal=True)
+        
+        if entry_type == "Manual Gate Pass":
+            with st.form("manual_gp_form", clear_on_submit=True):
+                st.markdown("### 🚛 Manual GP Entry")
                 c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("🚛 SYNC TO MANUAL PASS"):
-                        if save_to_google_sheets(st.session_state.current_worker, final_entry, "MANUAL PASS"):
-                            st.success("Logged in Manual Pass.")
+                    gp_no = st.text_input("GP Number (Red No.)")
+                    consignee = st.text_input("Consignee (e.g., Agnice)")
                 with c2:
-                    if st.button("💰 SYNC TO LABOUR CHARGE"):
-                        if save_to_google_sheets(st.session_state.current_worker, final_entry, "LABOUR CHARGE"):
-                            st.success("Logged in Labour Charge.")
-                            
-            except Exception:
-                st.warning("Manual classification required.")
-                route = st.selectbox("Select Target Tab:", ["MANUAL PASS", "LABOUR CHARGE"])
-                final_entry = st.text_area("Extracted Text:", value=scan_output, height=150)
-                if st.button("✅ SYNC MANUALLY"):
-                    if save_to_google_sheets(st.session_state.current_worker, final_entry, route):
+                    vehicle = st.text_input("Vehicle Plate No.")
+                    date_val = st.date_input("Pass Date", datetime.now())
+                cargo = st.text_area("Cargo Description")
+                
+                if st.form_submit_button("🚀 SYNC TO MANUAL PASS"):
+                    log_entry = f"GP:{gp_no} | Plate:{vehicle} | To:{consignee} | Cargo:{cargo}"
+                    if save_to_google_sheets(st.session_state.current_worker, log_entry, "MANUAL PASS"):
+                        st.success(f"✅ GP {gp_no} Synchronized.")
+
+        else:
+            with st.form("labour_book_form", clear_on_submit=True):
+                st.markdown("### 💰 Labour Charge Entry")
+                c1, c2 = st.columns(2)
+                with c1:
+                    receipt_no = st.text_input("Receipt / Page No.")
+                    company = st.text_input("Company Name")
+                with c2:
+                    amount = st.text_input("Amount (AED)")
+                    l_date = st.date_input("Date", datetime.now())
+                service = st.text_area("Service Details")
+                
+                if st.form_submit_button("💰 SYNC TO LABOUR CHARGE"):
+                    log_entry = f"Receipt:{receipt_no} | Co:{company} | Amt:{amount} | Service:{service}"
+                    if save_to_google_sheets(st.session_state.current_worker, log_entry, "LABOUR CHARGE"):
+                        st.success(f"✅ Labour Entry for {company} Saved.")
+
+    # --- OPTION 2: AI VISION SCANNER (Mistral) ---
+    else:
+        st.info("Capture a clear photo of the Dubai South pass.")
+        captured_image = st.camera_input("Scan Document")
+        
+        if captured_image:
+            with st.spinner("Falcon Eye reading document..."):
+                scan_output = process_receipt(captured_image) # Using your Mistral function
+                
+                try:
+                    res_json = json.loads(scan_output)
+                    target_sheet = res_json.get("category", "MANUAL PASS")
+                    extracted_info = res_json.get("data", "No data found")
+                    
+                    st.markdown(f"### 📋 AI Detected: **{target_sheet}**")
+                    final_entry = st.text_area("Verify Data:", value=extracted_info, height=150)
+                    
+                    cc1, cc2 = st.columns(2)
+                    with cc1:
+                        if st.button("🚛 SYNC TO MANUAL PASS"):
+                            if save_to_google_sheets(st.session_state.current_worker, final_entry, "MANUAL PASS"):
+                                st.success("Logged in Manual Pass.")
+                    with cc2:
+                        if st.button("💰 SYNC TO LABOUR CHARGE"):
+                            if save_to_google_sheets(st.session_state.current_worker, final_entry, "LABOUR CHARGE"):
+                                st.success("Logged in Labour Charge.")
+                
+                except:
+                    st.warning("AI couldn't format data. Review below:")
+                    manual_text = st.text_area("Scanned Text:", value=scan_output)
+                    route = st.selectbox("Send to:", ["MANUAL PASS", "LABOUR CHARGE"])
+                    if st.button("✅ SYNC MANUALLY"):
+                        save_to_google_sheets(st.session_state.current_worker, manual_text, route)
                         st.success(f"Logged in {route}.")
