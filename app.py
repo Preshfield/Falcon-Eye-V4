@@ -245,8 +245,26 @@ with t1:
     st.markdown('</div>', unsafe_allow_html=True)
 
 with t2:
-    if os.path.exists("gate_manual.pdf"): pdf_viewer("gate_manual.pdf", height=700)
+    if os.path.exists("gate_manual.pdf"):
+        # Create a layout for the title and the audio player
+        col_p1, col_p2 = st.columns([0.6, 0.4])
+        
+        with col_p1:
+            st.subheader("📖 Gate 4 Protocol Manual")
+            
+        with col_p2:
+            # --- PRE-RECORDED LECTURE PLAYER ---
+            lecture_path = "protocol_lecture.wav.mp3"
+            if os.path.exists(lecture_path):
+                st.write("🎵 **Protocol Audio Lecture**")
+                st.audio(lecture_path, format="audio/mpeg")
+            else:
+                st.info("Audio file 'protocol_lecture.wav.mp3' not found.")
 
+        # Display the PDF below
+        pdf_viewer("gate_manual.pdf", height=800)
+    else:
+        st.error("Manual not found. Please ensure 'gate_manual.pdf' is in the repository.")
 with t3:
     notes = st.text_area("Observations:")
     if st.button("🚀 SAVE LOG") and notes:
