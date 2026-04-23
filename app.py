@@ -227,54 +227,65 @@ with t1:
         st.rerun()
         
   # --- GLOBAL UNIVERSAL INTERPRETER ---
- # --- T6: UNIVERSAL INTERPRETER (TYPE OR SPEAK) ---
+# --- GLOBAL UNIVERSAL INTERPRETER (INFUSED VERSION) ---
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🌍 Universal Interpreter")
-
-    full_langs = {
-        "Arabic": "ar", "Bengali": "bn", "Chinese": "zh-CN", "English": "en", 
-        "French": "fr", "Hindi": "hi", "Malayalam": "ml", "Nigerian Pidgin": "pcm", 
-        "Russian": "ru", "Spanish": "es", "Tagalog": "tl", "Urdu": "ur"
-    }
-
-    # 1. SETUP: Pick the language of the person listening to you
-    target_lang = st.selectbox("Listener's Language:", sorted(list(full_langs.keys())), key="t6_lang_sel")
+    st.subheader("🌍 Global Universal Interpreter")
     
-    # 2. INPUT: Speak it or Type it
-    col_v1, col_v2 = st.columns([0.4, 0.6])
+    full_langs = {
+        "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-CN",
+        "English": "en", "French": "fr", "German": "de", "Hindi": "hi", 
+        "Italian": "it", "Japanese": "ja", "Korean": "ko", "Malayalam": "ml", 
+        "Nigerian Pidgin": "pcm", "Portuguese": "pt", "Russian": "ru", 
+        "Spanish": "es", "Swahili": "sw", "Tagalog": "tl", "Tamil": "ta", 
+        "Urdu": "ur", "Vietnamese": "vi"
+    }
+    
+    d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
+    
+    # 1. INCOMING SECTION (Listen to Driver/Guest)
+    incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt="👂 LISTEN TO GUEST", key='global_mic_in')
+    if incoming_v:
+        interpretation = falcon_query(f"Direct interpretation to English ONLY: '{incoming_v}'", "Global Knowledge")
+        st.markdown(f'<div class="driver-msg"><b>Original:</b> {incoming_v}<br><b>Interpretation:</b> {interpretation}</div>', unsafe_allow_html=True)
+
+    st.write("---")
+
+    # 2. OUTGOING SECTION (Your Response)
+    col_v1, col_v2 = st.columns([0.3, 0.7])
+    
     with col_v1:
-        voice_input = speech_to_text(language='en-US', start_prompt="🎤 RECORD RESPONSE", key='t6_mic')
+        # Voice capture for your response
+        outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 RECORD RESPONSE", key='global_mic_out')
     
     with col_v2:
-        # If you record via voice, it automatically fills this box
-        final_msg = st.text_input("Type or Edit your message:", value=voice_input if voice_input else "", key="t6_msg_input")
+        # Manual Type/Edit Column - Takes voice input automatically but lets you type/fix it
+        op_text = st.text_input("Type or Edit your response:", value=outgoing_v if outgoing_v else "", key="global_text_in")
 
-    # 3. ACTION: Translate and Create Audio
-    if st.button("🚀 SEND & GENERATE AUDIO") and final_msg:
-        # Precise translation only
-        trans_result = falcon_query(
-            f"Translate to {target_lang} ONLY. No explanations, no chatter: {final_msg}", 
+    # 3. GENERATION & AUDIO
+    if st.button("🚀 SEND & GENERATE AUDIO") and op_text:
+        # Engine picks best interpretation, straight and precise
+        response_trans = falcon_query(
+            f"Act as a master interpreter. Translate this to {d_lang}: '{op_text}'. Provide ONLY the direct translation. No explanations.", 
             "Global Knowledge"
         )
         
-        st.success(f"**Interpretation ({target_lang}):** {trans_result}")
+        st.success(f"**Interpretation ({d_lang}):** {response_trans}")
         
-        # Audio Generation
+        # Audio execution
         try:
             from gtts import gTTS
             import io
+            tts = gTTS(text=response_trans, lang=full_langs[d_lang])
+            stream = io.BytesIO()
+            tts.write_to_fp(stream)
             
-            tts = gTTS(text=trans_result, lang=full_langs[target_lang])
-            audio_fp = io.BytesIO()
-            tts.write_to_fp(audio_fp)
-            
-            # This creates the play button for your listener
-            st.audio(audio_fp.getvalue(), format="audio/mpeg")
-            st.info("👆 Hit PLAY for the listener to hear the translation.")
+            # This creates the physical play button for your listener
+            st.audio(stream.getvalue(), format="audio/mpeg")
+            st.caption(f"👆 Play this for the {d_lang} speaker.")
             
         except Exception:
-            st.warning(f"Audio not supported for {target_lang}, please show the text above to the listener.")
+            st.info(f"Audio playback not available for {d_lang}. Please show the text above.")
 
     st.markdown('</div>', unsafe_allow_html=True)
 with t2:
