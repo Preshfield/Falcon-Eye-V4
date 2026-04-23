@@ -298,6 +298,28 @@ with t5:
     except: next_sl = ""; next_gp = ""
     if "PASS" in quick_code: next_gp = quick_code.replace("PASS", "").strip()
 
+    # --- PRECISION TRANSLATOR (SAFE PLUG-IN) ---
+    with st.expander("🗣️ FIELD INTERPRETER (Dual-Way)", expanded=False):
+        t_col1, t_col2 = st.columns(2)
+        with t_col1:
+            st.caption("📥 FROM DRIVER")
+            dr_text = st.text_input("Paste driver text here:", key="dr_val")
+            if dr_text:
+                # Forced prompt: No chatter, just the translation
+                dr_res = falcon_query(f"Direct interpretation to English ONLY. Be precise: {dr_text}", "Global Knowledge")
+                st.info(f"**English:** {dr_res}")
+
+        with t_col2:
+            st.caption("📤 TO DRIVER")
+            my_lang = st.selectbox("Language:", ["Arabic", "Urdu", "Hindi", "Russian", "Chinese"], key="target_l")
+            my_text = st.text_input(f"Your instruction in {my_lang}:", key="my_val")
+            if my_text:
+                # Forced prompt: Straight and precise for a driver
+                my_res = falcon_query(f"Direct interpretation to {my_lang} ONLY. Straight and precise: {my_text}", "Global Knowledge")
+                st.warning(f"**{my_lang}:** {my_res}")
+    st.divider()
+    # --- END OF TRANSLATOR ---
+
     is_editing = "edit_row_idx" in st.session_state
     doc_type = st.radio("Form Type:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
 
@@ -346,8 +368,12 @@ with t5:
                     del st.session_state.edit_row_idx
                     st.rerun()
 
-    # --- SCANNER PLUGIN START ---
-    with st.expander("📸 SCAN DOCUMENT (OCR)"):
+   # --- SAFE SCANNER PLUGIN ---
+    st.write("---")
+    # This checkbox acts as your manual "Power Switch"
+    enable_camera = st.checkbox("📷 ACTIVATE DOCUMENT SCANNER")
+
+    if enable_camera:
         cam_image = st.camera_input("Scan Gate Pass / Invoice")
         
         if cam_image:
@@ -355,28 +381,20 @@ with t5:
                 from PIL import Image
                 import pytesseract
                 
-                # Convert the camera image for processing
                 img = Image.open(cam_image)
-                
-                # Perform OCR (Extract text)
                 with st.spinner("Extracting Intelligence..."):
                     extracted_text = pytesseract.image_to_string(img).upper()
                 
                 st.subheader("Extracted Data:")
                 st.code(extracted_text)
                 
-                # Optional: Smart Auto-Fill Logic
-                if "DHL" in extracted_text:
-                    st.info("Detecting: DHL EXPRESS")
-                    smart_con = "DHL EXPRESS"
-                elif "FEDEX" in extracted_text:
-                    st.info("Detecting: FEDEX LOGISTICS")
-                    smart_con = "FEDEX LOGISTICS"
-                
-                st.success("You can now copy relevant info into the form below.")
+                # Smart detection logic stays here
+                if "DHL" in extracted_text: st.info("Detected: DHL")
                 
             except Exception as e:
-                st.error("Scanner Error: Ensure 'pytesseract' and 'Pillow' are installed.")
+                st.error("Scanner Error: Check dependencies.")
+    else:
+        st.info("Scanner is currently OFF. Check the box above to start scanning.")
     # --- SCANNER PLUGIN END ---
 
     # --- CORRECTION TERMINAL (Outside the main form) ---
