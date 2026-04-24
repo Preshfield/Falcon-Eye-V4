@@ -187,7 +187,7 @@ st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.curre
 st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
 # TABS
-t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "🕵️ AUDIT", "📟 LOGISTIC DOCUMENTATION"])
+t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
@@ -331,65 +331,8 @@ with t3:
     if st.button("🚀 SAVE LOG") and notes:
         if save_to_google_sheets(st.session_state.current_worker, notes, "LOG"): st.success("✅ Logged.")
 
+
 with t4:
-    st.markdown("### 🕵️‍♂️ CIA Universal Intelligence Search")
-    
-    # 1. SELECT THE DOCUMENTATION SOURCE
-    # The manager can now choose which "corridor" of the warehouse to audit
-    doc_source = st.selectbox(
-        "Select Documentation Category:", 
-        ["LOG", "MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"]
-    )
-    
-    # 2. FETCH DATA FROM SELECTED SOURCE
-    try:
-        client_audit = get_gsheet_client()
-        audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet(doc_source)
-        
-        raw_data = audit_sheet.get_all_values()
-        
-        if raw_data:
-            header_row = raw_data[0]
-            body_data = raw_data[1:]
-            audit_df = pd.DataFrame(body_data, columns=header_row)
-            # Remove empty columns
-            audit_df = audit_df.loc[:, audit_df.columns != '']
-        else:
-            audit_df = None
-            st.warning(f"The {doc_source} category is currently empty.")
-            
-    except Exception as e:
-        st.error(f"CIA Access Error for {doc_source}: {e}")
-        audit_df = None
-
-    # 3. MANAGER COMMAND INTERFACE
-    st.divider()
-    audit_query = st.text_input(f"Interrogate {doc_source} (Plate, ID, or Details):", placeholder="Search archives...")
-
-    if audit_query and audit_df is not None:
-        # Search across all columns
-        mask = audit_df.apply(lambda row: row.astype(str).str.contains(audit_query, case=False).any(), axis=1)
-        found = audit_df[mask]
-
-        if not found.empty:
-            st.success(f"Audit Result: {len(found)} records found in {doc_source}.")
-            st.dataframe(found, use_container_width=True)
-            
-            # Export for the Manager
-            csv = found.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label=f"📂 Export {doc_source} Audit",
-                data=csv,
-                file_name=f"FalconEye_{doc_source}_{audit_query}.csv",
-                mime='text/csv',
-            )
-        else:
-            st.info(f"No records found in {doc_source} for '{audit_query}'.")
-    
-    elif audit_df is not None:
-        st.write(f"Latest {doc_source} Entries:")
-        st.table(audit_df.tail(10))
-with t5:
     st.subheader("📟 Logistics Command Center")
     
     # 1. EXPRESS ENTRY LOGIC
@@ -479,4 +422,63 @@ with t5:
                 st.rerun()
             else:
                 st.error("❌ Not found.")
+
+with t5:
+    st.markdown("### 🕵️‍♂️ CIA Universal Intelligence Search")
+    
+    # 1. SELECT THE DOCUMENTATION SOURCE
+    # The manager can now choose which "corridor" of the warehouse to audit
+    doc_source = st.selectbox(
+        "Select Documentation Category:", 
+        ["LOG", "MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"]
+    )
+    
+    # 2. FETCH DATA FROM SELECTED SOURCE
+    try:
+        client_audit = get_gsheet_client()
+        audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet(doc_source)
+        
+        raw_data = audit_sheet.get_all_values()
+        
+        if raw_data:
+            header_row = raw_data[0]
+            body_data = raw_data[1:]
+            audit_df = pd.DataFrame(body_data, columns=header_row)
+            # Remove empty columns
+            audit_df = audit_df.loc[:, audit_df.columns != '']
+        else:
+            audit_df = None
+            st.warning(f"The {doc_source} category is currently empty.")
+            
+    except Exception as e:
+        st.error(f"CIA Access Error for {doc_source}: {e}")
+        audit_df = None
+
+    # 3. MANAGER COMMAND INTERFACE
+    st.divider()
+    audit_query = st.text_input(f"Interrogate {doc_source} (Plate, ID, or Details):", placeholder="Search archives...")
+
+    if audit_query and audit_df is not None:
+        # Search across all columns
+        mask = audit_df.apply(lambda row: row.astype(str).str.contains(audit_query, case=False).any(), axis=1)
+        found = audit_df[mask]
+
+        if not found.empty:
+            st.success(f"Audit Result: {len(found)} records found in {doc_source}.")
+            st.dataframe(found, use_container_width=True)
+            
+            # Export for the Manager
+            csv = found.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label=f"📂 Export {doc_source} Audit",
+                data=csv,
+                file_name=f"FalconEye_{doc_source}_{audit_query}.csv",
+                mime='text/csv',
+            )
+        else:
+            st.info(f"No records found in {doc_source} for '{audit_query}'.")
+    
+    elif audit_df is not None:
+        st.write(f"Latest {doc_source} Entries:")
+        st.table(audit_df.tail(10))
 
