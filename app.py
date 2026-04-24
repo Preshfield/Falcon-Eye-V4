@@ -375,14 +375,27 @@ with t3:
         """, unsafe_allow_html=True)
         
         # The FIX is in the Payload below:
+       # 3. Final Save Action
         if st.button("🚀 CONFIRM & SAVE TO LOG"):
-            # We explicitly define the columns here to prevent the sheet from breaking it up
-            # Payload = [Gate_Location, Full_Report_Text]
-            report_payload = ["GATE 4", st.session_state.preview_report]
+            # We create a list that matches the standard log structure:
+            # Column A: Date (Automatic)
+            # Column B: Report Title / Summary
+            # Column C: Empty (or secondary info)
+            # Column D: Empty
+            # Column E: Empty
+            # Column F: The FULL AI Report
+            # Column G: Worker Name (Automatic)
+            
+            # This 'padding' [""] * 4 ensures the Worker Name doesn't jump to the wrong column
+            report_payload = [
+                "SECURITY INCIDENT", # Column B
+                st.session_state.preview_report, # Column C (The big report block)
+                "", "", "", "" # Padding to push the Worker Name further right if needed
+            ]
             
             if save_to_google_sheets(st.session_state.current_worker, report_payload, "LOG"):
                 st.success("✅ Tactical Report Synced to Database.")
-                del st.session_state.preview_report
+                del st.session_state.preview_report 
                 st.rerun()
 with t4:
     st.subheader("📟 Logistics Command Center")
