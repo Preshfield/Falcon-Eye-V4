@@ -232,6 +232,10 @@ with t1:
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🌍 Global Universal Interpreter")
     
+    # 1. State Initialization (The Ghost Buffer)
+    if 'ghost_buffer' not in st.session_state:
+        st.session_state.ghost_buffer = ""
+
     full_langs = {
         "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-CN",
         "English": "en", "French": "fr", "German": "de", "Hindi": "hi", 
@@ -241,58 +245,41 @@ with t1:
         "Urdu": "ur", "Vietnamese": "vi"
     }
     
-    # 1. SETUP & INCOMING
     d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
-    
+
+    # --- STEP 1: INCOMING ---
     st.write("### 👂 Step 1: Listen to Guest")
     incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN TO {d_lang.upper()}", key='global_mic_in')
-    
     if incoming_v:
-        interpretation = falcon_query(
-            f"Act as a professional interpreter. Translate to English ONLY. No commentary, no original text: {incoming_v}", 
-            "Global Knowledge"
-        )
+        interpretation = falcon_query(f"Translate to English ONLY: {incoming_v}", "Global Knowledge")
         st.markdown(f'<div class="driver-msg"><b>Interpretation:</b> {interpretation}</div>', unsafe_allow_html=True)
 
     st.write("---")
 
-    # 2. OUTGOING: Listener Response (Speak or Type)
-   # 2. OUTGOING: Listener Response (Speak or Type)
+    # --- STEP 2: OUTGOING (THE FIX) ---
     st.write("### 🎙️ Step 2: Your Response")
-    
-    # 1. Initialize the memory if it doesn't exist
-    if "final_resp" not in st.session_state:
-        st.session_state.final_resp = ""
-
     col_v1, col_v2 = st.columns([0.3, 0.7])
     
     with col_v1:
-        # 🎤 Capture Voice
-        voice_input = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
-        
-        # 2. AUTOMATIC CONFIGURATION: 
-        # If voice is heard, overwrite the memory immediately
-        if voice_input:
-            st.session_state.final_resp = voice_input
-    
-    with col_v2:
-        # 3. The Type/Edit space stays synced with the memory
-        # We update the session state if you type, and display the voice if you speak.
-        st.session_state.final_resp = st.text_input(
-            "Type or Edit Response:", 
-            value=st.session_state.final_resp, 
-            key="edit_space"
-        )
+        # 🎤 Speak Part
+        voice_raw = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
+        # If voice is captured, instantly push it into the ghost buffer
+        if voice_raw:
+            st.session_state.ghost_buffer = voice_raw
 
-    # 4. ACTION: SEND & GENERATE
-    # This button now only has to look at one place: st.session_state.final_resp
-    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.final_resp:
-        # Direct interpretation back to the target language
-        response_trans = falcon_query(
-            f"Translate to {d_lang} ONLY. No chatter: {st.session_state.final_resp}", 
-            "Global Knowledge"
-        )
+    with col_v2:
+        # ⌨️ Type / Edit Part
+        # This box now stays locked to the ghost buffer
+        op_text = st.text_input("Type or Edit Response:", value=st.session_state.ghost_buffer, key="final_input_box")
+        # Ensure typing also updates the buffer
+        st.session_state.ghost_buffer = op_text
+
+    # --- STEP 3: THE ONE-WAY SEND ---
+    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.ghost_buffer:
+        # We only use the buffer now
+        final_msg = st.session_state.ghost_buffer
         
+        response_trans = falcon_query(f"Translate to {d_lang} ONLY: {final_msg}", "Global Knowledge")
         st.success(f"**Interpretation ({d_lang}):** {response_trans}")
         
         try:
@@ -303,16 +290,16 @@ with t1:
             tts.write_to_fp(stream)
             stream.seek(0)
             
-            # Show audio player
             st.audio(stream.read(), format="audio/mpeg")
             st.caption(f"👆 Play for the {d_lang} speaker.")
             
-            # Optional: Clear the box after a successful send to prepare for next msg
-            # st.session_state.final_resp = ""
+            # Optional: Reset the buffer after send to clear the screen
+            # st.session_state.ghost_buffer = ""
             
         except Exception as e:
             st.error(f"Audio Error: {e}")
 
+    st.markdown('</div>', unsafe_allow_html=True)
    # protocol manual)
 
 with t2:
