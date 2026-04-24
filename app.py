@@ -133,16 +133,7 @@ def save_all_sessions(username, sessions):
     file_path = f"memory_{username.replace(' ', '_').lower()}.json"
     with open(file_path, "w") as f: json.dump(sessions, f)
 
-# ====================== 4. AI ENGINES (INTELLIGENT ANALYST) ======================
-def get_protocol_context():
-    try:
-        if os.path.exists("gate_manual.pdf"):
-            with open("gate_manual.pdf", "rb") as f:
-                reader = PyPDF2.PdfReader(f)
-                return "".join([p.extract_text() for p in reader.pages if p.extract_text()])
-        return "Manual not found."
-    except Exception as e:
-        return f"Error reading manual: {e}"
+# ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
 
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
@@ -152,25 +143,22 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
         sys_rules = f"""
-        You are the Falcon Eye Tactical Intelligence Officer.
+        You are the Falcon Eye Gate 4 Security Firewall. 
         
-        MISSION: 
-        Analyze user queries using the logic and rules of the Gate 4 Protocol Manual. 
-        Do NOT copy-paste verbatim. Instead, synthesize the information to provide tactical guidance. 
-        You are a subject matter expert; apply the manual's rules to the specific scenario described.
+        STRICT OPERATING PROCEDURES:
+        1. Access ONLY the Gate 4 Protocol Manual below.
+        2. If the user's question is NOT directly related to Gate 4 procedures, logistics, or security mentioned in the manual, you MUST respond with:
+           "ACCESS DENIED: This query is outside Gate 4 Protocol scope. Please toggle to 'Global Knowledge' for non-operational inquiries."
+        3. Do NOT answer general questions (weather, history, math, etc.) in this mode.
+        4. Synthesize the manual's logic—do not just copy and paste.
 
-        CONSTRAINTS:
-        1. Base all reasoning ONLY on the Protocol Manual context below.
-        2. If a scenario isn't covered by the manual's logic, say: "INSUFFICIENT CLEARANCE: Procedure not defined in Gate 4 Manual."
-        3. Professional, high-security military-style tone.
-
-        PROTOCOL MANUAL:
+        MANUAL CONTEXT:
         {manual_context}
         """
     elif mode == "Global Knowledge":
-        sys_rules = "Global Intelligence AI. Provide real-time data and general technical knowledge."
+        sys_rules = "You are a Global Intelligence AI. You have access to all world information."
     else:
-        sys_rules = "Tactical translator for Dubai Customs Gate 4."
+        sys_rules = "Short & clear translator for truck drivers."
 
     conversation = [{"role": "system", "content": sys_rules}]
     if chat_history: conversation.extend(chat_history[-10:])
@@ -180,47 +168,6 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
         completion = client.chat.completions.create(model="deepseek-chat", messages=conversation)
         return completion.choices[0].message.content
     except Exception as e: return f"AI ERROR: {str(e)}"
-
-# ====================== 5. AUTHENTICATION ======================
-WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
-
-if not st.session_state.auth:
-    st.title("🦅 FALCON EYE | LOGIN")
-    user_identity = st.selectbox("USER:", list(WORKER_DB.keys()))
-    user_password = st.text_input("PASSWORD:", type="password")
-    if st.button("SIGN IN") and user_password == WORKER_DB[user_identity]:
-        st.session_state.auth = True
-        st.session_state.current_worker = user_identity
-        st.session_state.all_sessions = load_all_sessions(user_identity)
-        st.rerun()
-    st.stop()
-
-# ====================== 6. DASHBOARD UI (SIDEBAR RESTORED) ======================
-dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
-
-with st.sidebar:
-    st.title("🦅 MISSION LOGS")
-    chat_list = list(st.session_state.all_sessions.keys())
-    if st.button("➕ START NEW CHAT", use_container_width=True):
-        new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
-        st.session_state.all_sessions[new_id] = []
-        st.session_state.current_chat_id = new_id
-        st.rerun()
-    st.divider()
-    selected_chat = st.radio("History:", chat_list)
-    st.session_state.current_chat_id = selected_chat
-    st.session_state.messages = st.session_state.all_sessions.get(selected_chat, [])
-    if st.button("🔒 LOGOUT", use_container_width=True):
-        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-        st.session_state.auth = False
-        st.rerun()
-
-st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
-
-# TABS
-t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT"])
-
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
