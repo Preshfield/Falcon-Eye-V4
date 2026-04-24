@@ -227,8 +227,7 @@ with t1:
         st.rerun()
 
     
-# --- GLOBAL UNIVERSAL INTERPRETER (RESTORED WORKING CODE) ---
- # --- GLOBAL UNIVERSAL INTERPRETER ---
+# --- GLOBAL UNIVERSAL INTERPRETER (TOTAL FIX) ---
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🌍 Global Universal Interpreter")
@@ -242,14 +241,13 @@ with t1:
         "Urdu": "ur", "Vietnamese": "vi"
     }
     
+    # 1. SETUP & INCOMING
     d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
-
-    # 1. INCOMING: Listen to Guest -> Show English ONLY
-    st.write("### 👂 Step 1: Listen")
+    
+    st.write("### 👂 Step 1: Listen to Guest")
     incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN TO {d_lang.upper()}", key='global_mic_in')
     
     if incoming_v:
-        # Prompt ensures only the English result is shown for the listener
         interpretation = falcon_query(
             f"Act as a professional interpreter. Translate to English ONLY. No commentary, no original text: {incoming_v}", 
             "Global Knowledge"
@@ -258,28 +256,61 @@ with t1:
 
     st.write("---")
 
-    # 2. OUTGOING: Listener Response (Speak or Type)
-    st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🌍 Global Universal Interpreter")
-
-    # --- PART 1: LANGUAGE SELECTION & INCOMING (Keep this) ---
-    d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
+    # 2. OUTGOING: FIXED VOICE-TO-TEXT LOCK
+    st.write("### 🎙️ Step 2: Your Response")
     
-    st.write("### 👂 Step 1: Listen")
-    incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN TO {d_lang.upper()}", key='global_mic_in')
+    # Initialization of memory lock
+    if 'locked_response' not in st.session_state:
+        st.session_state.locked_response = ""
+
+    col_v1, col_v2 = st.columns([0.3, 0.7])
     
-    if incoming_v:
-        # (Your existing English-only interpretation logic goes here)
-        interpretation = falcon_query(f"Translate to English ONLY: {incoming_v}", "Global Knowledge")
-        st.markdown(f'<div class="driver-msg"><b>Interpretation:</b> {interpretation}</div>', unsafe_allow_html=True)
+    with col_v1:
+        # Voice capture
+        outgoing_v = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
+        # If voice is detected, immediately update the locked memory
+        if outgoing_v:
+            st.session_state.locked_response = outgoing_v
+    
+    with col_v2:
+        # The text box pulls from the locked memory
+        op_text = st.text_input("Type or Edit Response:", value=st.session_state.locked_response, key="global_text_in")
+        # Update memory if user types manually
+        st.session_state.locked_response = op_text
 
-    st.divider()
-
-    # --- PART 2: PASTE THE NEW "STEP 2" CODE HERE ---
-    # (This is where you insert the callback, the locked response, 
-    # and the new button logic I just gave you)
+    # 3. ACTION: GENERATE AUDIO (Works for both Voice and Typed)
+    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.locked_response:
+        final_msg = st.session_state.locked_response
+        
+        # Straight to the point translation
+        response_trans = falcon_query(
+            f"Act as a master interpreter. Translate to {d_lang} ONLY. No chatter: {final_msg}", 
+            "Global Knowledge"
+        )
+        
+        st.success(f"**Interpretation ({d_lang}):** {response_trans}")
+        
+        try:
+            import io
+            from gtts import gTTS
+            
+            # Generate speech
+            tts = gTTS(text=response_trans, lang=full_langs[d_lang])
+            stream = io.BytesIO()
+            tts.write_to_fp(stream)
+            stream.seek(0) # Reset stream pointer
+            
+            # Show playable audio bar
+            st.audio(stream.read(), format="audio/mpeg")
+            st.caption(f"👆 Play for the {d_lang} speaker.")
+            
+        except Exception:
+            st.info(f"Audio not available for {d_lang}. Use the text interpretation above.")
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+   # protocol manual)
+
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
