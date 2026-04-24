@@ -133,21 +133,69 @@ def save_all_sessions(username, sessions):
     file_path = f"memory_{username.replace(' ', '_').lower()}.json"
     with open(file_path, "w") as f: json.dump(sessions, f)
 
-# ====================== 4. AI ENGINES ======================
+# ====================== 4. AI ENGINES (RESTORED WITH PDF VISION) ======================
+def get_protocol_context():
+    """Extracts text from the gate manual to give the AI 'vision'."""
+    try:
+        # Looking for your manual file
+        if os.path.exists("gate_manual.pdf"):
+            with open("gate_manual.pdf", "rb") as f:
+                reader = PyPDF2.PdfReader(f)
+                text = ""
+                for page in reader.pages:
+                    content = page.extract_text()
+                    if content:
+                        text += content
+                return text
+        return "Manual not found."
+    except Exception as e:
+        return f"Error reading manual: {e}"
+
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-    sys_rules = "Tactical Security AI Gate 4 Dubai DWC. Current Date: April 23, 2026."
-    if mode == "Driver Instruction": sys_rules = "Short & clear translator for truck drivers."
     
+    # --- MODE 1: THE STRICT PROTOCOL (PDF ONLY) ---
+    if mode == "Gate 4 Protocol":
+        manual_context = get_protocol_context()
+        sys_rules = f"""
+        You are the Falcon Eye Tactical AI for Dubai DWC Gate 4. 
+        STRICT RULES:
+        1. Use ONLY the provided Protocol Manual text to answer. 
+        2. If the answer is NOT in the manual, you MUST say: "INSUFFICIENT CLEARANCE: This detail is not in the Gate 4 Manual."
+        3. Never use outside information or general knowledge for this mode.
+        4. Be precise, formal, and tactical.
+        
+        PROTOCOL MANUAL CONTENT:
+        {manual_context}
+        """
+    
+    # --- MODE 2: THE GLOBAL BRAIN (REAL TIME INFO) ---
+    elif mode == "Global Knowledge":
+        sys_rules = "You are a Global Intelligence AI. Answer using your full real-time database and general knowledge."
+    
+    # --- MODE 3: TRANSLATOR (FOR DRIVERS) ---
+    else:
+        sys_rules = "Short & clear translator for truck drivers at Dubai Customs Gate 4."
+
     conversation = [{"role": "system", "content": sys_rules}]
-    if chat_history: conversation.extend(chat_history[-10:])
+    
+    # Keep the last 10 messages for memory
+    if chat_history: 
+        conversation.extend(chat_history[-10:])
+        
     conversation.append({"role": "user", "content": prompt})
+    
     try:
-        completion = client.chat.completions.create(model="deepseek-chat", messages=conversation, stream=False)
+        completion = client.chat.completions.create(
+            model="deepseek-chat", 
+            messages=conversation, 
+            stream=False
+        )
         return completion.choices[0].message.content
-    except Exception as e: return f"AI ERROR: {str(e)}"
+    except Exception as e: 
+        return f"AI ERROR: {str(e)}"
 
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
