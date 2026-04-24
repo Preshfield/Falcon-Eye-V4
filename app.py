@@ -331,12 +331,41 @@ with t3:
         if save_to_google_sheets(st.session_state.current_worker, notes, "LOG"): st.success("✅ Logged.")
 
 with t4:
-    audit_query = st.text_input("Search archives:")
-    if st.button("🔍 RUN AUDIT"):
-        found, _ = search_logs(audit_query, "MANUAL PASS")
-        if found: st.table(found)
-        else: st.info("No records found.")
+    st.markdown("### 🕵️‍♂️ CIA Intelligence Search")
+    
+    # 1. The Dynamic Search Box
+    # No button needed—the "CIA" engine updates as the manager types
+    audit_query = st.text_input("Manager Query (Plate, Date, Incident, or Name):", placeholder="Search anything...")
 
+    if audit_query:
+        # 2. Universal Search Logic
+        # We search the main dataframe (df) across ALL columns
+        # 'case=False' ensures 'police' matches 'Police'
+        mask = df.apply(lambda row: row.astype(str).str.contains(audit_query, case=False).any(), axis=1)
+        found = df[mask]
+
+        if not found.empty:
+            st.success(f"Audit Result: {len(found)} matches found.")
+            
+            # 3. Enhanced Visibility
+            # Using st.dataframe instead of st.table makes it scrollable and neat
+            st.dataframe(found, use_container_width=True)
+            
+            # 4. Export for Management
+            # One-click reporting for the CIA files
+            csv = found.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📂 Export Audit to CSV",
+                data=csv,
+                file_name=f"FalconEye_Audit_{audit_query}.csv",
+                mime='text/csv',
+            )
+        else:
+            st.info(f"No records found in archives for '{audit_query}'.")
+    else:
+        # Default view when search is empty
+        st.write("Enter a query above to interrogate the logs.")
+        st.caption("Common queries: 'Counterfeit', 'Gate 4', 'Plate Number'")
 with t5:
     st.subheader("📟 Logistics Command Center")
     
