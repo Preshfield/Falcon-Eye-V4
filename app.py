@@ -243,45 +243,53 @@ with t1:
     # 1. SCOPE TOGGLE
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
-    # 2. CHAT CONTAINER
-    chat_container = st.container(height=400)
+    # 2. THE AUTO-SCROLLING CHAT CONTAINER
+    # Height is set; any new content inside will push the view to the bottom on rerun
+    chat_container = st.container(height=500)
+    
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]): 
                 st.markdown(message["content"])
     
-    # 3. CHAT & AUDIO LOGIC
-    if k_query := st.chat_input("Ask Falcon..."):
+    # 3. CHAT INPUT LOGIC (Outside the container to stay pinned at bottom of tab section)
+    if k_query := st.chat_input("Ask Falcon...", key="main_chat_input"):
+        # A. Append user message immediately
         st.session_state.messages.append({"role": "user", "content": k_query})
         
-        # Get AI response
-        ans = falcon_query(k_query, k_mode, st.session_state.messages)
-        st.session_state.messages.append({"role": "assistant", "content": ans})
+        # B. Get AI response using your existing falcon_query
+        with st.spinner("Falcon is thinking..."):
+            ans = falcon_query(k_query, k_mode, st.session_state.messages)
+            st.session_state.messages.append({"role": "assistant", "content": ans})
         
-        # --- LECTURE AUDIO ENGINE ---
-        # Converts the AI's response into audio immediately
+        # C. --- LECTURE AUDIO ENGINE ---
         try:
-            tts_lang = 'en' # Default to English for lectures
+            tts_lang = 'en'
             tts = gTTS(text=ans, lang=tts_lang)
             audio_fp = io.BytesIO()
             tts.write_to_fp(audio_fp)
-            st.audio(audio_fp.getvalue(), format="audio/mpeg", autoplay=True)
+            # This will play the response immediately upon rerun
+            st.session_state.pending_audio = audio_fp.getvalue()
         except Exception as e:
             st.warning("Audio playback unavailable.")
-        # ----------------------------
 
-        # Save to memory and refresh
+        # D. Save to memory
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        
+        # E. Rerun to refresh scroll position and trigger audio
         st.rerun()
 
-    
-# --- GLOBAL UNIVERSAL INTERPRETER (STABLE VERSION) ---
+    # Audio Autoplay Trigger (prevents audio from breaking the scroll logic)
+    if "pending_audio" in st.session_state:
+        st.audio(st.session_state.pending_audio, format="audio/mpeg", autoplay=True)
+        del st.session_state.pending_audio
+
+    # --- GLOBAL UNIVERSAL INTERPRETER (STABLE VERSION - UNTOUCHED) ---
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🌍 Global Universal Interpreter")
     
-    # 1. Initialize Memory
     if 'stable_msg' not in st.session_state:
         st.session_state.stable_msg = ""
 
@@ -296,63 +304,48 @@ with t1:
     
     d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
 
-    # --- STEP 1: INCOMING (Guest to You) ---
     st.write("### 👂 Step 1: Listen to Guest")
     incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN ({d_lang})", key='global_mic_in')
     if incoming_v:
-        # Straight translation for you to read
         interpretation = falcon_query(f"Translate to English ONLY: {incoming_v}", "Global Knowledge")
         st.info(f"**Interpretation:** {interpretation}")
 
     st.write("---")
 
-    # --- STEP 2: OUTGOING (You to Guest) ---
     st.write("### 🎙️ Step 2: Your Response")
     col_v1, col_v2 = st.columns([0.3, 0.7])
     
     with col_v1:
-        # 🎤 Speak Mic - No AI cleanup here, just raw capture for stability
         voice_raw = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
         if voice_raw:
             st.session_state.stable_msg = voice_raw
     
     with col_v2:
-        # ⌨️ Type / Edit Space
-        # This will automatically catch the voice_raw text
         st.session_state.stable_msg = st.text_input(
             "Type or Edit Response:", 
             value=st.session_state.stable_msg, 
             key="stable_input_box"
         )
 
-    # --- STEP 3: THE ONE-WAY SEND ---
     if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.stable_msg:
-        # Use the AI here to clean up AND translate at the same time
         final_text = st.session_state.stable_msg
-        
-        # We tell the AI to clean up the English AND translate in one move
         response_trans = falcon_query(
             f"Clean up this English input and translate it to {d_lang} ONLY. No chatter: {final_text}", 
             "Global Knowledge"
         )
-        
         st.success(f"**Reply in {d_lang}:** {response_trans}")
         
         try:
-            import io
-            from gtts import gTTS
             tts = gTTS(text=response_trans, lang=full_langs[d_lang])
             stream = io.BytesIO()
             tts.write_to_fp(stream)
             stream.seek(0)
-            st.audio(stream.read(), format="audio/mpeg")
+            st.audio(stream.read(), format="audio/mpeg", autoplay=True)
             st.caption("👆 Play for speaker.")
         except Exception as e:
             st.error(f"Audio Error: {e}")
 
     st.markdown('</div>', unsafe_allow_html=True)
-   # protocol manual)
-
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
