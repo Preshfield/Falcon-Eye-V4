@@ -256,33 +256,41 @@ with t1:
 
     st.write("---")
 
-    # --- STEP 2: OUTGOING (You to Guest) ---
+    # --- STEP 2: YOUR RESPONSE (WITH FORCED SYNC) ---
     st.write("### 🎙️ Step 2: Your Response")
+    
+    if 'intelli_buffer' not in st.session_state:
+        st.session_state.intelli_buffer = ""
+
     col_v1, col_v2 = st.columns([0.3, 0.7])
     
     with col_v1:
         # 🎤 Speak Mic
         voice_raw = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
         
-        # INTELLIGENCE SYNC: Use Falcon to clean up and translate voice to text
         if voice_raw:
-            # This ensures even if the mic hears background noise, the AI cleans it up for the text box
+            # 1. AI cleans up the voice immediately
             clean_text = falcon_query(f"Clean up this speech into a clear professional sentence. English only: {voice_raw}", "Global Knowledge")
+            
+            # 2. Update the buffer
             st.session_state.intelli_buffer = clean_text
+            
+            # 3. CRITICAL: Force Streamlit to rerun so the text shows up in the box below
+            st.rerun()
 
     with col_v2:
-        # ⌨️ The Type/Edit Column (Now intelligently filled by the AI mic)
+        # ⌨️ The Type/Edit Column
+        # It now receives the 'cleaned' text from the rerun above
         st.session_state.intelli_buffer = st.text_input(
             "Type or Edit Response:", 
             value=st.session_state.intelli_buffer, 
             key="final_input_box"
         )
 
-    # --- STEP 3: THE ACTION (Generate Audio) ---
+    # --- STEP 3: THE ACTION (This stays the same) ---
     if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.intelli_buffer:
         final_msg = st.session_state.intelli_buffer
         
-        # Final translation to guest language
         response_trans = falcon_query(f"Translate to {d_lang} ONLY: {final_msg}", "Global Knowledge")
         st.success(f"**Interpretation ({d_lang}):** {response_trans}")
         
@@ -293,14 +301,10 @@ with t1:
             stream = io.BytesIO()
             tts.write_to_fp(stream)
             stream.seek(0)
-            
             st.audio(stream.read(), format="audio/mpeg")
             st.info("👆 Play for speaker.")
-            
         except Exception as e:
             st.error(f"Audio Error: {e}")
-
-    st.markdown('</div>', unsafe_allow_html=True)
    # protocol manual)
 
 with t2:
