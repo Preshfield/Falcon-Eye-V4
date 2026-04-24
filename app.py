@@ -168,6 +168,12 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
         completion = client.chat.completions.create(model="deepseek-chat", messages=conversation)
         return completion.choices[0].message.content
     except Exception as e: return f"AI ERROR: {str(e)}"
+
+st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
+
+# TABS
+t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT"])
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
