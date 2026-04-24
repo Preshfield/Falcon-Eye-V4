@@ -107,6 +107,18 @@
     100% { opacity: 1; }
 }
 
+.stApp {
+    background: linear-gradient(230deg, #020617, #0f172a, #1e1b4b);
+    background-size: 400% 400%;
+    animation: blueMist 15s ease infinite;
+}
+
+@keyframes blueMist {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
 /* SIDEBAR STYLING */
 [data-testid="stSidebar"] {
     background-color: #020617;
