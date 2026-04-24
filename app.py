@@ -222,7 +222,7 @@ st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.curre
 st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
 # TABS
-t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT"])
+t1, t2, t3, t4, t5, t6 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT", "🌐 TRANSLATOR"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
@@ -494,3 +494,92 @@ with t5:
     elif audit_df is not None:
         st.write(f"Latest {doc_source} Entries:")
         st.table(audit_df.tail(10))
+
+with t6:
+    st.markdown("<h2 style='text-align: center; color: #ADFF2F;'>GLOBAL COMMAND INTERPRETER</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.7;'>Tactical Two-Way Voice & Text Translation</p>", unsafe_allow_html=True)
+
+    # 1. Configuration & Memory
+    if 'trans_buffer' not in st.session_state:
+        st.session_state.trans_buffer = ""
+
+    languages = {
+        "Arabic": "ar", "Bengali": "bn", "Chinese": "zh-CN", "English": "en", 
+        "French": "fr", "German": "de", "Hindi": "hi", "Malayalam": "ml", 
+        "Russian": "ru", "Spanish": "es", "Tagalog": "tl", "Urdu": "ur"
+    }
+    
+    col_lang1, col_lang2 = st.columns(2)
+    with col_lang1:
+        src_lang = st.selectbox("From:", ["English"] + sorted([l for l in languages.keys() if l != "English"]), key="src_lang")
+    with col_lang2:
+        trg_lang = st.selectbox("To:", [l for l in languages.keys() if l != src_lang], key="trg_lang")
+
+    st.divider()
+
+    # 2. TWO-WAY CONSOLE
+    con_left, con_right = st.columns(2)
+
+    # --- LEFT SIDE: THE CAPTAIN (YOU) ---
+    with con_left:
+        st.markdown(f"### 🎙️ {src_lang} Input")
+        mic_left = speech_to_text(language='en-US' if src_lang == "English" else languages[src_lang], 
+                                 start_prompt=f"Speak {src_lang}", key="mic_left")
+        text_left = st.text_area("Or type here:", value=mic_left if mic_left else "", height=100, key="text_left")
+        
+        if st.button(f"Translate to {trg_lang} ➡️", use_container_width=True):
+            if text_left:
+                with st.spinner("Translating..."):
+                    result = falcon_query(f"Translate this exactly to {trg_lang}. Output only the translation: {text_left}", "Global Knowledge")
+                    st.session_state.translated_res = result
+                    # Generate Audio
+                    try:
+                        tts = gTTS(text=result, lang=languages[trg_lang])
+                        fp = io.BytesIO(); tts.write_to_fp(fp); fp.seek(0)
+                        st.session_state.trans_audio = fp.getvalue()
+                    except: st.error("Audio not supported for this dialect.")
+
+    # --- RIGHT SIDE: THE GUEST (DRIVER/OFFICER) ---
+    with con_right:
+        st.markdown(f"### 👂 {trg_lang} Response")
+        mic_right = speech_to_text(language=languages[trg_lang], 
+                                  start_prompt=f"Listen to {trg_lang}", key="mic_right")
+        
+        if mic_right:
+            with st.spinner("Interpreting..."):
+                back_trans = falcon_query(f"Translate this {trg_lang} text to {src_lang}: {mic_right}", "Global Knowledge")
+                st.info(f"**Guest says:** {back_trans}")
+                # Optional: Audio playback for you
+                try:
+                    tts_back = gTTS(text=back_trans, lang=languages[src_lang])
+                    fp_back = io.BytesIO(); tts_back.write_to_fp(fp_back); fp_back.seek(0)
+                    st.audio(fp_back.getvalue(), format="audio/mpeg")
+                except: pass
+
+    # 3. GLOBAL OUTPUT DISPLAY
+    if "translated_res" in st.session_state:
+        st.markdown("---")
+        st.markdown(f"<div style='background: rgba(173, 255, 47, 0.1); padding: 20px; border-radius: 10px; border: 1px solid #ADFF2F;'>"
+                    f"<h3 style='margin:0;'>Result ({trg_lang}):</h3>"
+                    f"<p style='font-size: 24px; color: #ADFF2F;'>{st.session_state.translated_res}</p>"
+                    f"</div>", unsafe_allow_html=True)
+        
+        if "trans_audio" in st.session_state:
+            st.audio(st.session_state.trans_audio, format="audio/mpeg", autoplay=True)
+            if st.button("🗑️ Clear Translation"):
+                del st.session_state.translated_res
+                del st.session_state.trans_audio
+                st.rerun()
+
+
+
+
+
+
+
+
+
+
+
+
+
