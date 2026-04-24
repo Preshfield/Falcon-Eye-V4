@@ -237,12 +237,48 @@ with t1:
             with st.chat_message(message["role"]): 
                 st.markdown(message["content"])
 
-    # 3. 🎙️ TACTICAL COMMS (THE MIC)
+    # 3. 🛰️ FALCON LIVE INTERFACE 
     st.divider()
-    col_mic, col_spacer = st.columns([0.15, 0.85])
-    with col_mic:
-        # Use a unique key for the mic to avoid session conflicts
-        voice_captured = speech_to_text(language='en-US', start_prompt="🎤", stop_prompt="⏹️", key='main_chat_mic')
+    
+    # Custom CSS for the "Glow" effect
+    st.markdown("""
+        <style>
+        .stMicButton > button {
+            background-color: #1e293b !important;
+            border: 2px solid #ADFF2F !important;
+            border-radius: 50% !important;
+            width: 80px !important;
+            height: 80px !important;
+            box-shadow: 0 0 20px rgba(173, 255, 47, 0.2) !important;
+            transition: all 0.3s ease !important;
+        }
+        .stMicButton > button:hover {
+            box-shadow: 0 0 40px rgba(173, 255, 47, 0.6) !important;
+            transform: scale(1.05);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    col_vibe, col_status = st.columns([0.2, 0.8])
+    
+    with col_vibe:
+        # This is our "Orb" button
+        voice_captured = speech_to_text(
+            language='en-US', 
+            start_prompt="⭕", 
+            stop_prompt="⏺️", 
+            key='main_chat_mic'
+        )
+    
+    with col_status:
+        if voice_captured:
+            st.markdown(f"**Live Feed:** *{voice_captured}...*")
+        else:
+            st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING FOR VOICE...</p>", unsafe_allow_html=True)
+
+    # 4. CHAT INPUT LOGIC (Existing loop-fix logic)
+    query = st.chat_input("Ask Falcon...")
+    final_query = voice_captured if voice_captured else query
     
     # 4. CHAT INPUT LOGIC
     query = st.chat_input("Ask Falcon...")
