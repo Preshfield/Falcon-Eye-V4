@@ -241,14 +241,18 @@ with t1:
     st.divider()
     col_mic, col_spacer = st.columns([0.15, 0.85])
     with col_mic:
+        # Use a unique key for the mic to avoid session conflicts
         voice_captured = speech_to_text(language='en-US', start_prompt="🎤", stop_prompt="⏹️", key='main_chat_mic')
     
     # 4. CHAT INPUT LOGIC
     query = st.chat_input("Ask Falcon...")
     final_query = voice_captured if voice_captured else query
 
-    if final_query:
+    # THE FIX: We only process if final_query has content AND it's not the same as the last one we did
+    if final_query and st.session_state.get("last_processed_query") != final_query:
         st.session_state.messages.append({"role": "user", "content": final_query})
+        # Save this query immediately to prevent the loop on rerun
+        st.session_state.last_processed_query = final_query
         
         with st.spinner("Falcon Analyzing..."):
             ans = falcon_query(final_query, k_mode, st.session_state.messages)
@@ -256,6 +260,7 @@ with t1:
         
         # --- FIXED AUDIO ENGINE (Cleans out Asterisks) ---
         try:
+            # Replaced characters to prevent the AI from saying "asterisk" or "hash"
             clean_audio_text = ans.replace("*", "").replace("#", "").replace("-", " ")
             tts = gTTS(text=clean_audio_text, lang='en')
             audio_fp = io.BytesIO()
@@ -264,13 +269,17 @@ with t1:
         except: 
             pass
 
+        # Save to database/memory
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        
+        # Rerun to show the AI message and trigger the audio player below
         st.rerun()
 
-    # Trigger Audio Autoplay
+    # 5. AUDIO AUTOPLAY (Must be outside the 'if final_query' block)
     if "pending_audio" in st.session_state:
         st.audio(st.session_state.pending_audio, format="audio/mpeg", autoplay=True)
+        # CRITICAL: Delete it immediately so it doesn't trigger on next interaction
         del st.session_state.pending_audio
    # protocol manual)
 
