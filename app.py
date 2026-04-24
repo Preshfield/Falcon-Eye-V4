@@ -133,100 +133,107 @@ def save_all_sessions(username, sessions):
     file_path = f"memory_{username.replace(' ', '_').lower()}.json"
     with open(file_path, "w") as f: json.dump(sessions, f)
 
-# ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
-
+# ====================== 4. AI ENGINES ======================
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    sys_rules = "Tactical Security AI Gate 4 Dubai DWC. Current Date: April 23, 2026."
+    if mode == "Driver Instruction": sys_rules = "Short & clear translator for truck drivers."
     
-    if mode == "Gate 4 Protocol":
-        manual_context = get_protocol_context()
-        sys_rules = f"""
-        You are the Falcon Eye Gate 4 Security Firewall. 
-        
-        STRICT OPERATING PROCEDURES:
-        1. Access ONLY the Gate 4 Protocol Manual below.
-        2. If the user's question is NOT directly related to Gate 4 procedures, logistics, or security mentioned in the manual, you MUST respond with:
-           "ACCESS DENIED: This query is outside Gate 4 Protocol scope. Please toggle to 'Global Knowledge' for non-operational inquiries."
-        3. Do NOT answer general questions (weather, history, math, etc.) in this mode.
-        4. Synthesize the manual's logic—do not just copy and paste.
-
-        MANUAL CONTEXT:
-        {manual_context}
-        """
-    elif mode == "Global Knowledge":
-        sys_rules = "You are a Global Intelligence AI. You have access to all world information."
-    else:
-        sys_rules = "Short & clear translator for truck drivers."
-
     conversation = [{"role": "system", "content": sys_rules}]
     if chat_history: conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
-    
     try:
-        completion = client.chat.completions.create(model="deepseek-chat", messages=conversation)
+        completion = client.chat.completions.create(model="deepseek-chat", messages=conversation, stream=False)
         return completion.choices[0].message.content
     except Exception as e: return f"AI ERROR: {str(e)}"
+
+# ====================== 5. AUTHENTICATION ======================
+WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
+
+if not st.session_state.auth:
+    st.title("🦅 FALCON EYE | LOGIN")
+    user_identity = st.selectbox("USER:", list(WORKER_DB.keys()))
+    user_password = st.text_input("PASSWORD:", type="password")
+    if st.button("SIGN IN") and user_password == WORKER_DB[user_identity]:
+        st.session_state.auth = True
+        st.session_state.current_worker = user_identity
+        st.session_state.all_sessions = load_all_sessions(user_identity)
+        st.rerun()
+    st.stop()
+
+# ====================== 6. DASHBOARD UI (SIDEBAR RESTORED) ======================
+dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
+
+with st.sidebar:
+    st.title("🦅 MISSION LOGS")
+    chat_list = list(st.session_state.all_sessions.keys())
+    if st.button("➕ START NEW CHAT", use_container_width=True):
+        new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
+        st.session_state.all_sessions[new_id] = []
+        st.session_state.current_chat_id = new_id
+        st.rerun()
+    st.divider()
+    selected_chat = st.radio("History:", chat_list)
+    st.session_state.current_chat_id = selected_chat
+    st.session_state.messages = st.session_state.all_sessions.get(selected_chat, [])
+    if st.button("🔒 LOGOUT", use_container_width=True):
+        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        st.session_state.auth = False
+        st.rerun()
 
 st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.current_worker} | {dubai_time}</div>', unsafe_allow_html=True)
 st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
 # TABS
 t1, t2, t3, t4, t5 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT"])
+
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
     # 1. SCOPE TOGGLE
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
-    # 2. THE AUTO-SCROLLING CHAT CONTAINER
-    # Height is set; any new content inside will push the view to the bottom on rerun
-    chat_container = st.container(height=500)
-    
+    # 2. CHAT CONTAINER
+    chat_container = st.container(height=400)
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]): 
                 st.markdown(message["content"])
     
-    # 3. CHAT INPUT LOGIC (Outside the container to stay pinned at bottom of tab section)
-    if k_query := st.chat_input("Ask Falcon...", key="main_chat_input"):
-        # A. Append user message immediately
+    # 3. CHAT & AUDIO LOGIC
+    if k_query := st.chat_input("Ask Falcon..."):
         st.session_state.messages.append({"role": "user", "content": k_query})
         
-        # B. Get AI response using your existing falcon_query
-        with st.spinner("Falcon is thinking..."):
-            ans = falcon_query(k_query, k_mode, st.session_state.messages)
-            st.session_state.messages.append({"role": "assistant", "content": ans})
+        # Get AI response
+        ans = falcon_query(k_query, k_mode, st.session_state.messages)
+        st.session_state.messages.append({"role": "assistant", "content": ans})
         
-        # C. --- LECTURE AUDIO ENGINE ---
+        # --- LECTURE AUDIO ENGINE ---
+        # Converts the AI's response into audio immediately
         try:
-            tts_lang = 'en'
+            tts_lang = 'en' # Default to English for lectures
             tts = gTTS(text=ans, lang=tts_lang)
             audio_fp = io.BytesIO()
             tts.write_to_fp(audio_fp)
-            # This will play the response immediately upon rerun
-            st.session_state.pending_audio = audio_fp.getvalue()
+            st.audio(audio_fp.getvalue(), format="audio/mpeg", autoplay=True)
         except Exception as e:
             st.warning("Audio playback unavailable.")
+        # ----------------------------
 
-        # D. Save to memory
+        # Save to memory and refresh
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-        
-        # E. Rerun to refresh scroll position and trigger audio
         st.rerun()
 
-    # Audio Autoplay Trigger (prevents audio from breaking the scroll logic)
-    if "pending_audio" in st.session_state:
-        st.audio(st.session_state.pending_audio, format="audio/mpeg", autoplay=True)
-        del st.session_state.pending_audio
-
-    # --- GLOBAL UNIVERSAL INTERPRETER (STABLE VERSION - UNTOUCHED) ---
+    
+# --- GLOBAL UNIVERSAL INTERPRETER (STABLE VERSION) ---
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🌍 Global Universal Interpreter")
     
+    # 1. Initialize Memory
     if 'stable_msg' not in st.session_state:
         st.session_state.stable_msg = ""
 
@@ -241,48 +248,63 @@ with t1:
     
     d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
 
+    # --- STEP 1: INCOMING (Guest to You) ---
     st.write("### 👂 Step 1: Listen to Guest")
     incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN ({d_lang})", key='global_mic_in')
     if incoming_v:
+        # Straight translation for you to read
         interpretation = falcon_query(f"Translate to English ONLY: {incoming_v}", "Global Knowledge")
         st.info(f"**Interpretation:** {interpretation}")
 
     st.write("---")
 
+    # --- STEP 2: OUTGOING (You to Guest) ---
     st.write("### 🎙️ Step 2: Your Response")
     col_v1, col_v2 = st.columns([0.3, 0.7])
     
     with col_v1:
+        # 🎤 Speak Mic - No AI cleanup here, just raw capture for stability
         voice_raw = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
         if voice_raw:
             st.session_state.stable_msg = voice_raw
     
     with col_v2:
+        # ⌨️ Type / Edit Space
+        # This will automatically catch the voice_raw text
         st.session_state.stable_msg = st.text_input(
             "Type or Edit Response:", 
             value=st.session_state.stable_msg, 
             key="stable_input_box"
         )
 
+    # --- STEP 3: THE ONE-WAY SEND ---
     if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.stable_msg:
+        # Use the AI here to clean up AND translate at the same time
         final_text = st.session_state.stable_msg
+        
+        # We tell the AI to clean up the English AND translate in one move
         response_trans = falcon_query(
             f"Clean up this English input and translate it to {d_lang} ONLY. No chatter: {final_text}", 
             "Global Knowledge"
         )
+        
         st.success(f"**Reply in {d_lang}:** {response_trans}")
         
         try:
+            import io
+            from gtts import gTTS
             tts = gTTS(text=response_trans, lang=full_langs[d_lang])
             stream = io.BytesIO()
             tts.write_to_fp(stream)
             stream.seek(0)
-            st.audio(stream.read(), format="audio/mpeg", autoplay=True)
+            st.audio(stream.read(), format="audio/mpeg")
             st.caption("👆 Play for speaker.")
         except Exception as e:
             st.error(f"Audio Error: {e}")
 
     st.markdown('</div>', unsafe_allow_html=True)
+   # protocol manual)
+
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
@@ -305,76 +327,11 @@ with t2:
     else:
         st.error("Manual not found. Please ensure 'gate_manual.pdf' is in the repository.")
 with t3:
-    st.subheader("📝 Field Observation & Reporting")
-    
-    # Input Phase
-    raw_notes = st.text_area("Enter raw observations:", key="field_notes_input")
+    notes = st.text_area("Observations:")
+    if st.button("🚀 SAVE LOG") and notes:
+        if save_to_google_sheets(st.session_state.current_worker, notes, "LOG"): st.success("✅ Logged.")
 
-    if st.button("🪄 GENERATE TACTICAL REPORT"):
-        if raw_notes:
-            with st.spinner("Falcon-Eye AI is structuring official report..."):
-                # Professional Prompting for the high-level layout
-                report_structure_prompt = f"""
-                Convert these rough notes into a professional Security Incident Report.
-                Format clearly with these headers:
-                
-                INCIDENT REPORT: [TITLE]
-                Date & Time: {datetime.now().strftime("%d-%m-%Y %H:%M")}
-                Location: Gate 4, Dubai DWC
-                Reporting Officer: {st.session_state.current_worker}
 
-                Observation Summary:
-                [Detailed Professional Rewrite]
-
-                Status of Personnel: 
-                [Safety Status]
-
-                Action Taken:
-                [Protocol Steps]
-                
-                End of Report.
-                
-                NOTES: {raw_notes}
-                """
-                st.session_state.preview_report = falcon_query(report_structure_prompt, "Gate 4 Protocol")
-        else:
-            st.warning("Please enter notes.")
-
-    # Preview & Fixed Save Phase
-    if "preview_report" in st.session_state:
-        st.divider()
-        st.markdown("### 🔍 Report Preview")
-        
-        # UI Box for the manager to read
-        st.markdown(f"""
-        <div style="background-color: rgba(173, 255, 47, 0.05); border: 2px solid #ADFF2F; padding: 20px; border-radius: 10px; color: white;">
-            {st.session_state.preview_report.replace('\n', '<br>')}
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # The FIX is in the Payload below:
-       # 3. Final Save Action
-        if st.button("🚀 CONFIRM & SAVE TO LOG"):
-            # We create a list that matches the standard log structure:
-            # Column A: Date (Automatic)
-            # Column B: Report Title / Summary
-            # Column C: Empty (or secondary info)
-            # Column D: Empty
-            # Column E: Empty
-            # Column F: The FULL AI Report
-            # Column G: Worker Name (Automatic)
-            
-            # This 'padding' [""] * 4 ensures the Worker Name doesn't jump to the wrong column
-            report_payload = [
-                "SECURITY INCIDENT", # Column B
-                st.session_state.preview_report, # Column C (The big report block)
-                "", "", "", "" # Padding to push the Worker Name further right if needed
-            ]
-            
-            if save_to_google_sheets(st.session_state.current_worker, report_payload, "LOG"):
-                st.success("✅ Tactical Report Synced to Database.")
-                del st.session_state.preview_report 
-                st.rerun()
 with t4:
     st.subheader("📟 Logistics Command Center")
     
@@ -524,4 +481,3 @@ with t5:
     elif audit_df is not None:
         st.write(f"Latest {doc_source} Entries:")
         st.table(audit_df.tail(10))
-
