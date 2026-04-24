@@ -9,6 +9,7 @@ from google.oauth2.service_account import Credentials
 from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 from fpdf import FPDF
+import pandas as pd
 
 # ====================== 1. CRITICAL INITIALIZATION ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
