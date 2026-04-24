@@ -329,65 +329,59 @@ with t2:
 with t3:
     st.subheader("📝 Field Observation & Reporting")
     
-    # 1. Input Phase
-    raw_notes = st.text_area("Enter raw observations:", placeholder="e.g. truck 58700 arrived with broken seal, driver claims it was for inspection...")
+    # Input Phase
+    raw_notes = st.text_area("Enter raw observations:", key="field_notes_input")
 
     if st.button("🪄 GENERATE TACTICAL REPORT"):
         if raw_notes:
             with st.spinner("Falcon-Eye AI is structuring official report..."):
-                # Professional Prompting for the specific layout you provided
+                # Professional Prompting for the high-level layout
                 report_structure_prompt = f"""
-                Convert these rough notes into a high-level Security Incident Report.
-                Use the following EXACT format:
+                Convert these rough notes into a professional Security Incident Report.
+                Format clearly with these headers:
                 
-                INCIDENT REPORT: [BOLD TITLE]
+                INCIDENT REPORT: [TITLE]
                 Date & Time: {datetime.now().strftime("%d-%m-%Y %H:%M")}
                 Location: Gate 4, Dubai DWC
                 Reporting Officer: {st.session_state.current_worker}
 
                 Observation Summary:
-                [Professional AI rewrite of the notes]
+                [Detailed Professional Rewrite]
 
-                Status of Gate 4 Personnel:
-                [Assessment of safety and operations]
+                Status of Personnel: 
+                [Safety Status]
 
                 Action Taken:
-                [Logical security next steps based on protocol]
+                [Protocol Steps]
                 
                 End of Report.
                 
-                RAW NOTES: {raw_notes}
+                NOTES: {raw_notes}
                 """
-                
-                # AI generates the well-designed report
                 st.session_state.preview_report = falcon_query(report_structure_prompt, "Gate 4 Protocol")
         else:
-            st.warning("Please enter some notes first.")
+            st.warning("Please enter notes.")
 
-    # 2. Preview & Confirmation Phase
+    # Preview & Fixed Save Phase
     if "preview_report" in st.session_state:
         st.divider()
         st.markdown("### 🔍 Report Preview")
         
-        # Displaying the report in a professional "Document" style box
+        # UI Box for the manager to read
         st.markdown(f"""
-        <div style="background-color: rgba(173, 255, 47, 0.05); border: 2px solid #ADFF2F; padding: 20px; border-radius: 10px; color: white; font-family: monospace;">
+        <div style="background-color: rgba(173, 255, 47, 0.05); border: 2px solid #ADFF2F; padding: 20px; border-radius: 10px; color: white;">
             {st.session_state.preview_report.replace('\n', '<br>')}
         </div>
         """, unsafe_allow_html=True)
         
-        st.write("---")
-        
-        # 3. Final Save Action
-        col_s1, col_s2 = st.columns([0.2, 0.8])
-        with col_s1:
-            if st.button("🚀 CONFIRM & SAVE"):
-                if save_to_google_sheets(st.session_state.current_worker, [st.session_state.preview_report], "LOG"):
-                    st.success("✅ Logged to Database.")
-                    del st.session_state.preview_report # Clear preview after saving
-                    st.rerun()
-        with col_s2:
-            if st.button("🗑️ DISCARD"):
+        # The FIX is in the Payload below:
+        if st.button("🚀 CONFIRM & SAVE TO LOG"):
+            # We explicitly define the columns here to prevent the sheet from breaking it up
+            # Payload = [Gate_Location, Full_Report_Text]
+            report_payload = ["GATE 4", st.session_state.preview_report]
+            
+            if save_to_google_sheets(st.session_state.current_worker, report_payload, "LOG"):
+                st.success("✅ Tactical Report Synced to Database.")
                 del st.session_state.preview_report
                 st.rerun()
 
