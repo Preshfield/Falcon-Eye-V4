@@ -133,19 +133,54 @@ def save_all_sessions(username, sessions):
     file_path = f"memory_{username.replace(' ', '_').lower()}.json"
     with open(file_path, "w") as f: json.dump(sessions, f)
 
-# ====================== 4. AI ENGINES ======================
+# ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
+def get_protocol_context():
+    """Extracts text from the gate manual to give the AI 'vision'."""
+    try:
+        if os.path.exists("gate_manual.pdf"):
+            with open("gate_manual.pdf", "rb") as f:
+                reader = PyPDF2.PdfReader(f)
+                text = ""
+                for page in reader.pages:
+                    content = page.extract_text()
+                    if content:
+                        text += content
+                return text
+        return "Manual not found."
+    except Exception as e:
+        return f"Error reading manual: {e}"
+
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-    sys_rules = "Tactical Security AI Gate 4 Dubai DWC. Current Date: April 23, 2026."
-    if mode == "Driver Instruction": sys_rules = "Short & clear translator for truck drivers."
     
+    if mode == "Gate 4 Protocol":
+        manual_context = get_protocol_context()
+        sys_rules = f"""
+        You are the Falcon Eye Gate 4 Security Firewall. 
+        
+        STRICT OPERATING PROCEDURES:
+        1. Access ONLY the Gate 4 Protocol Manual below.
+        2. If the user's question is NOT directly related to Gate 4 procedures, logistics, or security mentioned in the manual, you MUST respond with:
+           "ACCESS DENIED: This query is outside Gate 4 Protocol scope. Please toggle to 'Global Knowledge' for non-operational inquiries."
+        3. Do NOT answer general questions (weather, history, math, etc.) in this mode.
+        4. Synthesize the manual's logic—do not just copy and paste.
+
+        MANUAL CONTEXT:
+        {manual_context}
+        """
+    elif mode == "Global Knowledge":
+        sys_rules = "You are a Global Intelligence AI. You have access to all world information."
+    else:
+        sys_rules = "Short & clear translator for truck drivers."
+
     conversation = [{"role": "system", "content": sys_rules}]
     if chat_history: conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
+    
     try:
-        completion = client.chat.completions.create(model="deepseek-chat", messages=conversation, stream=False)
+        completion = client.chat.completions.create(model="deepseek-chat", messages=conversation)
         return completion.choices[0].message.content
     except Exception as e: return f"AI ERROR: {str(e)}"
 
@@ -195,114 +230,48 @@ with t1:
     # 1. SCOPE TOGGLE
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
-    # 2. CHAT CONTAINER
-    chat_container = st.container(height=400)
+    # 2. CHAT CONTAINER (With height for auto-scroll)
+    chat_container = st.container(height=500)
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]): 
                 st.markdown(message["content"])
+
+    # 3. 🎙️ TACTICAL COMMS (THE MIC)
+    st.divider()
+    col_mic, col_spacer = st.columns([0.15, 0.85])
+    with col_mic:
+        voice_captured = speech_to_text(language='en-US', start_prompt="🎤", stop_prompt="⏹️", key='main_chat_mic')
     
-    # 3. CHAT & AUDIO LOGIC
-    if k_query := st.chat_input("Ask Falcon..."):
-        st.session_state.messages.append({"role": "user", "content": k_query})
+    # 4. CHAT INPUT LOGIC
+    query = st.chat_input("Ask Falcon...")
+    final_query = voice_captured if voice_captured else query
+
+    if final_query:
+        st.session_state.messages.append({"role": "user", "content": final_query})
         
-        # Get AI response
-        ans = falcon_query(k_query, k_mode, st.session_state.messages)
-        st.session_state.messages.append({"role": "assistant", "content": ans})
+        with st.spinner("Falcon Analyzing..."):
+            ans = falcon_query(final_query, k_mode, st.session_state.messages)
+            st.session_state.messages.append({"role": "assistant", "content": ans})
         
-        # --- LECTURE AUDIO ENGINE ---
-        # Converts the AI's response into audio immediately
+        # --- FIXED AUDIO ENGINE (Cleans out Asterisks) ---
         try:
-            tts_lang = 'en' # Default to English for lectures
-            tts = gTTS(text=ans, lang=tts_lang)
+            clean_audio_text = ans.replace("*", "").replace("#", "").replace("-", " ")
+            tts = gTTS(text=clean_audio_text, lang='en')
             audio_fp = io.BytesIO()
             tts.write_to_fp(audio_fp)
-            st.audio(audio_fp.getvalue(), format="audio/mpeg", autoplay=True)
-        except Exception as e:
-            st.warning("Audio playback unavailable.")
-        # ----------------------------
+            st.session_state.pending_audio = audio_fp.getvalue()
+        except: 
+            pass
 
-        # Save to memory and refresh
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
 
-    
-# --- GLOBAL UNIVERSAL INTERPRETER (STABLE VERSION) ---
-    st.divider()
-    st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
-    st.subheader("🌍 Global Universal Interpreter")
-    
-    # 1. Initialize Memory
-    if 'stable_msg' not in st.session_state:
-        st.session_state.stable_msg = ""
-
-    full_langs = {
-        "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-CN",
-        "English": "en", "French": "fr", "German": "de", "Hindi": "hi", 
-        "Italian": "it", "Japanese": "ja", "Korean": "ko", "Malayalam": "ml", 
-        "Nigerian Pidgin": "pcm", "Portuguese": "pt", "Russian": "ru", 
-        "Spanish": "es", "Swahili": "sw", "Tagalog": "tl", "Tamil": "ta", 
-        "Urdu": "ur", "Vietnamese": "vi"
-    }
-    
-    d_lang = st.selectbox("Target Language:", sorted(list(full_langs.keys())), key="global_lang_sel")
-
-    # --- STEP 1: INCOMING (Guest to You) ---
-    st.write("### 👂 Step 1: Listen to Guest")
-    incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN ({d_lang})", key='global_mic_in')
-    if incoming_v:
-        # Straight translation for you to read
-        interpretation = falcon_query(f"Translate to English ONLY: {incoming_v}", "Global Knowledge")
-        st.info(f"**Interpretation:** {interpretation}")
-
-    st.write("---")
-
-    # --- STEP 2: OUTGOING (You to Guest) ---
-    st.write("### 🎙️ Step 2: Your Response")
-    col_v1, col_v2 = st.columns([0.3, 0.7])
-    
-    with col_v1:
-        # 🎤 Speak Mic - No AI cleanup here, just raw capture for stability
-        voice_raw = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
-        if voice_raw:
-            st.session_state.stable_msg = voice_raw
-    
-    with col_v2:
-        # ⌨️ Type / Edit Space
-        # This will automatically catch the voice_raw text
-        st.session_state.stable_msg = st.text_input(
-            "Type or Edit Response:", 
-            value=st.session_state.stable_msg, 
-            key="stable_input_box"
-        )
-
-    # --- STEP 3: THE ONE-WAY SEND ---
-    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.stable_msg:
-        # Use the AI here to clean up AND translate at the same time
-        final_text = st.session_state.stable_msg
-        
-        # We tell the AI to clean up the English AND translate in one move
-        response_trans = falcon_query(
-            f"Clean up this English input and translate it to {d_lang} ONLY. No chatter: {final_text}", 
-            "Global Knowledge"
-        )
-        
-        st.success(f"**Reply in {d_lang}:** {response_trans}")
-        
-        try:
-            import io
-            from gtts import gTTS
-            tts = gTTS(text=response_trans, lang=full_langs[d_lang])
-            stream = io.BytesIO()
-            tts.write_to_fp(stream)
-            stream.seek(0)
-            st.audio(stream.read(), format="audio/mpeg")
-            st.caption("👆 Play for speaker.")
-        except Exception as e:
-            st.error(f"Audio Error: {e}")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Trigger Audio Autoplay
+    if "pending_audio" in st.session_state:
+        st.audio(st.session_state.pending_audio, format="audio/mpeg", autoplay=True)
+        del st.session_state.pending_audio
    # protocol manual)
 
 with t2:
