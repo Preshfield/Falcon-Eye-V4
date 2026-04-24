@@ -333,33 +333,45 @@ with t3:
 with t4:
     st.markdown("### 🕵️‍♂️ CIA Intelligence Search")
     
-    # 1. Fetching the Master Data for Audit
-    # We pull the data fresh so the manager sees everything
+    # 1. FETCH DATA MANUALLY (To avoid Header Errors)
     try:
         client_audit = get_gsheet_client()
-        # You can change "LOG" to "MANUAL PASS" if the manager needs to audit the passes instead
         audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet("LOG")
-        audit_data = audit_sheet.get_all_records()
-        audit_df = pd.DataFrame(audit_data)
+        
+        # We use get_all_values() to bypass the duplicate header error
+        raw_data = audit_sheet.get_all_values()
+        
+        if raw_data:
+            # Separate the first row (headers) from the data
+            header_row = raw_data[0]
+            body_data = raw_data[1:]
+            
+            # Create the DataFrame manually
+            audit_df = pd.DataFrame(body_data, columns=header_row)
+            
+            # Remove any columns that have no name (cleaning the CIA files)
+            audit_df = audit_df.loc[:, audit_df.columns != '']
+        else:
+            audit_df = None
+            st.warning("The log is empty.")
+            
     except Exception as e:
-        st.error(f"CIA Connection Error: {e}")
+        st.error(f"CIA Intelligence Error: {e}")
         audit_df = None
 
-    # 2. Manager Interface
-    audit_query = st.text_input("Manager Query (Plate, Date, Incident, or Name):", placeholder="Interrogate the logs...")
+    # 2. MANAGER COMMAND INTERFACE
+    audit_query = st.text_input("Manager Query:", placeholder="Interrogate the logs (e.g. Plate, Company, Date)...")
 
     if audit_query and audit_df is not None:
-        # UNIVERSAL SEARCH: Scans every column at once
+        # Universal Interrogation
         mask = audit_df.apply(lambda row: row.astype(str).str.contains(audit_query, case=False).any(), axis=1)
         found = audit_df[mask]
 
         if not found.empty:
             st.success(f"Audit Result: {len(found)} matches found.")
-            
-            # Show the results in a clean, scrollable table
             st.dataframe(found, use_container_width=True)
             
-            # 3. Export for Management
+            # 3. Export Logic
             csv = found.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📂 Export Audit to CSV",
@@ -368,14 +380,11 @@ with t4:
                 mime='text/csv',
             )
         else:
-            st.info(f"No records found in archives for '{audit_query}'.")
+            st.info(f"No records found for '{audit_query}'.")
     
     elif audit_df is not None:
-        # Default view: Show the most recent 10 logs so the page isn't empty
-        st.write("Recent Activity:")
+        st.write("Recent Activity (Last 10 entries):")
         st.table(audit_df.tail(10))
-    
-    st.caption("Common CIA Queries: 'Counterfeit', 'DHL', 'Gate 4', 'Plate Number'")
 with t5:
     st.subheader("📟 Logistics Command Center")
     
