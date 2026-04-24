@@ -327,29 +327,69 @@ with t2:
     else:
         st.error("Manual not found. Please ensure 'gate_manual.pdf' is in the repository.")
 with t3:
-    st.subheader("📝 Tactical Duty Observations")
-    notes = st.text_area("Enter field notes (Rough or Voice-to-Text):", 
-                         placeholder="e.g. driver at gate 4 was aggressive and seal was broken")
+    st.subheader("📝 Field Observation & Reporting")
     
-    if st.button("🚀 STANDARDIZE & SAVE LOG") and notes:
-        with st.spinner("Falcon AI is formatting report..."):
-            # 1. The "Secret Sauce": Using the AI to rewrite your notes into a standard report
-            report_prompt = f"""
-            Rewrite this field observation into a professional, tactical security report for Dubai Customs. 
-            Use clear, formal language. 
-            Format: [INCIDENT SUMMARY] followed by [ACTION TAKEN].
-            Original Notes: {notes}
-            """
-            standardized_report = falcon_query(report_prompt, "Gate 4 Protocol")
+    # 1. Input Phase
+    raw_notes = st.text_area("Enter raw observations:", placeholder="e.g. truck 58700 arrived with broken seal, driver claims it was for inspection...")
 
-            # 2. Show the manager what is being saved
-            st.info(f"**Standardized Report:**\n\n{standardized_report}")
+    if st.button("🪄 GENERATE TACTICAL REPORT"):
+        if raw_notes:
+            with st.spinner("Falcon-Eye AI is structuring official report..."):
+                # Professional Prompting for the specific layout you provided
+                report_structure_prompt = f"""
+                Convert these rough notes into a high-level Security Incident Report.
+                Use the following EXACT format:
+                
+                INCIDENT REPORT: [BOLD TITLE]
+                Date & Time: {datetime.now().strftime("%d-%m-%Y %H:%M")}
+                Location: Gate 4, Dubai DWC
+                Reporting Officer: {st.session_state.current_worker}
 
-            # 3. Save the standardized version, not the messy raw notes
-            # We wrap it in a list [notes] because your save function adds the date and worker automatically
-            if save_to_google_sheets(st.session_state.current_worker, [standardized_report], "LOG"):
-                st.success("✅ Tactical Report Synced to Database.")
+                Observation Summary:
+                [Professional AI rewrite of the notes]
 
+                Status of Gate 4 Personnel:
+                [Assessment of safety and operations]
+
+                Action Taken:
+                [Logical security next steps based on protocol]
+                
+                End of Report.
+                
+                RAW NOTES: {raw_notes}
+                """
+                
+                # AI generates the well-designed report
+                st.session_state.preview_report = falcon_query(report_structure_prompt, "Gate 4 Protocol")
+        else:
+            st.warning("Please enter some notes first.")
+
+    # 2. Preview & Confirmation Phase
+    if "preview_report" in st.session_state:
+        st.divider()
+        st.markdown("### 🔍 Report Preview")
+        
+        # Displaying the report in a professional "Document" style box
+        st.markdown(f"""
+        <div style="background-color: rgba(173, 255, 47, 0.05); border: 2px solid #ADFF2F; padding: 20px; border-radius: 10px; color: white; font-family: monospace;">
+            {st.session_state.preview_report.replace('\n', '<br>')}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.write("---")
+        
+        # 3. Final Save Action
+        col_s1, col_s2 = st.columns([0.2, 0.8])
+        with col_s1:
+            if st.button("🚀 CONFIRM & SAVE"):
+                if save_to_google_sheets(st.session_state.current_worker, [st.session_state.preview_report], "LOG"):
+                    st.success("✅ Logged to Database.")
+                    del st.session_state.preview_report # Clear preview after saving
+                    st.rerun()
+        with col_s2:
+            if st.button("🗑️ DISCARD"):
+                del st.session_state.preview_report
+                st.rerun()
 
 with t4:
     st.subheader("📟 Logistics Command Center")
