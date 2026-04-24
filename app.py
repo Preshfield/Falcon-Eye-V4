@@ -333,26 +333,33 @@ with t3:
 with t4:
     st.markdown("### 🕵️‍♂️ CIA Intelligence Search")
     
-    # 1. The Dynamic Search Box
-    # No button needed—the "CIA" engine updates as the manager types
-    audit_query = st.text_input("Manager Query (Plate, Date, Incident, or Name):", placeholder="Search anything...")
+    # 1. Fetching the Master Data for Audit
+    # We pull the data fresh so the manager sees everything
+    try:
+        client_audit = get_gsheet_client()
+        # You can change "LOG" to "MANUAL PASS" if the manager needs to audit the passes instead
+        audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet("LOG")
+        audit_data = audit_sheet.get_all_records()
+        audit_df = pd.DataFrame(audit_data)
+    except Exception as e:
+        st.error(f"CIA Connection Error: {e}")
+        audit_df = None
 
-    if audit_query:
-        # 2. Universal Search Logic
-        # We search the main dataframe (df) across ALL columns
-        # 'case=False' ensures 'police' matches 'Police'
-        mask = df.apply(lambda row: row.astype(str).str.contains(audit_query, case=False).any(), axis=1)
-        found = df[mask]
+    # 2. Manager Interface
+    audit_query = st.text_input("Manager Query (Plate, Date, Incident, or Name):", placeholder="Interrogate the logs...")
+
+    if audit_query and audit_df is not None:
+        # UNIVERSAL SEARCH: Scans every column at once
+        mask = audit_df.apply(lambda row: row.astype(str).str.contains(audit_query, case=False).any(), axis=1)
+        found = audit_df[mask]
 
         if not found.empty:
             st.success(f"Audit Result: {len(found)} matches found.")
             
-            # 3. Enhanced Visibility
-            # Using st.dataframe instead of st.table makes it scrollable and neat
+            # Show the results in a clean, scrollable table
             st.dataframe(found, use_container_width=True)
             
-            # 4. Export for Management
-            # One-click reporting for the CIA files
+            # 3. Export for Management
             csv = found.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📂 Export Audit to CSV",
@@ -362,10 +369,13 @@ with t4:
             )
         else:
             st.info(f"No records found in archives for '{audit_query}'.")
-    else:
-        # Default view when search is empty
-        st.write("Enter a query above to interrogate the logs.")
-        st.caption("Common queries: 'Counterfeit', 'Gate 4', 'Plate Number'")
+    
+    elif audit_df is not None:
+        # Default view: Show the most recent 10 logs so the page isn't empty
+        st.write("Recent Activity:")
+        st.table(audit_df.tail(10))
+    
+    st.caption("Common CIA Queries: 'Counterfeit', 'DHL', 'Gate 4', 'Plate Number'")
 with t5:
     st.subheader("📟 Logistics Command Center")
     
