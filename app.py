@@ -332,59 +332,62 @@ with t3:
         if save_to_google_sheets(st.session_state.current_worker, notes, "LOG"): st.success("✅ Logged.")
 
 with t4:
-    st.markdown("### 🕵️‍♂️ CIA Intelligence Search")
+    st.markdown("### 🕵️‍♂️ CIA Universal Intelligence Search")
     
-    # 1. FETCH DATA MANUALLY (To avoid Header Errors)
+    # 1. SELECT THE DOCUMENTATION SOURCE
+    # The manager can now choose which "corridor" of the warehouse to audit
+    doc_source = st.selectbox(
+        "Select Documentation Category:", 
+        ["LOG", "MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"]
+    )
+    
+    # 2. FETCH DATA FROM SELECTED SOURCE
     try:
         client_audit = get_gsheet_client()
-        audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet("LOG")
+        audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet(doc_source)
         
-        # We use get_all_values() to bypass the duplicate header error
         raw_data = audit_sheet.get_all_values()
         
         if raw_data:
-            # Separate the first row (headers) from the data
             header_row = raw_data[0]
             body_data = raw_data[1:]
-            
-            # Create the DataFrame manually
             audit_df = pd.DataFrame(body_data, columns=header_row)
-            
-            # Remove any columns that have no name (cleaning the CIA files)
+            # Remove empty columns
             audit_df = audit_df.loc[:, audit_df.columns != '']
         else:
             audit_df = None
-            st.warning("The log is empty.")
+            st.warning(f"The {doc_source} category is currently empty.")
             
     except Exception as e:
-        st.error(f"CIA Intelligence Error: {e}")
+        st.error(f"CIA Access Error for {doc_source}: {e}")
         audit_df = None
 
-    # 2. MANAGER COMMAND INTERFACE
-    audit_query = st.text_input("Manager Query:", placeholder="Interrogate the logs (e.g. Plate, Company, Date)...")
+    # 3. MANAGER COMMAND INTERFACE
+    st.divider()
+    audit_query = st.text_input(f"Interrogate {doc_source} (Plate, ID, or Details):", placeholder="Search archives...")
 
     if audit_query and audit_df is not None:
-        # Universal Interrogation
+        # Search across all columns
         mask = audit_df.apply(lambda row: row.astype(str).str.contains(audit_query, case=False).any(), axis=1)
         found = audit_df[mask]
 
         if not found.empty:
-            st.success(f"Audit Result: {len(found)} matches found.")
+            st.success(f"Audit Result: {len(found)} records found in {doc_source}.")
             st.dataframe(found, use_container_width=True)
             
-            # 3. Export Logic
+            # Export for the Manager
             csv = found.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📂 Export Audit to CSV",
+                label=f"📂 Export {doc_source} Audit",
                 data=csv,
-                file_name=f"FalconEye_Audit_{audit_query}.csv",
+                file_name=f"FalconEye_{doc_source}_{audit_query}.csv",
                 mime='text/csv',
             )
         else:
-            st.info(f"No records found for '{audit_query}'.")
+            st.info(f"No records found in {doc_source} for '{audit_query}'.")
     
     elif audit_df is not None:
-        st.write("Recent Activity (Last 10 entries):")
+        st.write(f"Latest {doc_source} Entries:")
         st.table(audit_df.tail(10))
 with t5:
     st.subheader("📟 Logistics Command Center")
