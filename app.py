@@ -227,14 +227,14 @@ with t1:
         st.rerun()
 
     
-# --- GLOBAL UNIVERSAL INTERPRETER (INTELLIGENT SYNC) ---
+# --- GLOBAL UNIVERSAL INTERPRETER (STABLE VERSION) ---
     st.divider()
     st.markdown('<div class="intercom-box">', unsafe_allow_html=True)
     st.subheader("🌍 Global Universal Interpreter")
     
-    # 1. Memory Initialization
-    if 'intelli_buffer' not in st.session_state:
-        st.session_state.intelli_buffer = ""
+    # 1. Initialize Memory
+    if 'stable_msg' not in st.session_state:
+        st.session_state.stable_msg = ""
 
     full_langs = {
         "Arabic": "ar", "Bengali": "bn", "Chinese (Mandarin)": "zh-CN",
@@ -251,48 +251,43 @@ with t1:
     st.write("### 👂 Step 1: Listen to Guest")
     incoming_v = speech_to_text(language=full_langs[d_lang], start_prompt=f"LISTEN ({d_lang})", key='global_mic_in')
     if incoming_v:
-        interpretation = falcon_query(f"Direct interpretation to English ONLY. No commentary: {incoming_v}", "Global Knowledge")
-        st.markdown(f'<div class="driver-msg"><b>Interpretation:</b> {interpretation}</div>', unsafe_allow_html=True)
+        # Straight translation for you to read
+        interpretation = falcon_query(f"Translate to English ONLY: {incoming_v}", "Global Knowledge")
+        st.info(f"**Interpretation:** {interpretation}")
 
     st.write("---")
 
-    # --- STEP 2: YOUR RESPONSE (WITH FORCED SYNC) ---
+    # --- STEP 2: OUTGOING (You to Guest) ---
     st.write("### 🎙️ Step 2: Your Response")
-    
-    if 'intelli_buffer' not in st.session_state:
-        st.session_state.intelli_buffer = ""
-
     col_v1, col_v2 = st.columns([0.3, 0.7])
     
     with col_v1:
-        # 🎤 Speak Mic
+        # 🎤 Speak Mic - No AI cleanup here, just raw capture for stability
         voice_raw = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
-        
         if voice_raw:
-            # 1. AI cleans up the voice immediately
-            clean_text = falcon_query(f"Clean up this speech into a clear professional sentence. English only: {voice_raw}", "Global Knowledge")
-            
-            # 2. Update the buffer
-            st.session_state.intelli_buffer = clean_text
-            
-            # 3. CRITICAL: Force Streamlit to rerun so the text shows up in the box below
-            st.rerun()
-
+            st.session_state.stable_msg = voice_raw
+    
     with col_v2:
-        # ⌨️ The Type/Edit Column
-        # It now receives the 'cleaned' text from the rerun above
-        st.session_state.intelli_buffer = st.text_input(
+        # ⌨️ Type / Edit Space
+        # This will automatically catch the voice_raw text
+        st.session_state.stable_msg = st.text_input(
             "Type or Edit Response:", 
-            value=st.session_state.intelli_buffer, 
-            key="final_input_box"
+            value=st.session_state.stable_msg, 
+            key="stable_input_box"
         )
 
-    # --- STEP 3: THE ACTION (This stays the same) ---
-    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.intelli_buffer:
-        final_msg = st.session_state.intelli_buffer
+    # --- STEP 3: THE ONE-WAY SEND ---
+    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.stable_msg:
+        # Use the AI here to clean up AND translate at the same time
+        final_text = st.session_state.stable_msg
         
-        response_trans = falcon_query(f"Translate to {d_lang} ONLY: {final_msg}", "Global Knowledge")
-        st.success(f"**Interpretation ({d_lang}):** {response_trans}")
+        # We tell the AI to clean up the English AND translate in one move
+        response_trans = falcon_query(
+            f"Clean up this English input and translate it to {d_lang} ONLY. No chatter: {final_text}", 
+            "Global Knowledge"
+        )
+        
+        st.success(f"**Reply in {d_lang}:** {response_trans}")
         
         try:
             import io
@@ -302,9 +297,11 @@ with t1:
             tts.write_to_fp(stream)
             stream.seek(0)
             st.audio(stream.read(), format="audio/mpeg")
-            st.info("👆 Play for speaker.")
+            st.caption("👆 Play for speaker.")
         except Exception as e:
             st.error(f"Audio Error: {e}")
+
+    st.markdown('</div>', unsafe_allow_html=True)
    # protocol manual)
 
 with t2:
