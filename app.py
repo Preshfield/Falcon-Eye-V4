@@ -326,63 +326,27 @@ with t2:
         pdf_viewer("gate_manual.pdf", height=800)
     else:
         st.error("Manual not found. Please ensure 'gate_manual.pdf' is in the repository.")
-with t3:
-    st.subheader("📝 Field Observation & Reporting")
-    
-    # Input Phase
-    raw_notes = st.text_area("Enter raw observations:", key="field_notes_input")
-
-    if st.button("🪄 GENERATE TACTICAL REPORT"):
-        if raw_notes:
-            with st.spinner("Falcon-Eye AI is structuring official report..."):
-                # Professional Prompting for the high-level layout
-                report_structure_prompt = f"""
-                Convert these rough notes into a professional Security Incident Report.
-                Format clearly with these headers:
-                
-                INCIDENT REPORT: [TITLE]
-                Date & Time: {datetime.now().strftime("%d-%m-%Y %H:%M")}
-                Location: Gate 4, Dubai DWC
-                Reporting Officer: {st.session_state.current_worker}
-
-                Observation Summary:
-                [Detailed Professional Rewrite]
-
-                Status of Personnel: 
-                [Safety Status]
-
-                Action Taken:
-                [Protocol Steps]
-                
-                End of Report.
-                
-                NOTES: {raw_notes}
-                """
-                st.session_state.preview_report = falcon_query(report_structure_prompt, "Gate 4 Protocol")
-        else:
-            st.warning("Please enter notes.")
-
-    # Preview & Fixed Save Phase
-    if "preview_report" in st.session_state:
-        st.divider()
-        st.markdown("### 🔍 Report Preview")
-        
-        # UI Box for the manager to read
-        st.markdown(f"""
-        <div style="background-color: rgba(173, 255, 47, 0.05); border: 2px solid #ADFF2F; padding: 20px; border-radius: 10px; color: white;">
-            {st.session_state.preview_report.replace('\n', '<br>')}
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # The FIX is in the Payload below:
+# 3. Final Save Action
         if st.button("🚀 CONFIRM & SAVE TO LOG"):
-            # We explicitly define the columns here to prevent the sheet from breaking it up
-            # Payload = [Gate_Location, Full_Report_Text]
-            report_payload = ["GATE 4", st.session_state.preview_report]
+            # We create a list that matches the standard log structure:
+            # Column A: Date (Automatic)
+            # Column B: Report Title / Summary
+            # Column C: Empty (or secondary info)
+            # Column D: Empty
+            # Column E: Empty
+            # Column F: The FULL AI Report
+            # Column G: Worker Name (Automatic)
+            
+            # This 'padding' [""] * 4 ensures the Worker Name doesn't jump to the wrong column
+            report_payload = [
+                "SECURITY INCIDENT", # Column B
+                st.session_state.preview_report, # Column C (The big report block)
+                "", "", "", "" # Padding to push the Worker Name further right if needed
+            ]
             
             if save_to_google_sheets(st.session_state.current_worker, report_payload, "LOG"):
                 st.success("✅ Tactical Report Synced to Database.")
-                del st.session_state.preview_report
+                del st.session_state.preview_report 
                 st.rerun()
 
 with t4:
