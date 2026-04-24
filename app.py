@@ -257,40 +257,39 @@ with t1:
     st.write("---")
 
     # 2. OUTGOING: Listener Response (Speak or Type)
+   # 2. OUTGOING: Listener Response (Speak or Type)
     st.write("### 🎙️ Step 2: Your Response")
     
-    # Initialize a state to hold your words
-    if "my_msg" not in st.session_state:
-        st.session_state.my_msg = ""
+    # 1. Initialize the memory if it doesn't exist
+    if "final_resp" not in st.session_state:
+        st.session_state.final_resp = ""
 
     col_v1, col_v2 = st.columns([0.3, 0.7])
     
     with col_v1:
-        # 🎤 Speak into mic
-        voice_cap = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
+        # 🎤 Capture Voice
+        voice_input = speech_to_text(language='en-US', start_prompt="🎤 SPEAK", key='global_mic_out')
         
-        # If voice is captured, force it into the session state immediately
-        if voice_cap:
-            st.session_state.my_msg = voice_cap
+        # 2. AUTOMATIC CONFIGURATION: 
+        # If voice is heard, overwrite the memory immediately
+        if voice_input:
+            st.session_state.final_resp = voice_input
     
     with col_v2:
-        # ⌨️ The text box now looks at st.session_state.my_msg
-        # We use a unique key for the widget to prevent it from resetting
-        op_text = st.text_input("Type/Edit Response:", value=st.session_state.my_msg, key="user_text_entry")
-        
-        # Update session state if you type manually
-        st.session_state.my_msg = op_text
+        # 3. The Type/Edit space stays synced with the memory
+        # We update the session state if you type, and display the voice if you speak.
+        st.session_state.final_resp = st.text_input(
+            "Type or Edit Response:", 
+            value=st.session_state.final_resp, 
+            key="edit_space"
+        )
 
-    # 3. ACTION: THE SEND BUTTON
-    # Now the button checks the session state, which is "safe" from reruns
-    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.my_msg:
-        final_to_translate = st.session_state.my_msg
-        
-        # CLEAR THE BOX after clicking (optional, keep it if you want to reuse text)
-        # st.session_state.my_msg = "" 
-
+    # 4. ACTION: SEND & GENERATE
+    # This button now only has to look at one place: st.session_state.final_resp
+    if st.button("🚀 SEND & GENERATE AUDIO") and st.session_state.final_resp:
+        # Direct interpretation back to the target language
         response_trans = falcon_query(
-            f"Translate to {d_lang} ONLY. No chatter: {final_to_translate}", 
+            f"Translate to {d_lang} ONLY. No chatter: {st.session_state.final_resp}", 
             "Global Knowledge"
         )
         
@@ -303,8 +302,14 @@ with t1:
             stream = io.BytesIO()
             tts.write_to_fp(stream)
             stream.seek(0)
+            
+            # Show audio player
             st.audio(stream.read(), format="audio/mpeg")
-            st.caption(f"👆 Play for the listener.")
+            st.caption(f"👆 Play for the {d_lang} speaker.")
+            
+            # Optional: Clear the box after a successful send to prepare for next msg
+            # st.session_state.final_resp = ""
+            
         except Exception as e:
             st.error(f"Audio Error: {e}")
 
