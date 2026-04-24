@@ -276,27 +276,22 @@ with t1:
         else:
             st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING FOR VOICE...</p>", unsafe_allow_html=True)
 
-    # 4. CHAT INPUT LOGIC (Existing loop-fix logic)
-    query = st.chat_input("Ask Falcon...")
-    final_query = voice_captured if voice_captured else query
-    
-    # 4. CHAT INPUT LOGIC
-    query = st.chat_input("Ask Falcon...")
+   # 4. CHAT INPUT LOGIC (Cleaned & Loop-Fixed)
+    # We only need this ONCE.
+    query = st.chat_input("Ask Falcon...", key="falcon_main_input")
     final_query = voice_captured if voice_captured else query
 
-    # THE FIX: We only process if final_query has content AND it's not the same as the last one we did
+    # Only process if we have a new query
     if final_query and st.session_state.get("last_processed_query") != final_query:
         st.session_state.messages.append({"role": "user", "content": final_query})
-        # Save this query immediately to prevent the loop on rerun
         st.session_state.last_processed_query = final_query
         
         with st.spinner("Falcon Analyzing..."):
             ans = falcon_query(final_query, k_mode, st.session_state.messages)
             st.session_state.messages.append({"role": "assistant", "content": ans})
         
-        # --- FIXED AUDIO ENGINE (Cleans out Asterisks) ---
+        # Audio Engine
         try:
-            # Replaced characters to prevent the AI from saying "asterisk" or "hash"
             clean_audio_text = ans.replace("*", "").replace("#", "").replace("-", " ")
             tts = gTTS(text=clean_audio_text, lang='en')
             audio_fp = io.BytesIO()
@@ -304,6 +299,10 @@ with t1:
             st.session_state.pending_audio = audio_fp.getvalue()
         except: 
             pass
+
+        st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
+        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        st.rerun()
 
         # Save to database/memory
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
