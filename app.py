@@ -327,9 +327,28 @@ with t2:
     else:
         st.error("Manual not found. Please ensure 'gate_manual.pdf' is in the repository.")
 with t3:
-    notes = st.text_area("Observations:")
-    if st.button("🚀 SAVE LOG") and notes:
-        if save_to_google_sheets(st.session_state.current_worker, notes, "LOG"): st.success("✅ Logged.")
+    st.subheader("📝 Tactical Duty Observations")
+    notes = st.text_area("Enter field notes (Rough or Voice-to-Text):", 
+                         placeholder="e.g. driver at gate 4 was aggressive and seal was broken")
+    
+    if st.button("🚀 STANDARDIZE & SAVE LOG") and notes:
+        with st.spinner("Falcon AI is formatting report..."):
+            # 1. The "Secret Sauce": Using the AI to rewrite your notes into a standard report
+            report_prompt = f"""
+            Rewrite this field observation into a professional, tactical security report for Dubai Customs. 
+            Use clear, formal language. 
+            Format: [INCIDENT SUMMARY] followed by [ACTION TAKEN].
+            Original Notes: {notes}
+            """
+            standardized_report = falcon_query(report_prompt, "Gate 4 Protocol")
+
+            # 2. Show the manager what is being saved
+            st.info(f"**Standardized Report:**\n\n{standardized_report}")
+
+            # 3. Save the standardized version, not the messy raw notes
+            # We wrap it in a list [notes] because your save function adds the date and worker automatically
+            if save_to_google_sheets(st.session_state.current_worker, [standardized_report], "LOG"):
+                st.success("✅ Tactical Report Synced to Database.")
 
 
 with t4:
