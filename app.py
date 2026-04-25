@@ -195,64 +195,10 @@ if not st.session_state.auth:
     st.title("🦅 FALCON EYE | LOGIN")
     user_identity = st.selectbox("USER:", list(WORKER_DB.keys()))
     user_password = st.text_input("PASSWORD:", type="password")
-    
-    if st.button("SIGN IN", use_container_width=True) and user_password == WORKER_DB[user_identity]:
+    if st.button("SIGN IN") and user_password == WORKER_DB[user_identity]:
         st.session_state.auth = True
         st.session_state.current_worker = user_identity
         st.session_state.all_sessions = load_all_sessions(user_identity)
-        
-        # 1. This clears the entire login page immediately
-        login_container = st.empty() 
-        
-        with login_container.container():
-            # 2. CSS to center everything and hide UI bars
-            st.markdown("""
-                <style>
-                    /* Hide everything except our welcome content */
-                    [data-testid="stSidebar"] { display: none; }
-                    [data-testid="stHeader"] { display: none; }
-                    .main .block-container { padding: 0px; }
-                    
-                    /* Create a full-screen centered flexbox */
-                    .welcome-box {
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100vh;
-                        width: 100vw;
-                        background-color: #020617;
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        z-index: 9999;
-                    }
-                </style>
-                
-                <div class="welcome-box">
-                    <img src="data:image/png;base64,""" + base64.b64encode(open("Gemini_Generated_Image_.png", "rb").read()).decode() + """ " style="width: 80%; max-width: 800px; border-radius: 20px; box-shadow: 0 0 50px rgba(173, 255, 47, 0.2);">
-                    <div style="text-align: center; margin-top: 30px;">
-                        <h1 style="color: #ADFF2F; font-family: monospace; font-size: 50px; margin: 0; text-shadow: 0 0 20px rgba(173, 255, 47, 0.5);">
-                            WELCOME TO THE FALCON EYE
-                        </h1>
-                        <p style="color: white; font-size: 20px; letter-spacing: 8px; font-weight: bold; opacity: 0.8;">
-                            THE GATEWAY TO LOGISTICS
-                        </p>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-
-            # 3. Audio Trigger (Keyboard/Welcome Sound)
-            st.components.v1.html("""
-                <audio autoplay><source src="https://www.soundjay.com/communication/typewriter-key-1.mp3" type="audio/mpeg"></audio>
-            """, height=0)
-            
-            # 4. Timer (Reduced to 10 seconds)
-            import time
-            time.sleep(10)
-        
-        # 5. Clear the screen and enter the app
-        login_container.empty()
         st.rerun()
     st.stop()
 # ====================== 6. DASHBOARD UI (SIDEBAR RESTORED) ======================
