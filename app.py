@@ -498,9 +498,36 @@ with t6:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>FAST-INTERPRET ⚡</h3>", unsafe_allow_html=True)
 
     # 1. TACTICAL CONFIG
-    languages = {
-        "Arabic": "ar", "Hindi": "hi", "Urdu": "ur", "Malayalam": "ml", 
-        "Tagalog": "tl", "Bengali": "bn", "Chinese": "zh-CN", "Spanish": "es"
+   languages = {
+        "Arabic": "ar",
+        "Bengali": "bn",
+        "Chinese (Simplified)": "zh-CN",
+        "English": "en",
+        "French": "fr",
+        "German": "de",
+        "Gujarati": "gu",
+        "Hindi": "hi",
+        "Indonesian": "id",
+        "Italian": "it",
+        "Japanese": "ja",
+        "Kannada": "kn",
+        "Korean": "ko",
+        "Malayalam": "ml",
+        "Marathi": "mr",
+        "Pashto": "ps",
+        "Persian (Farsi)": "fa",
+        "Portuguese": "pt",
+        "Punjabi": "pa",
+        "Russian": "ru",
+        "Spanish": "es",
+        "Swahili": "sw",
+        "Tagalog (Filipino)": "tl",
+        "Tamil": "ta",
+        "Telugu": "te",
+        "Thai": "th",
+        "Turkish": "tr",
+        "Urdu": "ur",
+        "Vietnamese": "vi"
     }
     
     # Simple selection: "I speak English, they speak..."
