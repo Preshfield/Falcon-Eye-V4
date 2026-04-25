@@ -350,15 +350,10 @@ with t3:
 
 
 with t4:
-    # ====================== STAFF AGENT (NEW HELP) ======================
-    with st.expander("👨‍💼 HIRE LOGISTICS STAFF AGENT (VOICE-TO-FORM)", expanded=False):
-        st.markdown("<p style='color: #ADFF2F;'>Tell the agent what to write, and he will format the data for you.</p>", unsafe_allow_html=True)
+    # ====================== 1. STAFF AGENT: AUTO-FILL VOICE COMMANDS ======================
+    with st.expander("👨‍💼 STAFF AGENT (VOICE-TO-FORM)", expanded=True):
+        st.markdown("<p style='color: #ADFF2F;'>Tell the agent what to write, and he will fill the form below.</p>", unsafe_allow_html=True)
         
-        # Agent Memory
-        if "staff_agent_msgs" not in st.session_state:
-            st.session_state.staff_agent_msgs = []
-
-        # Staff Agent Ears (Orb)
         col_mic, col_txt = st.columns([0.2, 0.8])
         with col_mic:
             agent_voice = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='staff_agent_mic')
@@ -368,24 +363,30 @@ with t4:
         final_agent_query = agent_voice if agent_voice else agent_input
 
         if final_agent_query:
-            with st.spinner("Staff Agent writing..."):
-                # Use Brain 3 (Logistics Agent)
+            with st.spinner("Staff Agent typing..."):
                 staff_resp = falcon_query(final_agent_query, "Logistics Agent")
-                st.session_state.staff_agent_msgs.append({"role": "user", "content": final_agent_query})
-                st.session_state.staff_agent_msgs.append({"role": "assistant", "content": staff_resp})
-            
-        # Show Agent's Output in a clean box
-        for m in st.session_state.staff_agent_msgs[-2:]: # Show only last interaction
-            with st.chat_message(m["role"]):
-                st.markdown(m["content"])
-        
-        if st.button("Dismiss Staff Agent 🗑️"):
-            st.session_state.staff_agent_msgs = []
-            st.rerun()
+                
+                # --- PUSH DATA TO SESSION STATE ---
+                if "|" in staff_resp:
+                    data_pairs = staff_resp.split("|")
+                    for pair in data_pairs:
+                        if ":" in pair:
+                            k, v = pair.split(":", 1)
+                            key_clean = k.strip().upper()
+                            val_clean = v.strip().replace("N/A", "")
+                            
+                            # Map extracted data to form variables
+                            if "BOOK" in key_clean: st.session_state["f_bk_val"] = val_clean
+                            if "PASS" in key_clean: st.session_state["f_gp_val"] = val_clean
+                            if "CONSIGNEE" in key_clean: st.session_state["f_con_val"] = val_clean
+                            if "BILL" in key_clean: st.session_state["f_bill_val"] = val_clean
+                            if "AMOUNT" in key_clean: st.session_state["f_amt_val"] = float(val_clean) if val_clean.replace('.','',1).isdigit() else 0.0
+                            if "REMARKS" in key_clean: st.session_state["f_rem_val"] = val_clean
+                    st.success("✅ Form updated! Review below.")
 
     st.divider()
 
-    # ====================== ORIGINAL COMMAND CENTER (UNTOUCHED) ======================
+    # ====================== 2. ORIGINAL COMMAND CENTER (PRESERVED) ======================
     st.subheader("📟 Logistics Command Center")
     
     # 1. EXPRESS ENTRY LOGIC
@@ -407,24 +408,28 @@ with t4:
     is_editing = "edit_row_idx" in st.session_state
     doc_type = st.radio("Form Type:", ["Manual Gate Pass", "Labour Charge", "Official Report"], horizontal=True)
 
-    # 4. THE MAIN FORM
+    # 4. THE MAIN FORM (NOW CONNECTED TO STAFF AGENT)
     with st.form("logistics_form", clear_on_submit=True):
         f_date = st.date_input("SELECT DATE:", value=datetime.now(timezone(timedelta(hours=4))))
         formatted_date = f_date.strftime("%d-%m-%Y")
         
         if doc_type == "Manual Gate Pass":
             c1, c2, c3 = st.columns(3)
+            # LOGIC: If agent provides data, use it; otherwise use the original QuickFill/AutoID logic
             f_sl = c1.text_input("SL NO", value=next_sl).upper()
-            f_bk = c2.text_input("BOOK NO").upper()
-            f_gp = c3.text_input("GATE PASS NO", value=next_gp).upper()
-            f_con = st.text_input("CONSIGNEE", value=smart_con).upper()
-            f_bill = st.text_input("CUSTOMS BILL NO").upper()
+            f_bk = c2.text_input("BOOK NO", value=st.session_state.get("f_bk_val", "")).upper()
+            f_gp = c3.text_input("GATE PASS NO", value=st.session_state.get("f_gp_val", next_gp)).upper()
+            
+            f_con = st.text_input("CONSIGNEE", value=st.session_state.get("f_con_val", smart_con)).upper()
+            f_bill = st.text_input("CUSTOMS BILL NO", value=st.session_state.get("f_bill_val", "")).upper()
             f_desc = st.text_area("DESCRIPTION").upper()
+            
             c4, c5, c6 = st.columns(3)
             f_unit = c4.text_input("UNIT").upper()
             f_cash = c5.text_input("CASH RECEIPT NO").upper()
-            f_amt = c6.number_input("AMOUNT", min_value=0.0, format="%.2f")
-            f_rem = st.text_input("REMARKS").upper()
+            f_amt = c6.number_input("AMOUNT", min_value=0.0, value=st.session_state.get("f_amt_val", 0.0), format="%.2f")
+            
+            f_rem = st.text_input("REMARKS", value=st.session_state.get("f_rem_val", "")).upper()
             payload = [f_sl, f_bk, f_gp, f_con, f_bill, f_desc, f_unit, f_cash, f_rem, str(f_amt)]
             sheet_target, check_id = "MANUAL PASS", f_gp
         
@@ -440,7 +445,7 @@ with t4:
                        st.text_input("BILL NO").upper(), st.text_input("REMARKS").upper(), st.number_input("AMOUNT", min_value=0.0), st.text_area("REASON").upper()]
             sheet_target, check_id = "OFFICIAL REPORT", payload[1]
 
-        # --- DYNAMIC ACTION BUTTONS ---
+        # --- DYNAMIC ACTION BUTTONS (PRESERVED) ---
         st.divider()
         if is_editing:
             st.warning(f"🛠️ EDITING MODE: ROW {st.session_state.edit_row_idx}")
@@ -461,9 +466,12 @@ with t4:
                 if dup: st.error(f"⚠️ DUPLICATE! {check_id} exists."); st.stop()
                 if save_to_google_sheets(st.session_state.current_worker, payload, sheet_target, custom_date=formatted_date):
                     st.success(f"✅ SYNCED FOR {formatted_date}")
+                    # Clear temporary agent values after a successful sync
+                    for key in ["f_bk_val", "f_gp_val", "f_con_val", "f_bill_val", "f_amt_val", "f_rem_val"]:
+                        if key in st.session_state: del st.session_state[key]
                     st.rerun()
 
-    # 5. RECALL SECTION
+    # 5. RECALL SECTION (PRESERVED)
     with st.expander("🛠️ SEARCH & RECALL FOR CORRECTION"):
         recall_id = st.text_input("Enter ID to edit:")
         if st.button("🔍 FETCH DATA"):
