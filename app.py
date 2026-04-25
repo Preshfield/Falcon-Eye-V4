@@ -212,7 +212,7 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         messages=conversation,
         stream=True
     )
-    )
+
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
