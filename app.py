@@ -243,6 +243,27 @@ t1, t2, t3, t4, t5, t6 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "�
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
+    # --- NEW: VOICE PLAYER MOVED TO TOP OF TAB (STAYS HIDDEN UNTIL NEEDED) ---
+    voice_placeholder = st.container() 
+    with voice_placeholder:
+        falcon_responses = [m["content"] for m in st.session_state.messages if m["role"] == "assistant"]
+        if falcon_responses:
+            last_msg = falcon_responses[-1]
+            
+            # Check if we need to generate new audio
+            if st.session_state.get("last_voiced_msg") != last_msg:
+                audio_bytes = generate_human_voice(last_msg) 
+                if audio_bytes:
+                    st.session_state["falcon_audio_cache"] = audio_bytes
+                    st.session_state["last_voiced_msg"] = last_msg
+            
+            # Display the player if cache exists
+            if "falcon_audio_cache" in st.session_state:
+                c1, c2 = st.columns([0.1, 0.9])
+                c1.markdown("### 🔊")
+                c2.audio(st.session_state["falcon_audio_cache"], format="audio/mpeg", autoplay=True)
+                st.divider() # Separates player from the chat history
+
     # 1. SCOPE TOGGLE
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
@@ -255,16 +276,13 @@ with t1:
 
     st.divider()
     
-    # 3. 🛰️ FALCON LIVE INTERFACE (Orb Mic)
+    # 3. 🛰️ FALCON LIVE INTERFACE
     col_vibe, col_status = st.columns([0.2, 0.8])
     with col_vibe:
         voice_captured = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='main_chat_mic')
     
     with col_status:
-        if voice_captured:
-            st.markdown(f"**Live Feed:** *{voice_captured}...*")
-        else:
-            st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING...</p>", unsafe_allow_html=True)
+        st.markdown(f"**Live Feed:** *{voice_captured if voice_captured else 'WAITING...'}*")
 
     # 4. INPUT BOX
     query = st.chat_input("Ask Falcon...", key="falcon_universal_input")
@@ -283,35 +301,10 @@ with t1:
                     full_res += chunk.choices[0].delta.content
                     res_placeholder.markdown(full_res + "▌")
             res_placeholder.markdown(full_res)
-            
-            # --- REMOVED THE st.audio FROM HERE TO PREVENT DOUBLE VOICE ---
 
         st.session_state.messages.append({"role": "assistant", "content": full_res})
-        st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
-        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        # Save and trigger rerun - The player at the top will catch the new message now
         st.rerun()
-
-    # --- 6. INDEPENDENT ELEVENLABS PLAYER (STAYS INSIDE T1) ---
-    # We moved this inside the 'with t1' block so it appears in the tab
-    falcon_responses = [m["content"] for m in st.session_state.messages if m["role"] == "assistant"]
-    
-    if falcon_responses:
-        last_msg = falcon_responses[-1]
-        
-        if st.session_state.get("last_voiced_msg") != last_msg:
-            audio_bytes = generate_human_voice(last_msg) 
-            if audio_bytes:
-                st.session_state["falcon_audio_cache"] = audio_bytes
-                st.session_state["last_voiced_msg"] = last_msg
-        
-        if "falcon_audio_cache" in st.session_state:
-            st.write("") 
-            with st.container():
-                c1, c2 = st.columns([0.1, 0.9])
-                c1.markdown("### 🔊")
-                # autoplay=True ensures it speaks as soon as the response finishes
-                c2.audio(st.session_state["falcon_audio_cache"], format="audio/mpeg", autoplay=True)
-                st.caption("Falcon Voice Protocol: Active")
    # protocol manual)
 
 with t2:
