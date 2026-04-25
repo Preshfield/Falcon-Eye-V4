@@ -352,20 +352,17 @@ with t3:
 
  # ====================== 1. STAFF AGENT: AUTO-FILL VOICE COMMANDS ======================
 
-with t4: 
-    
-    # --- STEP 1: INITIALIZE BUCKETS (Don't change logic, just prepare the space) ---
-    for key in ["f_bk_val", "f_gp_val", "f_con_val", "f_bill_val", "f_amt_val", "f_rem_val"]:
-        if key not in st.session_state:
-            st.session_state[key] = "" if "amt" not in key else 0.0
 
-    # --- STEP 2: YOUR STAFF AGENT CODE (EXACTLY AS PROVIDED) ---
+with t4:
+    # ====================== 1. STAFF AGENT: AUTO-FILL VOICE COMMANDS ======================
     with st.expander("👨‍💼 STAFF AGENT (VOICE-TO-FORM)", expanded=True):
+        st.markdown("<p style='color: #ADFF2F;'>Tell the agent what to write, and he will fill the form below.</p>", unsafe_allow_html=True)
+        
         col_mic, col_txt = st.columns([0.2, 0.8])
         with col_mic:
             agent_voice = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='staff_agent_mic')
         with col_txt:
-            agent_input = st.chat_input("Instruct your staff agent...")
+            agent_input = st.chat_input("Instruct your staff agent...", key="staff_agent_input")
         
         final_agent_query = agent_voice if agent_voice else agent_input
 
@@ -373,9 +370,7 @@ with t4:
             with st.spinner("Staff Agent typing..."):
                 staff_resp = falcon_query(final_agent_query, "Logistics Agent")
                 
-                # DEBUG: This will show you exactly what the AI extracted
-                st.info(f"**Agent Extracted:** {staff_resp}")
-                
+                # --- PUSH DATA TO SESSION STATE ---
                 if "|" in staff_resp:
                     data_pairs = staff_resp.split("|")
                     for pair in data_pairs:
@@ -384,19 +379,14 @@ with t4:
                             key_clean = k.strip().upper()
                             val_clean = v.strip().replace("N/A", "")
                             
-                            # Update the "buckets"
+                            # Map extracted data to form variables
                             if "BOOK" in key_clean: st.session_state["f_bk_val"] = val_clean
                             if "PASS" in key_clean: st.session_state["f_gp_val"] = val_clean
                             if "CONSIGNEE" in key_clean: st.session_state["f_con_val"] = val_clean
                             if "BILL" in key_clean: st.session_state["f_bill_val"] = val_clean
-                            if "AMOUNT" in key_clean: 
-                                try: st.session_state["f_amt_val"] = float(val_clean)
-                                except: st.session_state["f_amt_val"] = 0.0
+                            if "AMOUNT" in key_clean: st.session_state["f_amt_val"] = float(val_clean) if val_clean.replace('.','',1).isdigit() else 0.0
                             if "REMARKS" in key_clean: st.session_state["f_rem_val"] = val_clean
-                    
-                    # This rerun is the "Secret Sauce" - it forces the form below to 
-                    # look at the session_state again so the data actually appears.
-                    st.rerun() 
+                    st.success("✅ Form updated! Review below.")
 
     st.divider()
 
@@ -427,7 +417,7 @@ with t4:
         f_date = st.date_input("SELECT DATE:", value=datetime.now(timezone(timedelta(hours=4))))
         formatted_date = f_date.strftime("%d-%m-%Y")
         
-      if doc_type == "Manual Gate Pass":
+        if doc_type == "Manual Gate Pass":
             c1, c2, c3 = st.columns(3)
             # LOGIC: If agent provides data, use it; otherwise use the original QuickFill/AutoID logic
             f_sl = c1.text_input("SL NO", value=next_sl).upper()
@@ -482,7 +472,7 @@ with t4:
                     st.success(f"✅ SYNCED FOR {formatted_date}")
                     # Clear temporary agent values after a successful sync
                     for key in ["f_bk_val", "f_gp_val", "f_con_val", "f_bill_val", "f_amt_val", "f_rem_val"]:
-                        if key in st.session_state: st.session_state[key] = "" if "amt" not in key else 0.0
+                        if key in st.session_state: del st.session_state[key]
                     st.rerun()
 
     # 5. RECALL SECTION (PRESERVED)
