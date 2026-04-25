@@ -351,20 +351,41 @@ with t3:
 
 with t4:
     # ====================== 1. STAFF AGENT: AUTO-FILL VOICE COMMANDS ======================
+  
     with st.expander("👨‍💼 STAFF AGENT (VOICE-TO-FORM)", expanded=True):
-        st.markdown("<p style='color: #ADFF2F;'>Tell the agent what to write, and he will fill the form below.</p>", unsafe_allow_html=True)
-        
         col_mic, col_txt = st.columns([0.2, 0.8])
         with col_mic:
             agent_voice = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='staff_agent_mic')
         with col_txt:
-            agent_input = st.chat_input("Instruct your staff agent...", key="staff_agent_input")
+            agent_input = st.chat_input("Instruct your staff agent...")
         
         final_agent_query = agent_voice if agent_voice else agent_input
 
         if final_agent_query:
             with st.spinner("Staff Agent typing..."):
                 staff_resp = falcon_query(final_agent_query, "Logistics Agent")
+                
+                # DEBUG: This will show you exactly what the AI extracted
+                st.info(f"**Agent Extracted:** {staff_resp}")
+                
+                if "|" in staff_resp:
+                    data_pairs = staff_resp.split("|")
+                    for pair in data_pairs:
+                        if ":" in pair:
+                            k, v = pair.split(":", 1)
+                            key_clean = k.strip().upper()
+                            val_clean = v.strip().replace("N/A", "")
+                            
+                            # Update the "buckets"
+                            if "BOOK" in key_clean: st.session_state["f_bk_val"] = val_clean
+                            if "PASS" in key_clean: st.session_state["f_gp_val"] = val_clean
+                            if "CONSIGNEE" in key_clean: st.session_state["f_con_val"] = val_clean
+                            if "BILL" in key_clean: st.session_state["f_bill_val"] = val_clean
+                            if "AMOUNT" in key_clean: 
+                                try: st.session_state["f_amt_val"] = float(val_clean)
+                                except: st.session_state["f_amt_val"] = 0.0
+                            if "REMARKS" in key_clean: st.session_state["f_rem_val"] = val_clean
+                    st.rerun() # Force the form to show the new values
                 
                 # --- PUSH DATA TO SESSION STATE ---
                 if "|" in staff_resp:
