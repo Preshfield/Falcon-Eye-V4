@@ -255,41 +255,31 @@ with t1:
 
     st.divider()
     
-    # 3. FALCON LIVE INTERFACE (CSS & Mic)
-    st.markdown("""
-        <style>
-        .stMicButton > button {
-            background-color: #1e293b !important;
-            border: 2px solid #ADFF2F !important;
-            border-radius: 50% !important;
-            width: 80px !important; height: 80px !important;
-            box-shadow: 0 0 20px rgba(173, 255, 47, 0.2) !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
+    # 3. 🛰️ FALCON LIVE INTERFACE (Orb Mic)
     col_vibe, col_status = st.columns([0.2, 0.8])
     with col_vibe:
-        voice_captured = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='main_chat_mic')
+        # This captures voice
+        voice_captured = speech_to_text(
+            language='en-US', 
+            start_prompt="⭕", 
+            stop_prompt="⏺️", 
+            key='main_chat_mic'
+        )
     
     with col_status:
-        # Display live status
         if voice_captured:
             st.markdown(f"**Live Feed:** *{voice_captured}...*")
         else:
             st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING...</p>", unsafe_allow_html=True)
 
-    # 4. COMBINED INPUT LOGIC
-    # We use a unique key for chat_input to prevent it from locking up
-    query = st.chat_input("Ask Falcon...", key="falcon_input_field")
-    
-    # Priority: If voice is captured, use it; otherwise use typed text
-   # Use this combined check to see which one the user used
-    query = st.chat_input("Type here...", key="gate4_chat_input")
-    
-    # If the mic is active, it takes priority, otherwise use typed text
+    # 4. THE ONLY INPUT BOX YOU NEED
+    # This replaces BOTH the previous 'Type Here' and 'Ask Falcon' boxes
+    query = st.chat_input("Ask Falcon...", key="falcon_universal_input")
+
+    # Priority logic: Use voice if detected, otherwise use typed text
     final_query = voice_captured if voice_captured else query
 
+    # 5. EXECUTION ENGINE
     if final_query and st.session_state.get("last_processed_query") != final_query:
         st.session_state.last_processed_query = final_query
         st.session_state.messages.append({"role": "user", "content": final_query})
@@ -298,19 +288,23 @@ with t1:
             res_placeholder = st.empty()
             full_res = ""
             
-            # The streaming loop
+            # Streaming text for speed
             for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]):
                 if chunk.choices[0].delta.content:
                     full_res += chunk.choices[0].delta.content
                     res_placeholder.markdown(full_res + "▌")
+            
             res_placeholder.markdown(full_res)
             
-            # The Audio Trigger
-            audio = generate_human_voice(full_res)
-            if audio:
-                st.audio(audio, format="audio/mpeg", autoplay=True)
+            # ElevenLabs Audio trigger
+            audio_bytes = generate_human_voice(full_res)
+            if audio_bytes:
+                st.audio(audio_bytes, format="audio/mpeg", autoplay=True)
 
+        # Save and Rerun to clear input
         st.session_state.messages.append({"role": "assistant", "content": full_res})
+        st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
+        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
    # protocol manual)
 
