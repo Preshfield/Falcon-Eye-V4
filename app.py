@@ -178,28 +178,40 @@ def generate_human_voice(text):
         return None
 
 def falcon_query(prompt: str, mode: str, chat_history=None):
-    """Streaming version of your original logic for maximum speed."""
+    """Streaming version with an absolute firewall for Gate 4 Protocol."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
-        sys_rules = f"You are the Falcon Eye Gate 4 Security Firewall. STRICT PROCEDURES: Access ONLY this manual: {manual_context}. If query is unrelated, say 'ACCESS DENIED'."
+        # This is the "Shut Out" instruction
+        sys_rules = f"""
+        ROLE: You are the 'Falcon Eye Gate 4 Living Manual'.
+        IDENTITY: You HAVE NO knowledge outside of the provided text. You do not know about the world, politics, general history, or other logistics hubs.
+        
+        STRICT MANDATE:
+        1. Your entire 'universe' is this manual: {manual_context}
+        2. If a user asks something NOT in the manual, you must say: "PROTOCOL ERROR: Information not found in Gate 4 Manual. Consult Global Knowledge for non-operational queries."
+        3. Even if the user asks for 'common sense' advice, you MUST find a protocol-based answer or refuse.
+        4. You know every SL NO, Gate Pass procedure, and security detail cover-to-cover.
+        5. Do not use phrases like 'In my outside knowledge' or 'Generally speaking'. 
+        
+        If it's not in the text, it doesn't exist to you.
+        """
     elif mode == "Global Knowledge":
         sys_rules = "You are a Global Intelligence AI. You have access to all world information."
     else:
         sys_rules = "Short & clear translator for truck drivers."
 
     conversation = [{"role": "system", "content": sys_rules}]
-    # Keep last 10 messages for context
     if chat_history: conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
     
-    # Return stream for the Tab 1 UI to consume
     return client.chat.completions.create(
         model="deepseek-chat",
         messages=conversation,
         stream=True
+    )
     )
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
