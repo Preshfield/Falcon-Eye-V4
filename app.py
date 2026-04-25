@@ -197,43 +197,49 @@ if not st.session_state.auth:
     user_password = st.text_input("PASSWORD:", type="password")
     
     if st.button("SIGN IN") and user_password == WORKER_DB[user_identity]:
-        # 1. Start the Session
         st.session_state.auth = True
         st.session_state.current_worker = user_identity
         st.session_state.all_sessions = load_all_sessions(user_identity)
         
-        # 2. THE WELCOME SCREEN (ONLY SHOWS ONCE PER LOGIN)
+        # --- FULL SCREEN WELCOME OVERLAY ---
         welcome_placeholder = st.empty()
         with welcome_placeholder.container():
-            # Display the image you provided
+            # This CSS hides the sidebar, header, and footer for 45 seconds
+            st.markdown("""
+                <style>
+                    [data-testid="stSidebar"] { display: none; }
+                    [data-testid="stHeader"] { display: none; }
+                    .main .block-container { padding: 0px; max-width: 100%; }
+                    .stApp { background-color: #020617; }
+                </style>
+            """, unsafe_allow_html=True)
+
+            # Centering the image and text
             st.image("Gemini_Generated_Image_.png", use_container_width=True)
             
-            # The styled text with your custom slogan
             st.markdown(f"""
-                <div style="text-align: center; background-color: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px;">
-                    <h1 style="color: #ADFF2F; font-family: 'Courier New', monospace; margin: 0;">WELCOME TO THE FALCON EYE</h1>
-                    <p style="color: #ffffff; font-size: 18px; letter-spacing: 4px; font-weight: bold; margin-top: 10px;">
+                <div style="text-align: center; margin-top: -100px; position: relative; z-index: 99;">
+                    <h1 style="color: #ADFF2F; font-family: monospace; font-size: 50px; text-shadow: 2px 2px #000;">
+                        WELCOME TO THE FALCON EYE
+                    </h1>
+                    <p style="color: white; font-size: 24px; letter-spacing: 5px; font-weight: bold;">
                         THE GATEWAY TO LOGISTICS
                     </p>
                 </div>
             """, unsafe_allow_html=True)
-            
-            # 3. SOUND INJECTION (Keyboard sound + Welcome)
-            # Note: Replace URL with your hosted audio files
+
+            # Sound Injection
             st.components.v1.html("""
                 <audio autoplay><source src="https://www.soundjay.com/communication/typewriter-key-1.mp3" type="audio/mpeg"></audio>
-                <script>
-                    console.log("Welcome sounds triggered");
-                </script>
             """, height=0)
             
+            # --- THE 45 SEC TIMER ---
             import time
-            time.sleep(4) # Duration of the welcome screen
+            time.sleep(45) 
             
-        welcome_placeholder.empty() # Clear it to show the dashboard
-        st.rerun()
+        welcome_placeholder.empty() # Wipes the screen clear
+        st.rerun() # Refreshes to show the actual dashboard
     st.stop()
-
 # ====================== 6. DASHBOARD UI (SIDEBAR RESTORED) ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
