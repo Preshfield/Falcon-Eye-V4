@@ -195,10 +195,42 @@ if not st.session_state.auth:
     st.title("🦅 FALCON EYE | LOGIN")
     user_identity = st.selectbox("USER:", list(WORKER_DB.keys()))
     user_password = st.text_input("PASSWORD:", type="password")
+    
     if st.button("SIGN IN") and user_password == WORKER_DB[user_identity]:
+        # 1. Start the Session
         st.session_state.auth = True
         st.session_state.current_worker = user_identity
         st.session_state.all_sessions = load_all_sessions(user_identity)
+        
+        # 2. THE WELCOME SCREEN (ONLY SHOWS ONCE PER LOGIN)
+        welcome_placeholder = st.empty()
+        with welcome_placeholder.container():
+            # Display the image you provided
+            st.image("Gemini_Generated_Image_.png", use_container_width=True)
+            
+            # The styled text with your custom slogan
+            st.markdown(f"""
+                <div style="text-align: center; background-color: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px;">
+                    <h1 style="color: #ADFF2F; font-family: 'Courier New', monospace; margin: 0;">WELCOME TO THE FALCON EYE</h1>
+                    <p style="color: #ffffff; font-size: 18px; letter-spacing: 4px; font-weight: bold; margin-top: 10px;">
+                        THE GATEWAY TO LOGISTICS
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # 3. SOUND INJECTION (Keyboard sound + Welcome)
+            # Note: Replace URL with your hosted audio files
+            st.components.v1.html("""
+                <audio autoplay><source src="https://www.soundjay.com/communication/typewriter-key-1.mp3" type="audio/mpeg"></audio>
+                <script>
+                    console.log("Welcome sounds triggered");
+                </script>
+            """, height=0)
+            
+            import time
+            time.sleep(4) # Duration of the welcome screen
+            
+        welcome_placeholder.empty() # Clear it to show the dashboard
         st.rerun()
     st.stop()
 
