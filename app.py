@@ -135,6 +135,7 @@ def save_all_sessions(username, sessions):
 
 
 # ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
+# ====================== 4. AI ENGINES (STREAMING & ELEVENLABS) ======================
 import requests
 
 def get_protocol_context():
@@ -157,12 +158,17 @@ def generate_human_voice(text):
     """ElevenLabs high-fidelity voice engine."""
     try:
         api_key = st.secrets["ELEVENLABS_API_KEY"]
-        voice_id = "pNInz6obpgDQGcFmaJgB" # Adam - Professional & Clear
+        # 'pNInz6obpgDQGcFmaJgB' is the ID for Adam (Professional/Deep)
+        voice_id = "pNInz6obpgDQGcFmaJgB" 
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         
-        headers = {"Accept": "audio/mpeg", "Content-Type": "application/json", "xi-api-key": api_key}
+        headers = {
+            "Accept": "audio/mpeg", 
+            "Content-Type": "application/json", 
+            "xi-api-key": api_key
+        }
         data = {
-            "text": text[:1000], # ElevenLabs limit per request for stability
+            "text": text[:1000], # Stability limit
             "model_id": "eleven_monolingual_v1",
             "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
         }
@@ -185,10 +191,11 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         sys_rules = "Short & clear translator for truck drivers."
 
     conversation = [{"role": "system", "content": sys_rules}]
+    # Keep last 10 messages for context
     if chat_history: conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
     
-    # We return the stream object directly to the UI for instant display
+    # Return stream for the Tab 1 UI to consume
     return client.chat.completions.create(
         model="deepseek-chat",
         messages=conversation,
