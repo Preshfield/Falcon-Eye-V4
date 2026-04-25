@@ -475,15 +475,33 @@ with t4:
                         if key in st.session_state: del st.session_state[key]
                     st.rerun()
 
-    # 5. RECALL SECTION (PRESERVED)
+    # 5. RECALL SECTION 
+   
     with st.expander("🛠️ SEARCH & RECALL FOR CORRECTION"):
         recall_id = st.text_input("Enter ID to edit:")
         if st.button("🔍 FETCH DATA"):
+            # Search the sheet
             record, row_idx = search_logs(recall_id, "MANUAL PASS")
+            
             if record:
+                # 1. Set the edit mode
                 st.session_state.edit_row_idx = row_idx
+                
+                # 2. MAP SEARCH RESULTS TO AGENT BUCKETS (This fixes the form display)
+                # record format: [SL, BOOK, PASS, CONSIGNEE, BILL, DESC, UNIT, CASH, REMARKS, AMT]
+                st.session_state["f_bk_val"] = str(record[1])
+                st.session_state["f_gp_val"] = str(record[2])
+                st.session_state["f_con_val"] = str(record[3])
+                st.session_state["f_bill_val"] = str(record[4])
+                # Index 5 is Description, 6 is Unit, 7 is Cash Receipt...
+                st.session_state["f_rem_val"] = str(record[8])
+                
+                try:
+                    st.session_state["f_amt_val"] = float(record[9])
+                except:
+                    st.session_state["f_amt_val"] = 0.0
+                
                 st.success(f"Loaded Row {row_idx}. Form updated above.")
-                st.json(record)
                 st.rerun()
             else:
                 st.error("❌ Not found.")
