@@ -350,6 +350,42 @@ with t3:
 
 
 with t4:
+    # ====================== STAFF AGENT (NEW HELP) ======================
+    with st.expander("👨‍💼 HIRE LOGISTICS STAFF AGENT (VOICE-TO-FORM)", expanded=False):
+        st.markdown("<p style='color: #ADFF2F;'>Tell the agent what to write, and he will format the data for you.</p>", unsafe_allow_html=True)
+        
+        # Agent Memory
+        if "staff_agent_msgs" not in st.session_state:
+            st.session_state.staff_agent_msgs = []
+
+        # Staff Agent Ears (Orb)
+        col_mic, col_txt = st.columns([0.2, 0.8])
+        with col_mic:
+            agent_voice = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='staff_agent_mic')
+        with col_txt:
+            agent_input = st.chat_input("Instruct your staff agent...", key="staff_agent_input")
+        
+        final_agent_query = agent_voice if agent_voice else agent_input
+
+        if final_agent_query:
+            with st.spinner("Staff Agent writing..."):
+                # Use Brain 3 (Logistics Agent)
+                staff_resp = falcon_query(final_agent_query, "Logistics Agent")
+                st.session_state.staff_agent_msgs.append({"role": "user", "content": final_agent_query})
+                st.session_state.staff_agent_msgs.append({"role": "assistant", "content": staff_resp})
+            
+        # Show Agent's Output in a clean box
+        for m in st.session_state.staff_agent_msgs[-2:]: # Show only last interaction
+            with st.chat_message(m["role"]):
+                st.markdown(m["content"])
+        
+        if st.button("Dismiss Staff Agent 🗑️"):
+            st.session_state.staff_agent_msgs = []
+            st.rerun()
+
+    st.divider()
+
+    # ====================== ORIGINAL COMMAND CENTER (UNTOUCHED) ======================
     st.subheader("📟 Logistics Command Center")
     
     # 1. EXPRESS ENTRY LOGIC
