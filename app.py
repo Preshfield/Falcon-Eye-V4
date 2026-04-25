@@ -246,81 +246,76 @@ with t1:
     # 1. SCOPE TOGGLE
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
-    # 2. CHAT CONTAINER (With height for auto-scroll)
+    # 2. CHAT CONTAINER
     chat_container = st.container(height=500)
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]): 
                 st.markdown(message["content"])
 
-    # 3. 🛰️ FALCON LIVE INTERFACE 
     st.divider()
     
-    # Your Custom CSS for the "Glow" effect (Preserved)
+    # 3. FALCON LIVE INTERFACE (CSS & Mic)
     st.markdown("""
         <style>
         .stMicButton > button {
             background-color: #1e293b !important;
             border: 2px solid #ADFF2F !important;
             border-radius: 50% !important;
-            width: 80px !important;
-            height: 80px !important;
+            width: 80px !important; height: 80px !important;
             box-shadow: 0 0 20px rgba(173, 255, 47, 0.2) !important;
-            transition: all 0.3s ease !important;
-        }
-        .stMicButton > button:hover {
-            box-shadow: 0 0 40px rgba(173, 255, 47, 0.6) !important;
-            transform: scale(1.05);
         }
         </style>
     """, unsafe_allow_html=True)
 
     col_vibe, col_status = st.columns([0.2, 0.8])
-    
     with col_vibe:
-        voice_captured = speech_to_text(
-            language='en-US', 
-            start_prompt="⭕", 
-            stop_prompt="⏺️", 
-            key='main_chat_mic'
-        )
+        voice_captured = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='main_chat_mic')
     
     with col_status:
+        # Display live status
         if voice_captured:
             st.markdown(f"**Live Feed:** *{voice_captured}...*")
         else:
-            st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING FOR VOICE...</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING...</p>", unsafe_allow_html=True)
 
-    # 4. CHAT INPUT LOGIC (Speed & Voice Upgrade)
-    query = st.chat_input("Ask Falcon...", key="falcon_main_input")
+    # 4. COMBINED INPUT LOGIC
+    # We use a unique key for chat_input to prevent it from locking up
+    query = st.chat_input("Ask Falcon...", key="falcon_input_field")
+    
+    # Priority: If voice is captured, use it; otherwise use typed text
     final_query = voice_captured if voice_captured else query
 
     if final_query and st.session_state.get("last_processed_query") != final_query:
-        st.session_state.messages.append({"role": "user", "content": final_query})
+        # Save state immediately to prevent loops
         st.session_state.last_processed_query = final_query
+        st.session_state.messages.append({"role": "user", "content": final_query})
         
+        # Display the response as it generates
         with st.chat_message("assistant"):
-            response_placeholder = st.empty()
-            full_response = ""
+            res_box = st.empty()
+            full_res = ""
             
-            # --- FAST STREAMING UI ---
-            # Using the stream=True version of falcon_query from Section 4
+            # Text Generation (Streaming)
             for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]):
                 if chunk.choices[0].delta.content:
-                    full_response += chunk.choices[0].delta.content
-                    response_placeholder.markdown(full_response + "▌")
+                    full_res += chunk.choices[0].delta.content
+                    res_box.markdown(full_res + "▌")
+            res_box.markdown(full_res)
             
-            response_placeholder.markdown(full_response)
-            
-            # --- ELEVENLABS AUDIO ENGINE ---
-            audio_data = generate_human_voice(full_response)
-            if audio_data:
-                st.audio(audio_data, format="audio/mpeg", autoplay=True)
+            # Voice Generation (ElevenLabs)
+            audio_bytes = generate_human_voice(full_res)
+            if audio_bytes:
+                # The 'autoplay' here is what gives Falcon Eye its life
+                st.audio(audio_bytes, format="audio/mpeg", autoplay=True)
+
+        st.session_state.messages.append({"role": "assistant", "content": full_res})
         
-        # Save results to memory
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        # Save to Global Sessions
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        
+        # Force a refresh to clean up the input box for the next query
         st.rerun()
    # protocol manual)
 
