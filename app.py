@@ -306,6 +306,33 @@ with t1:
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
+
+# --- INDEPENDENT ELEVENLABS PLAYER (INTELLIGENCE TAB) ---
+    # This logic sits just below your query box in the code
+    
+    falcon_responses = [m["content"] for m in st.session_state.messages if m["role"] == "assistant"]
+    
+    if falcon_responses:
+        last_msg = falcon_responses[-1]
+        
+        # 1. Logic to prevent burning credits on repeat runs
+        if st.session_state.get("last_voiced_msg") != last_msg:
+            # Uses your existing 'generate_human_voice' function
+            audio_bytes = generate_human_voice(last_msg) 
+            if audio_bytes:
+                st.session_state["falcon_audio_cache"] = audio_bytes
+                st.session_state["last_voiced_msg"] = last_msg
+        
+        # 2. The Visual Player (Placed below the input box area)
+        if "falcon_audio_cache" in st.session_state:
+            st.write("") # Spacer
+            with st.container():
+                c1, c2 = st.columns([0.1, 0.9])
+                c1.markdown("### 🔊")
+                c2.audio(st.session_state["falcon_audio_cache"], format="audio/mpeg")
+                
+                # Optional: Add a label so you know it's the high-fidelity version
+                st.caption("Falcon Voice Protocol: Active")
    # protocol manual)
 
 with t2:
