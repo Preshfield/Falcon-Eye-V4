@@ -258,13 +258,7 @@ with t1:
     # 3. 🛰️ FALCON LIVE INTERFACE (Orb Mic)
     col_vibe, col_status = st.columns([0.2, 0.8])
     with col_vibe:
-        # This captures voice
-        voice_captured = speech_to_text(
-            language='en-US', 
-            start_prompt="⭕", 
-            stop_prompt="⏺️", 
-            key='main_chat_mic'
-        )
+        voice_captured = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='main_chat_mic')
     
     with col_status:
         if voice_captured:
@@ -272,11 +266,8 @@ with t1:
         else:
             st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING...</p>", unsafe_allow_html=True)
 
-    # 4. THE ONLY INPUT BOX YOU NEED
-    # This replaces BOTH the previous 'Type Here' and 'Ask Falcon' boxes
+    # 4. INPUT BOX
     query = st.chat_input("Ask Falcon...", key="falcon_universal_input")
-
-    # Priority logic: Use voice if detected, otherwise use typed text
     final_query = voice_captured if voice_captured else query
 
     # 5. EXECUTION ENGINE
@@ -287,51 +278,39 @@ with t1:
         with st.chat_message("assistant"):
             res_placeholder = st.empty()
             full_res = ""
-            
-            # Streaming text for speed
             for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]):
                 if chunk.choices[0].delta.content:
                     full_res += chunk.choices[0].delta.content
                     res_placeholder.markdown(full_res + "▌")
-            
             res_placeholder.markdown(full_res)
             
-            # ElevenLabs Audio trigger
-            audio_bytes = generate_human_voice(full_res)
-            if audio_bytes:
-                st.audio(audio_bytes, format="audio/mpeg", autoplay=True)
+            # --- REMOVED THE st.audio FROM HERE TO PREVENT DOUBLE VOICE ---
 
-        # Save and Rerun to clear input
         st.session_state.messages.append({"role": "assistant", "content": full_res})
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
 
-# --- INDEPENDENT ELEVENLABS PLAYER (INTELLIGENCE TAB) ---
-    # This logic sits just below your query box in the code
-    
+    # --- 6. INDEPENDENT ELEVENLABS PLAYER (STAYS INSIDE T1) ---
+    # We moved this inside the 'with t1' block so it appears in the tab
     falcon_responses = [m["content"] for m in st.session_state.messages if m["role"] == "assistant"]
     
     if falcon_responses:
         last_msg = falcon_responses[-1]
         
-        # 1. Logic to prevent burning credits on repeat runs
         if st.session_state.get("last_voiced_msg") != last_msg:
-            # Uses your existing 'generate_human_voice' function
             audio_bytes = generate_human_voice(last_msg) 
             if audio_bytes:
                 st.session_state["falcon_audio_cache"] = audio_bytes
                 st.session_state["last_voiced_msg"] = last_msg
         
-        # 2. The Visual Player (Placed below the input box area)
         if "falcon_audio_cache" in st.session_state:
-            st.write("") # Spacer
+            st.write("") 
             with st.container():
                 c1, c2 = st.columns([0.1, 0.9])
                 c1.markdown("### 🔊")
-                c2.audio(st.session_state["falcon_audio_cache"], format="audio/mpeg")
-                
-                # Optional: Add a label so you know it's the high-fidelity version
+                # autoplay=True ensures it speaks as soon as the response finishes
+                c2.audio(st.session_state["falcon_audio_cache"], format="audio/mpeg", autoplay=True)
                 st.caption("Falcon Voice Protocol: Active")
    # protocol manual)
 
