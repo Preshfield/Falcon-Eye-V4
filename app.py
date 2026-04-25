@@ -153,8 +153,11 @@ def get_protocol_context():
 
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
+    import openai  # Ensure openai is imported
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
-    client = openai.NewOpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    
+    # FIX: Changed 'NewOpenAI' back to 'OpenAI'
+    client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     # BRAIN 1: GATE 4 PROTOCOL (SECURITY FIREWALL)
     if mode == "Gate 4 Protocol":
