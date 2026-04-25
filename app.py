@@ -476,46 +476,53 @@ with t4:
                     st.rerun()
 
    # 5. UNIVERSAL SEARCH & RECALL (MANUAL, LABOUR, & OFFICIAL)
+  
     with st.expander("🛠️ SEARCH & RECALL FOR CORRECTION"):
         recall_id = st.text_input("Enter ID to edit (Gate Pass / Voucher / Bill No):")
         
         if st.button("🔍 FETCH DATA"):
-            # We use 'sheet_target' which changes based on your radio button selection above
+            # Use the sheet_target determined by your radio button choice
             record, row_idx = search_logs(recall_id, sheet_target)
             
             if record:
                 st.session_state.edit_row_idx = row_idx
                 
-                # --- AUTO-MAPPER FOR ALL FORMS ---
+                # --- AUTO-MAPPER WITH KEYERROR PROTECTION ---
                 if sheet_target == "MANUAL PASS":
-                    # record: [SL, BOOK, PASS, CONSIGNEE, BILL, DESC, UNIT, CASH, REMARKS, AMT]
-                    st.session_state["f_bk_val"] = str(record[1])
-                    st.session_state["f_gp_val"] = str(record[2])
-                    st.session_state["f_con_val"] = str(record[3])
-                    st.session_state["f_bill_val"] = str(record[4])
-                    st.session_state["f_rem_val"] = str(record[8])
-                    st.session_state["f_amt_val"] = float(record[9]) if str(record[9]).replace('.','',1).isdigit() else 0.0
+                    # Columns: [SL, BOOK, PASS, CONSIGNEE, BILL, DESC, UNIT, CASH, REMARKS, AMT]
+                    if len(record) > 1: st.session_state["f_bk_val"] = str(record[1])
+                    if len(record) > 2: st.session_state["f_gp_val"] = str(record[2])
+                    if len(record) > 3: st.session_state["f_con_val"] = str(record[3])
+                    if len(record) > 4: st.session_state["f_bill_val"] = str(record[4])
+                    if len(record) > 8: st.session_state["f_rem_val"] = str(record[8])
+                    if len(record) > 9:
+                        val = str(record[9]).replace(',','').strip()
+                        st.session_state["f_amt_val"] = float(val) if val.replace('.','',1).isdigit() else 0.0
 
                 elif sheet_target == "LABOUR CHARGE":
-                    # record: [START, END, BOOK, VOUCHER, HOURS, LABOURS, FORK, AMT, FROM, REMARKS]
-                    st.session_state["f_bk_val"] = str(record[2])   # Receipt Book
-                    st.session_state["f_bill_val"] = str(record[3]) # Voucher No
-                    st.session_state["f_amt_val"] = float(record[7]) if str(record[7]).replace('.','',1).isdigit() else 0.0
-                    st.session_state["f_rem_val"] = str(record[9])  # Remarks
+                    # Columns: [START, END, BOOK, VOUCHER, HOURS, LABOURS, FORK, AMT, FROM, REMARKS]
+                    if len(record) > 2: st.session_state["f_bk_val"] = str(record[2])
+                    if len(record) > 3: st.session_state["f_bill_val"] = str(record[3])
+                    if len(record) > 7: 
+                        val = str(record[7]).replace(',','').strip()
+                        st.session_state["f_amt_val"] = float(val) if val.replace('.','',1).isdigit() else 0.0
+                    if len(record) > 9: st.session_state["f_rem_val"] = str(record[9])
 
                 elif sheet_target == "OFFICIAL REPORT":
-                    # record: [BOOK, PASS, CONSIGNEE, BILL, REMARKS, AMT, REASON]
-                    st.session_state["f_bk_val"] = str(record[0])
-                    st.session_state["f_gp_val"] = str(record[1])
-                    st.session_state["f_con_val"] = str(record[2])
-                    st.session_state["f_bill_val"] = str(record[3])
-                    st.session_state["f_rem_val"] = str(record[4])
-                    st.session_state["f_amt_val"] = float(record[5]) if str(record[5]).replace('.','',1).isdigit() else 0.0
+                    # Columns: [BOOK, PASS, CONSIGNEE, BILL, REMARKS, AMT, REASON]
+                    if len(record) > 0: st.session_state["f_bk_val"] = str(record[0])
+                    if len(record) > 1: st.session_state["f_gp_val"] = str(record[1])
+                    if len(record) > 2: st.session_state["f_con_val"] = str(record[2])
+                    if len(record) > 3: st.session_state["f_bill_val"] = str(record[3])
+                    if len(record) > 4: st.session_state["f_rem_val"] = str(record[4])
+                    if len(record) > 5:
+                        val = str(record[5]).replace(',','').strip()
+                        st.session_state["f_amt_val"] = float(val) if val.replace('.','',1).isdigit() else 0.0
                 
-                st.success(f"✅ {sheet_target} Row {row_idx} Loaded. Edit it in the form above!")
+                st.success(f"✅ {sheet_target} Row {row_idx} Loaded. Edit above!")
                 st.rerun()
             else:
-                st.error(f"❌ ID '{recall_id}' not found in {sheet_target} sheet.")
+                st.error(f"❌ ID '{recall_id}' not found in {sheet_target}.")
 with t5:
     st.markdown("### 🕵️‍♂️ CIA Universal Intelligence Search")
     
