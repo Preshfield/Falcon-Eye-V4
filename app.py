@@ -495,9 +495,9 @@ with t5:
         st.write(f"Latest {doc_source} Entries:")
         st.table(audit_df.tail(10))
 with t6:
-    st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>FAST-INTERPRET ⚡</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>TACTICAL INTERPRET (ACCENT-READY) ⚡</h3>", unsafe_allow_html=True)
 
-    # 1. TACTICAL CONFIG
+    # 1. EXPANDED TACTICAL LANGUAGES
     languages = {
         "Arabic": "ar",
         "Bengali": "bn",
@@ -530,47 +530,52 @@ with t6:
         "Vietnamese": "vi"
     }
     
-    # Simple selection: "I speak English, they speak..."
-    target_lang = st.selectbox("Target Language:", sorted(languages.keys()), index=0)
+    target_lang = st.selectbox("Target Language:", sorted(languages.keys()), index=sorted(languages.keys()).index("Arabic"))
     target_code = languages[target_lang]
 
     st.divider()
 
-    # 2. THE TRIGGER (Voice First)
-    # The 'key' ensures it resets every time
-    voice_in = speech_to_text(language='en-US', start_prompt="🎤 TAP & SPEAK", key="fast_mic")
-    
-    # 3. THE FALLBACK (Text Input)
-    text_in = st.text_input("OR TYPE HERE:", key="fast_text")
-    
-    input_data = voice_in if voice_in else text_in
+    # 2. SPEECH CAPTURE
+    voice_in = speech_to_text(language='en-US', start_prompt="🎤 TAP & SPEAK", key="accent_mic")
+    text_in = st.text_input("OR TYPE HERE:", key="accent_text")
+    raw_input = voice_in if voice_in else text_in
 
-    # 4. INSTANT EXECUTION
-    if input_data:
-        # We skip the "Thinking" spinner for speed and just go
-        result = falcon_query(f"Translate to {target_lang}. Output ONLY the translation: {input_data}", "Global Knowledge")
-        
-        # DISPLAY: Large, high-contrast text for noisy environments
+    # 3. THE "INTELLIGENT BRAIN" PROCESSING
+    if raw_input:
+        with st.spinner("Repairing & Translating..."):
+            # STAGE 1: Repair the accent/errors in English first
+            # This fixes "go gate four" to "Go to Gate 4" or "take paper" to "Take the documents"
+            repair_prompt = f"""
+            The following text was captured via voice in a noisy environment with a heavy accent: "{raw_input}"
+            1. Correct any phonetic errors or broken English.
+            2. Keep it tactical and simple.
+            3. Translate that corrected meaning into {target_lang}.
+            Output ONLY the {target_lang} translation. No explanations.
+            """
+            
+            result = falcon_query(repair_prompt, "Global Knowledge")
+            st.session_state.last_fix = result
+
+        # 4. TACTICAL DISPLAY
         st.markdown(f"""
             <div style="background: #1e293b; padding: 25px; border-radius: 15px; border-left: 5px solid #ADFF2F; margin-top: 20px;">
-                <p style="color: #888; font-size: 14px; margin-bottom: 5px;">{target_lang.upper()} INTERPRETATION:</p>
-                <h1 style="color: #ADFF2F; margin: 0; font-size: 38px;">{result}</h1>
+                <p style="color: #888; font-size: 12px; margin-bottom: 5px;">RAW INPUT: {raw_input}</p>
+                <p style="color: #ADFF2F; font-size: 14px; margin-bottom: 5px; font-weight: bold;">{target_lang.upper()} INTERPRETATION:</p>
+                <h1 style="color: #ADFF2F; margin: 0; font-size: 42px; line-height: 1.1;">{result}</h1>
             </div>
         """, unsafe_allow_html=True)
 
-        # AUDIO: Immediate Autoplay
+        # 5. INSTANT AUDIO
         try:
             tts = gTTS(text=result, lang=target_code)
             fp = io.BytesIO()
             tts.write_to_fp(fp)
             st.audio(fp.getvalue(), format="audio/mpeg", autoplay=True)
         except Exception:
-            st.error("Audio stream failed. Check connection.")
+            pass
 
-        # Clear button to reset the screen for the next person
-        if st.button("NEXT GUEST 🔄"):
+        if st.button("NEXT GUEST 🔄", use_container_width=True):
             st.rerun()
-
 
 
 
