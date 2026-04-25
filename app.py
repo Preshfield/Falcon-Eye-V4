@@ -135,6 +135,8 @@ def save_all_sessions(username, sessions):
 
 
 # ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
+import requests
+
 def get_protocol_context():
     """Extracts text from the gate manual to give the AI 'vision'."""
     try:
@@ -151,26 +153,32 @@ def get_protocol_context():
     except Exception as e:
         return f"Error reading manual: {e}"
 
-@st.cache_data(ttl=3600)
-def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
+def generate_human_voice(text):
+    """ElevenLabs high-fidelity voice engine."""
+    try:
+        api_key = st.secrets["ELEVENLABS_API_KEY"]
+        voice_id = "pNInz6obpgDQGcFmaJgB" # Adam - Professional & Clear
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        
+        headers = {"Accept": "audio/mpeg", "Content-Type": "application/json", "xi-api-key": api_key}
+        data = {
+            "text": text[:1000], # ElevenLabs limit per request for stability
+            "model_id": "eleven_monolingual_v1",
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+        }
+        response = requests.post(url, json=data, headers=headers)
+        return response.content if response.status_code == 200 else None
+    except:
+        return None
+
+def falcon_query(prompt: str, mode: str, chat_history=None):
+    """Streaming version of your original logic for maximum speed."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
-        sys_rules = f"""
-        You are the Falcon Eye Gate 4 Security Firewall. 
-        
-        STRICT OPERATING PROCEDURES:
-        1. Access ONLY the Gate 4 Protocol Manual below.
-        2. If the user's question is NOT directly related to Gate 4 procedures, logistics, or security mentioned in the manual, you MUST respond with:
-           "ACCESS DENIED: This query is outside Gate 4 Protocol scope. Please toggle to 'Global Knowledge' for non-operational inquiries."
-        3. Do NOT answer general questions (weather, history, math, etc.) in this mode.
-        4. Synthesize the manual's logic—do not just copy and paste.
-
-        MANUAL CONTEXT:
-        {manual_context}
-        """
+        sys_rules = f"You are the Falcon Eye Gate 4 Security Firewall. STRICT PROCEDURES: Access ONLY this manual: {manual_context}. If query is unrelated, say 'ACCESS DENIED'."
     elif mode == "Global Knowledge":
         sys_rules = "You are a Global Intelligence AI. You have access to all world information."
     else:
@@ -180,14 +188,12 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     if chat_history: conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
     
-    try:
-        completion = client.chat.completions.create(model="deepseek-chat", messages=conversation)
-        return completion.choices[0].message.content
-    except Exception as e: return f"AI ERROR: {str(e)}"
-
-
-
-
+    # We return the stream object directly to the UI for instant display
+    return client.chat.completions.create(
+        model="deepseek-chat",
+        messages=conversation,
+        stream=True
+    )
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
@@ -243,7 +249,7 @@ with t1:
     # 3. 🛰️ FALCON LIVE INTERFACE 
     st.divider()
     
-    # Custom CSS for the "Glow" effect
+    # Your Custom CSS for the "Glow" effect (Preserved)
     st.markdown("""
         <style>
         .stMicButton > button {
@@ -265,7 +271,6 @@ with t1:
     col_vibe, col_status = st.columns([0.2, 0.8])
     
     with col_vibe:
-        # This is our "Orb" button
         voice_captured = speech_to_text(
             language='en-US', 
             start_prompt="⭕", 
@@ -279,46 +284,37 @@ with t1:
         else:
             st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING FOR VOICE...</p>", unsafe_allow_html=True)
 
-   # 4. CHAT INPUT LOGIC (Cleaned & Loop-Fixed)
-    # We only need this ONCE.
+    # 4. CHAT INPUT LOGIC (Speed & Voice Upgrade)
     query = st.chat_input("Ask Falcon...", key="falcon_main_input")
     final_query = voice_captured if voice_captured else query
 
-    # Only process if we have a new query
     if final_query and st.session_state.get("last_processed_query") != final_query:
         st.session_state.messages.append({"role": "user", "content": final_query})
         st.session_state.last_processed_query = final_query
         
-        with st.spinner("Falcon Analyzing..."):
-            ans = falcon_query(final_query, k_mode, st.session_state.messages)
-            st.session_state.messages.append({"role": "assistant", "content": ans})
+        with st.chat_message("assistant"):
+            response_placeholder = st.empty()
+            full_response = ""
+            
+            # --- FAST STREAMING UI ---
+            # Using the stream=True version of falcon_query from Section 4
+            for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]):
+                if chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+                    response_placeholder.markdown(full_response + "▌")
+            
+            response_placeholder.markdown(full_response)
+            
+            # --- ELEVENLABS AUDIO ENGINE ---
+            audio_data = generate_human_voice(full_response)
+            if audio_data:
+                st.audio(audio_data, format="audio/mpeg", autoplay=True)
         
-        # Audio Engine
-        try:
-            clean_audio_text = ans.replace("*", "").replace("#", "").replace("-", " ")
-            tts = gTTS(text=clean_audio_text, lang='en')
-            audio_fp = io.BytesIO()
-            tts.write_to_fp(audio_fp)
-            st.session_state.pending_audio = audio_fp.getvalue()
-        except: 
-            pass
-
+        # Save results to memory
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
         st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
-
-        # Save to database/memory
-        st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
-        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-        
-        # Rerun to show the AI message and trigger the audio player below
-        st.rerun()
-
-    # 5. AUDIO AUTOPLAY (Must be outside the 'if final_query' block)
-    if "pending_audio" in st.session_state:
-        st.audio(st.session_state.pending_audio, format="audio/mpeg", autoplay=True)
-        # CRITICAL: Delete it immediately so it doesn't trigger on next interaction
-        del st.session_state.pending_audio
    # protocol manual)
 
 with t2:
