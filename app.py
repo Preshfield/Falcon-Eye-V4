@@ -498,7 +498,7 @@ with t6:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>FAST-INTERPRET ⚡</h3>", unsafe_allow_html=True)
 
     # 1. TACTICAL CONFIG
-   languages = {
+    languages = {
         "Arabic": "ar",
         "Bengali": "bn",
         "Chinese (Simplified)": "zh-CN",
@@ -570,7 +570,6 @@ with t6:
         # Clear button to reset the screen for the next person
         if st.button("NEXT GUEST 🔄"):
             st.rerun()
-
 
 
 
