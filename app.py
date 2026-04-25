@@ -134,6 +134,7 @@ def save_all_sessions(username, sessions):
     with open(file_path, "w") as f: json.dump(sessions, f)
 
 # ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
+# ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
 def get_protocol_context():
     """Extracts text from the gate manual to give the AI 'vision'."""
     try:
@@ -153,8 +154,9 @@ def get_protocol_context():
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
-    client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    client = openai.NewOpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
+    # BRAIN 1: GATE 4 PROTOCOL (SECURITY FIREWALL)
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
         sys_rules = f"""
@@ -170,8 +172,29 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
         MANUAL CONTEXT:
         {manual_context}
         """
+    
+    # BRAIN 2: GLOBAL KNOWLEDGE (UNRESTRICTED)
     elif mode == "Global Knowledge":
         sys_rules = "You are a Global Intelligence AI. You have access to all world information."
+    
+    # BRAIN 3: LOGISTICS AGENT (DOCUMENTATION SPECIALIST)
+    elif mode == "Logistics Agent":
+        sys_rules = """
+        You are the Falcon Eye Logistics Clerk. Your job is to extract data for the Gate 4 Manual Pass Google Sheet.
+        Listen to the user's input and extract these 5 specific fields:
+        1. BOOK (The book number)
+        2. PASS (The gate pass number)
+        3. CONSIGNEE (Company name/Receiver)
+        4. BILL (Customs bill number)
+        5. AMOUNT (The value/charge)
+
+        Return the data in this EXACT format:
+        BOOK: [value] | PASS: [value] | CONSIGNEE: [value] | BILL: [value] | AMOUNT: [value]
+        
+        Use 'N/A' for any missing fields. Do not add any conversational text.
+        """
+    
+    # FALLBACK: TRANSLATOR
     else:
         sys_rules = "Short & clear translator for truck drivers."
 
@@ -183,6 +206,8 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
         completion = client.chat.completions.create(model="deepseek-chat", messages=conversation)
         return completion.choices[0].message.content
     except Exception as e: return f"AI ERROR: {str(e)}"
+
+
 
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
