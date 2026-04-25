@@ -153,13 +153,9 @@ def get_protocol_context():
 
 @st.cache_data(ttl=3600)
 def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
-    import openai  # Ensure openai is imported
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
-    
-    # FIX: Changed 'NewOpenAI' back to 'OpenAI'
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
-    # BRAIN 1: GATE 4 PROTOCOL (SECURITY FIREWALL)
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
         sys_rules = f"""
@@ -175,29 +171,8 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
         MANUAL CONTEXT:
         {manual_context}
         """
-    
-    # BRAIN 2: GLOBAL KNOWLEDGE (UNRESTRICTED)
     elif mode == "Global Knowledge":
         sys_rules = "You are a Global Intelligence AI. You have access to all world information."
-    
-    # BRAIN 3: LOGISTICS AGENT (DOCUMENTATION SPECIALIST)
-    elif mode == "Logistics Agent":
-        sys_rules = """
-        You are the Falcon Eye Logistics Clerk. Your job is to extract data for the Gate 4 Manual Pass Google Sheet.
-        Listen to the user's input and extract these 5 specific fields:
-        1. BOOK (The book number)
-        2. PASS (The gate pass number)
-        3. CONSIGNEE (Company name/Receiver)
-        4. BILL (Customs bill number)
-        5. AMOUNT (The value/charge)
-
-        Return the data in this EXACT format:
-        BOOK: [value] | PASS: [value] | CONSIGNEE: [value] | BILL: [value] | AMOUNT: [value]
-        
-        Use 'N/A' for any missing fields. Do not add any conversational text.
-        """
-    
-    # FALLBACK: TRANSLATOR
     else:
         sys_rules = "Short & clear translator for truck drivers."
 
@@ -209,6 +184,7 @@ def falcon_query(prompt: str, mode: str, chat_history=None) -> str:
         completion = client.chat.completions.create(model="deepseek-chat", messages=conversation)
         return completion.choices[0].message.content
     except Exception as e: return f"AI ERROR: {str(e)}"
+
 
 
 
@@ -255,8 +231,8 @@ t1, t2, t3, t4, t5, t6 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "�
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
-    # 1. SCOPE TOGGLE (Logistics Agent Added)
-    k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge", "Logistics Agent"], horizontal=True)
+    # 1. SCOPE TOGGLE
+    k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
     # 2. CHAT CONTAINER (With height for auto-scroll)
     chat_container = st.container(height=500)
@@ -304,7 +280,8 @@ with t1:
         else:
             st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING FOR VOICE...</p>", unsafe_allow_html=True)
 
-    # 4. CHAT INPUT LOGIC (Cleaned & Loop-Fixed)
+   # 4. CHAT INPUT LOGIC (Cleaned & Loop-Fixed)
+    # We only need this ONCE.
     query = st.chat_input("Ask Falcon...", key="falcon_main_input")
     final_query = voice_captured if voice_captured else query
 
@@ -331,11 +308,20 @@ with t1:
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
 
+        # Save to database/memory
+        st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
+        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        
+        # Rerun to show the AI message and trigger the audio player below
+        st.rerun()
+
     # 5. AUDIO AUTOPLAY (Must be outside the 'if final_query' block)
     if "pending_audio" in st.session_state:
         st.audio(st.session_state.pending_audio, format="audio/mpeg", autoplay=True)
         # CRITICAL: Delete it immediately so it doesn't trigger on next interaction
         del st.session_state.pending_audio
+   # protocol manual)
+
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
