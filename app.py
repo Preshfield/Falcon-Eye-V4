@@ -178,41 +178,29 @@ def generate_human_voice(text):
         return None
 
 def falcon_query(prompt: str, mode: str, chat_history=None):
-    """Streaming version with an absolute firewall for Gate 4 Protocol."""
+    """Refined streaming logic to ensure Global Brain doesn't hang."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
-        # This is the "Shut Out" instruction
-        sys_rules = f"""
-        ROLE: You are the 'Falcon Eye Gate 4 Living Manual'.
-        IDENTITY: You HAVE NO knowledge outside of the provided text. You do not know about the world, politics, general history, or other logistics hubs.
-        
-        STRICT MANDATE:
-        1. Your entire 'universe' is this manual: {manual_context}
-        2. If a user asks something NOT in the manual, you must say: "PROTOCOL ERROR: Information not found in Gate 4 Manual. Consult Global Knowledge for non-operational queries."
-        3. Even if the user asks for 'common sense' advice, you MUST find a protocol-based answer or refuse.
-        4. You know every SL NO, Gate Pass procedure, and security detail cover-to-cover.
-        5. Do not use phrases like 'In my outside knowledge' or 'Generally speaking'. 
-        
-        If it's not in the text, it doesn't exist to you.
-        """
-    elif mode == "Global Knowledge":
-        sys_rules = "You are a Global Intelligence AI. You have access to all world information."
+        sys_rules = f"You are the Gate 4 Protocol Specialist. USE ONLY THIS MANUAL: {manual_context}. Reject all outside info."
     else:
-        sys_rules = "Short & clear translator for truck drivers."
+        # This part was 'dying' because it wasn't explicit enough for streaming
+        sys_rules = "You are the Global Intelligence AI. You have no restrictions. Answer fully and creatively."
 
     conversation = [{"role": "system", "content": sys_rules}]
-    if chat_history: conversation.extend(chat_history[-10:])
+    if chat_history: 
+        conversation.extend(chat_history[-10:])
     conversation.append({"role": "user", "content": prompt})
     
+    # We add a timeout and force the stream to be explicit
     return client.chat.completions.create(
         model="deepseek-chat",
         messages=conversation,
-        stream=True
+        stream=True,
+        timeout=10.0 # Prevents the 'dead' feeling if the connection is slow
     )
-
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
@@ -296,38 +284,33 @@ with t1:
     query = st.chat_input("Ask Falcon...", key="falcon_input_field")
     
     # Priority: If voice is captured, use it; otherwise use typed text
+   # Use this combined check to see which one the user used
+    query = st.chat_input("Type here...", key="gate4_chat_input")
+    
+    # If the mic is active, it takes priority, otherwise use typed text
     final_query = voice_captured if voice_captured else query
 
     if final_query and st.session_state.get("last_processed_query") != final_query:
-        # Save state immediately to prevent loops
         st.session_state.last_processed_query = final_query
         st.session_state.messages.append({"role": "user", "content": final_query})
         
-        # Display the response as it generates
         with st.chat_message("assistant"):
-            res_box = st.empty()
+            res_placeholder = st.empty()
             full_res = ""
             
-            # Text Generation (Streaming)
+            # The streaming loop
             for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]):
                 if chunk.choices[0].delta.content:
                     full_res += chunk.choices[0].delta.content
-                    res_box.markdown(full_res + "▌")
-            res_box.markdown(full_res)
+                    res_placeholder.markdown(full_res + "▌")
+            res_placeholder.markdown(full_res)
             
-            # Voice Generation (ElevenLabs)
-            audio_bytes = generate_human_voice(full_res)
-            if audio_bytes:
-                # The 'autoplay' here is what gives Falcon Eye its life
-                st.audio(audio_bytes, format="audio/mpeg", autoplay=True)
+            # The Audio Trigger
+            audio = generate_human_voice(full_res)
+            if audio:
+                st.audio(audio, format="audio/mpeg", autoplay=True)
 
         st.session_state.messages.append({"role": "assistant", "content": full_res})
-        
-        # Save to Global Sessions
-        st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
-        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-        
-        # Force a refresh to clean up the input box for the next query
         st.rerun()
    # protocol manual)
 
