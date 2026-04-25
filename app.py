@@ -196,49 +196,64 @@ if not st.session_state.auth:
     user_identity = st.selectbox("USER:", list(WORKER_DB.keys()))
     user_password = st.text_input("PASSWORD:", type="password")
     
-    if st.button("SIGN IN") and user_password == WORKER_DB[user_identity]:
+    if st.button("SIGN IN", use_container_width=True) and user_password == WORKER_DB[user_identity]:
         st.session_state.auth = True
         st.session_state.current_worker = user_identity
         st.session_state.all_sessions = load_all_sessions(user_identity)
         
-        # --- FULL SCREEN WELCOME OVERLAY ---
-        welcome_placeholder = st.empty()
-        with welcome_placeholder.container():
-            # This CSS hides the sidebar, header, and footer for 45 seconds
+        # 1. This clears the entire login page immediately
+        login_container = st.empty() 
+        
+        with login_container.container():
+            # 2. CSS to center everything and hide UI bars
             st.markdown("""
                 <style>
+                    /* Hide everything except our welcome content */
                     [data-testid="stSidebar"] { display: none; }
                     [data-testid="stHeader"] { display: none; }
-                    .main .block-container { padding: 0px; max-width: 100%; }
-                    .stApp { background-color: #020617; }
+                    .main .block-container { padding: 0px; }
+                    
+                    /* Create a full-screen centered flexbox */
+                    .welcome-box {
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        width: 100vw;
+                        background-color: #020617;
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        z-index: 9999;
+                    }
                 </style>
-            """, unsafe_allow_html=True)
-
-            # Centering the image and text
-            st.image("Gemini_Generated_Image_.png", use_container_width=True)
-            
-            st.markdown(f"""
-                <div style="text-align: center; margin-top: -100px; position: relative; z-index: 99;">
-                    <h1 style="color: #ADFF2F; font-family: monospace; font-size: 50px; text-shadow: 2px 2px #000;">
-                        WELCOME TO THE FALCON EYE
-                    </h1>
-                    <p style="color: white; font-size: 24px; letter-spacing: 5px; font-weight: bold;">
-                        THE GATEWAY TO LOGISTICS
-                    </p>
+                
+                <div class="welcome-box">
+                    <img src="data:image/png;base64,""" + base64.b64encode(open("Gemini_Generated_Image_.png", "rb").read()).decode() + """ " style="width: 80%; max-width: 800px; border-radius: 20px; box-shadow: 0 0 50px rgba(173, 255, 47, 0.2);">
+                    <div style="text-align: center; margin-top: 30px;">
+                        <h1 style="color: #ADFF2F; font-family: monospace; font-size: 50px; margin: 0; text-shadow: 0 0 20px rgba(173, 255, 47, 0.5);">
+                            WELCOME TO THE FALCON EYE
+                        </h1>
+                        <p style="color: white; font-size: 20px; letter-spacing: 8px; font-weight: bold; opacity: 0.8;">
+                            THE GATEWAY TO LOGISTICS
+                        </p>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
 
-            # Sound Injection
+            # 3. Audio Trigger (Keyboard/Welcome Sound)
             st.components.v1.html("""
                 <audio autoplay><source src="https://www.soundjay.com/communication/typewriter-key-1.mp3" type="audio/mpeg"></audio>
             """, height=0)
             
-            # --- THE 45 SEC TIMER ---
+            # 4. Timer (Reduced to 10 seconds)
             import time
-            time.sleep(45) 
-            
-        welcome_placeholder.empty() # Wipes the screen clear
-        st.rerun() # Refreshes to show the actual dashboard
+            time.sleep(10)
+        
+        # 5. Clear the screen and enter the app
+        login_container.empty()
+        st.rerun()
     st.stop()
 # ====================== 6. DASHBOARD UI (SIDEBAR RESTORED) ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
