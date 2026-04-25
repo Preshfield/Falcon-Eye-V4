@@ -495,89 +495,71 @@ with t5:
         st.write(f"Latest {doc_source} Entries:")
         st.table(audit_df.tail(10))
 with t6:
-    st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>TACTICAL INTERPRET (ACCENT-READY) ⚡</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>COMMAND INTERPRETER ⚡</h3>", unsafe_allow_html=True)
 
-    # 1. EXPANDED TACTICAL LANGUAGES
+    # 1. TACTICAL LANGUAGES
     languages = {
-        "Arabic": "ar",
-        "Bengali": "bn",
-        "Chinese (Simplified)": "zh-CN",
-        "English": "en",
-        "French": "fr",
-        "German": "de",
-        "Gujarati": "gu",
-        "Hindi": "hi",
-        "Indonesian": "id",
-        "Italian": "it",
-        "Japanese": "ja",
-        "Kannada": "kn",
-        "Korean": "ko",
-        "Malayalam": "ml",
-        "Marathi": "mr",
-        "Pashto": "ps",
-        "Persian (Farsi)": "fa",
-        "Portuguese": "pt",
-        "Punjabi": "pa",
-        "Russian": "ru",
-        "Spanish": "es",
-        "Swahili": "sw",
-        "Tagalog (Filipino)": "tl",
-        "Tamil": "ta",
-        "Telugu": "te",
-        "Thai": "th",
-        "Turkish": "tr",
-        "Urdu": "ur",
-        "Vietnamese": "vi"
+        "Arabic": "ar", "Bengali": "bn", "Chinese": "zh-CN", "English": "en", 
+        "Hindi": "hi", "Malayalam": "ml", "Pashto": "ps", "Punjabi": "pa", 
+        "Russian": "ru", "Spanish": "es", "Tagalog": "tl", "Tamil": "ta", "Urdu": "ur"
     }
+
+    # 2. INTERFACE MODE TOGGLE
+    # This switches the "Brain" direction
+    mode = st.radio("Direction:", ["Driver ➡️ Operator", "Operator ➡️ Driver"], horizontal=True)
     
-    target_lang = st.selectbox("Target Language:", sorted(languages.keys()), index=sorted(languages.keys()).index("Arabic"))
-    target_code = languages[target_lang]
+    target_lang = st.selectbox("Guest Language:", sorted(languages.keys()), index=sorted(languages.keys()).index("Arabic"))
+    guest_code = languages[target_lang]
 
     st.divider()
 
-    # 2. SPEECH CAPTURE
-    voice_in = speech_to_text(language='en-US', start_prompt="🎤 TAP & SPEAK", key="accent_mic")
-    text_in = st.text_input("OR TYPE HERE:", key="accent_text")
+    # 3. DYNAMIC CAPTURE BASED ON MODE
+    if mode == "Driver ➡️ Operator":
+        st.info(f"Falcon is listening for {target_lang}...")
+        voice_in = speech_to_text(language=guest_code, start_prompt=f"🎤 DRIVER SPEAK ({target_lang})", key="driver_mic")
+        src_label = target_lang
+        trg_label = "English (Operator)"
+        system_instruction = f"The user is speaking {target_lang} with a heavy accent in a noisy logistics environment. Repair the grammar and translate it into clear, tactical English for a customs officer."
+    else:
+        st.success("Falcon is listening for your Command...")
+        voice_in = speech_to_text(language='en-US', start_prompt="🎤 OPERATOR SPEAK (English)", key="op_mic")
+        src_label = "English (Operator)"
+        trg_label = target_lang
+        system_instruction = f"Translate my English command into perfect {target_lang}. Ensure the tone is professional and clear for a driver. Output ONLY the translation."
+
+    text_in = st.text_input("OR TYPE MESSAGE:", key="two_way_text")
     raw_input = voice_in if voice_in else text_in
 
-    # 3. THE "INTELLIGENT BRAIN" PROCESSING
+    # 4. TWO-WAY EXECUTION
     if raw_input:
-        with st.spinner("Repairing & Translating..."):
-            # STAGE 1: Repair the accent/errors in English first
-            # This fixes "go gate four" to "Go to Gate 4" or "take paper" to "Take the documents"
-            repair_prompt = f"""
-            The following text was captured via voice in a noisy environment with a heavy accent: "{raw_input}"
-            1. Correct any phonetic errors or broken English.
-            2. Keep it tactical and simple.
-            3. Translate that corrected meaning into {target_lang}.
-            Output ONLY the {target_lang} translation. No explanations.
-            """
-            
+        with st.spinner("Falcon Interpreting..."):
+            # The "Brain" Layer: Repair + Translate
+            repair_prompt = f"{system_instruction}\n\nINPUT: {raw_input}"
             result = falcon_query(repair_prompt, "Global Knowledge")
-            st.session_state.last_fix = result
+            
+            # --- DISPLAY BOX ---
+            st.markdown(f"""
+                <div style="background: #1e293b; padding: 25px; border-radius: 15px; border-left: 5px solid #ADFF2F; margin-top: 20px;">
+                    <p style="color: #888; font-size: 12px; margin-bottom: 5px;">FROM: {src_label} | TO: {trg_label}</p>
+                    <h1 style="color: #ADFF2F; margin: 0; font-size: 38px; line-height: 1.2;">{result}</h1>
+                </div>
+            """, unsafe_allow_html=True)
 
-        # 4. TACTICAL DISPLAY
-        st.markdown(f"""
-            <div style="background: #1e293b; padding: 25px; border-radius: 15px; border-left: 5px solid #ADFF2F; margin-top: 20px;">
-                <p style="color: #888; font-size: 12px; margin-bottom: 5px;">RAW INPUT: {raw_input}</p>
-                <p style="color: #ADFF2F; font-size: 14px; margin-bottom: 5px; font-weight: bold;">{target_lang.upper()} INTERPRETATION:</p>
-                <h1 style="color: #ADFF2F; margin: 0; font-size: 42px; line-height: 1.1;">{result}</h1>
-            </div>
-        """, unsafe_allow_html=True)
+            # --- AUDIO OUTPUT (Only for the Driver) ---
+            if mode == "Operator ➡️ Driver":
+                try:
+                    tts = gTTS(text=result, lang=guest_code)
+                    fp = io.BytesIO()
+                    tts.write_to_fp(fp)
+                    st.audio(fp.getvalue(), format="audio/mpeg", autoplay=True)
+                except:
+                    pass
+            else:
+                # For the operator (you), we just show the text clearly so you can read it fast
+                st.toast("Translation Ready")
 
-        # 5. INSTANT AUDIO
-        try:
-            tts = gTTS(text=result, lang=target_code)
-            fp = io.BytesIO()
-            tts.write_to_fp(fp)
-            st.audio(fp.getvalue(), format="audio/mpeg", autoplay=True)
-        except Exception:
-            pass
-
-        if st.button("NEXT GUEST 🔄", use_container_width=True):
-            st.rerun()
-
-
+    if st.button("CLEAR CONSOLE 🔄", use_container_width=True):
+        st.rerun()
 
 
 
