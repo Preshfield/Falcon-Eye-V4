@@ -133,7 +133,7 @@ def save_all_sessions(username, sessions):
     file_path = f"memory_{username.replace(' ', '_').lower()}.json"
     with open(file_path, "w") as f: json.dump(sessions, f)
 
-# ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
+
 # ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
 def get_protocol_context():
     """Extracts text from the gate manual to give the AI 'vision'."""
@@ -252,8 +252,8 @@ t1, t2, t3, t4, t5, t6 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "�
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
-    # 1. SCOPE TOGGLE
-    k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
+    # 1. SCOPE TOGGLE (Logistics Agent Added)
+    k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge", "Logistics Agent"], horizontal=True)
     
     # 2. CHAT CONTAINER (With height for auto-scroll)
     chat_container = st.container(height=500)
@@ -301,8 +301,7 @@ with t1:
         else:
             st.markdown("<p style='color:#ADFF2F; opacity:0.6; margin-top:15px;'>FALCON LIVE: WAITING FOR VOICE...</p>", unsafe_allow_html=True)
 
-   # 4. CHAT INPUT LOGIC (Cleaned & Loop-Fixed)
-    # We only need this ONCE.
+    # 4. CHAT INPUT LOGIC (Cleaned & Loop-Fixed)
     query = st.chat_input("Ask Falcon...", key="falcon_main_input")
     final_query = voice_captured if voice_captured else query
 
@@ -329,20 +328,11 @@ with t1:
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.rerun()
 
-        # Save to database/memory
-        st.session_state.all_sessions[st.session_state.current_chat_id] = st.session_state.messages
-        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-        
-        # Rerun to show the AI message and trigger the audio player below
-        st.rerun()
-
     # 5. AUDIO AUTOPLAY (Must be outside the 'if final_query' block)
     if "pending_audio" in st.session_state:
         st.audio(st.session_state.pending_audio, format="audio/mpeg", autoplay=True)
         # CRITICAL: Delete it immediately so it doesn't trigger on next interaction
         del st.session_state.pending_audio
-   # protocol manual)
-
 with t2:
     if os.path.exists("gate_manual.pdf"):
         # Create a layout for the title and the audio player
