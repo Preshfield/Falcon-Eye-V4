@@ -475,37 +475,47 @@ with t4:
                         if key in st.session_state: del st.session_state[key]
                     st.rerun()
 
-    # 5. RECALL SECTION 
-   
+   # 5. UNIVERSAL SEARCH & RECALL (MANUAL, LABOUR, & OFFICIAL)
     with st.expander("🛠️ SEARCH & RECALL FOR CORRECTION"):
-        recall_id = st.text_input("Enter ID to edit:")
+        recall_id = st.text_input("Enter ID to edit (Gate Pass / Voucher / Bill No):")
+        
         if st.button("🔍 FETCH DATA"):
-            # Search the sheet
-            record, row_idx = search_logs(recall_id, "MANUAL PASS")
+            # We use 'sheet_target' which changes based on your radio button selection above
+            record, row_idx = search_logs(recall_id, sheet_target)
             
             if record:
-                # 1. Set the edit mode
                 st.session_state.edit_row_idx = row_idx
                 
-                # 2. MAP SEARCH RESULTS TO AGENT BUCKETS (This fixes the form display)
-                # record format: [SL, BOOK, PASS, CONSIGNEE, BILL, DESC, UNIT, CASH, REMARKS, AMT]
-                st.session_state["f_bk_val"] = str(record[1])
-                st.session_state["f_gp_val"] = str(record[2])
-                st.session_state["f_con_val"] = str(record[3])
-                st.session_state["f_bill_val"] = str(record[4])
-                # Index 5 is Description, 6 is Unit, 7 is Cash Receipt...
-                st.session_state["f_rem_val"] = str(record[8])
+                # --- AUTO-MAPPER FOR ALL FORMS ---
+                if sheet_target == "MANUAL PASS":
+                    # record: [SL, BOOK, PASS, CONSIGNEE, BILL, DESC, UNIT, CASH, REMARKS, AMT]
+                    st.session_state["f_bk_val"] = str(record[1])
+                    st.session_state["f_gp_val"] = str(record[2])
+                    st.session_state["f_con_val"] = str(record[3])
+                    st.session_state["f_bill_val"] = str(record[4])
+                    st.session_state["f_rem_val"] = str(record[8])
+                    st.session_state["f_amt_val"] = float(record[9]) if str(record[9]).replace('.','',1).isdigit() else 0.0
+
+                elif sheet_target == "LABOUR CHARGE":
+                    # record: [START, END, BOOK, VOUCHER, HOURS, LABOURS, FORK, AMT, FROM, REMARKS]
+                    st.session_state["f_bk_val"] = str(record[2])   # Receipt Book
+                    st.session_state["f_bill_val"] = str(record[3]) # Voucher No
+                    st.session_state["f_amt_val"] = float(record[7]) if str(record[7]).replace('.','',1).isdigit() else 0.0
+                    st.session_state["f_rem_val"] = str(record[9])  # Remarks
+
+                elif sheet_target == "OFFICIAL REPORT":
+                    # record: [BOOK, PASS, CONSIGNEE, BILL, REMARKS, AMT, REASON]
+                    st.session_state["f_bk_val"] = str(record[0])
+                    st.session_state["f_gp_val"] = str(record[1])
+                    st.session_state["f_con_val"] = str(record[2])
+                    st.session_state["f_bill_val"] = str(record[3])
+                    st.session_state["f_rem_val"] = str(record[4])
+                    st.session_state["f_amt_val"] = float(record[5]) if str(record[5]).replace('.','',1).isdigit() else 0.0
                 
-                try:
-                    st.session_state["f_amt_val"] = float(record[9])
-                except:
-                    st.session_state["f_amt_val"] = 0.0
-                
-                st.success(f"Loaded Row {row_idx}. Form updated above.")
+                st.success(f"✅ {sheet_target} Row {row_idx} Loaded. Edit it in the form above!")
                 st.rerun()
             else:
-                st.error("❌ Not found.")
-
+                st.error(f"❌ ID '{recall_id}' not found in {sheet_target} sheet.")
 with t5:
     st.markdown("### 🕵️‍♂️ CIA Universal Intelligence Search")
     
