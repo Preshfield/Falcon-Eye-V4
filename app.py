@@ -427,9 +427,9 @@ with t4:
         f_date = st.date_input("SELECT DATE:", value=datetime.now(timezone(timedelta(hours=4))))
         formatted_date = f_date.strftime("%d-%m-%Y")
         
-        if doc_type == "Manual Gate Pass":
+       if doc_type == "Manual Gate Pass":
             c1, c2, c3 = st.columns(3)
-            # We connect the values to the session_state buckets the agent fills
+            # Preserved your SL and connected the rest to Agent buckets
             f_sl = c1.text_input("SL NO", value=next_sl).upper()
             f_bk = c2.text_input("BOOK NO", value=st.session_state.get("f_bk_val", "")).upper()
             f_gp = c3.text_input("GATE PASS NO", value=st.session_state.get("f_gp_val", next_gp)).upper()
@@ -441,7 +441,7 @@ with t4:
             c4, c5, c6 = st.columns(3)
             f_unit = c4.text_input("UNIT").upper()
             f_cash = c5.text_input("CASH RECEIPT NO").upper()
-            f_amt = c6.number_input("AMOUNT", min_value=0.0, value=st.session_state.get("f_amt_val", 0.0), format="%.2f")
+            f_amt = c6.number_input("AMOUNT", min_value=0.0, value=float(st.session_state.get("f_amt_val", 0.0)), format="%.2f")
             
             f_rem = st.text_input("REMARKS", value=st.session_state.get("f_rem_val", "")).upper()
             payload = [f_sl, f_bk, f_gp, f_con, f_bill, f_desc, f_unit, f_cash, f_rem, str(f_amt)]
@@ -450,15 +450,33 @@ with t4:
         elif doc_type == "Labour Charge":
             t_start = st.time_input("START TIME")
             t_end = st.time_input("FINISH TIME")
-            payload = [t_start.strftime("%H:%M"), t_end.strftime("%H:%M"), st.text_input("RECEIPT BOOK").upper(),
-                       st.text_input("VOUCHER").upper(), st.text_input("HOURS").upper(), st.text_input("LABOURS").upper(),
-                       st.selectbox("FORKLIFT", ["YES", "NO"]), st.number_input("AMOUNT", min_value=0.0), st.text_input("FROM").upper(), st.text_input("REMARKS").upper()]
+            # Added Agent buckets for Receipt Book, Voucher, and Amount
+            payload = [
+                t_start.strftime("%H:%M"), 
+                t_end.strftime("%H:%M"), 
+                st.text_input("RECEIPT BOOK", value=st.session_state.get("f_bk_val", "")).upper(),
+                st.text_input("VOUCHER", value=st.session_state.get("f_bill_val", "")).upper(), 
+                st.text_input("HOURS").upper(), 
+                st.text_input("LABOURS").upper(),
+                st.selectbox("FORKLIFT", ["YES", "NO"]), 
+                st.number_input("AMOUNT", min_value=0.0, value=float(st.session_state.get("f_amt_val", 0.0))), 
+                st.text_input("FROM").upper(), 
+                st.text_input("REMARKS", value=st.session_state.get("f_rem_val", "")).upper()
+            ]
             sheet_target, check_id = "LABOUR CHARGE", payload[3]
-        else:
-            payload = [st.text_input("BOOK NO").upper(), st.text_input("GATE PASS NO").upper(), st.text_input("CONSIGNEE").upper(),
-                       st.text_input("BILL NO").upper(), st.text_input("REMARKS").upper(), st.number_input("AMOUNT", min_value=0.0), st.text_area("REASON").upper()]
-            sheet_target, check_id = "OFFICIAL REPORT", payload[1]
 
+        else: # Official Report
+            # Added Agent buckets for Book, Pass, Consignee, Bill, Remarks, and Amount
+            payload = [
+                st.text_input("BOOK NO", value=st.session_state.get("f_bk_val", "")).upper(), 
+                st.text_input("GATE PASS NO", value=st.session_state.get("f_gp_val", "")).upper(), 
+                st.text_input("CONSIGNEE", value=st.session_state.get("f_con_val", "")).upper(),
+                st.text_input("BILL NO", value=st.session_state.get("f_bill_val", "")).upper(), 
+                st.text_input("REMARKS", value=st.session_state.get("f_rem_val", "")).upper(), 
+                st.number_input("AMOUNT", min_value=0.0, value=float(st.session_state.get("f_amt_val", 0.0))), 
+                st.text_area("REASON").upper()
+            ]
+            sheet_target, check_id = "OFFICIAL REPORT", payload[1]
         # --- DYNAMIC ACTION BUTTONS (PRESERVED) ---
         st.divider()
         if is_editing:
