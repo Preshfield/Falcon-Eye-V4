@@ -10,6 +10,7 @@ from streamlit_mic_recorder import speech_to_text
 from streamlit_pdf_viewer import pdf_viewer
 from fpdf import FPDF
 import pandas as pd
+import random
 
 # ====================== 1. CRITICAL INITIALIZATION ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
@@ -148,7 +149,7 @@ def save_all_sessions(username, sessions):
 
 
 # ====================== 4. AI ENGINES (FIREWALLED ANALYST) ======================
-# ====================== 4. AI ENGINES (STREAMING & ELEVENLABS) ======================
+
 import requests
 
 def get_protocol_context():
@@ -214,7 +215,7 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         )
 
     # 2. THE BRAIN CLEANSER
-    # If switching to Global, we ignore past "Gate 4" history to avoid conflicts
+    
     conversation = [{"role": "system", "content": sys_rules}]
     
     if chat_history and mode == "Gate 4 Protocol": 
@@ -255,6 +256,8 @@ if not st.session_state.auth:
         st.session_state.all_sessions = load_all_sessions(user_identity)
         st.rerun()
     st.stop()
+
+
 # ====================== 6. DASHBOARD UI (SIDEBAR RESTORED) ======================
 dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 
@@ -279,7 +282,7 @@ st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.curre
 st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
 # TABS
-t1, t2, t3, t4, t5, t6 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT", "🌐 TRANSLATOR"])
+t1, t2, t3, t4, t5, t6, t7 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT", "🌐 TRANSLATOR", "💳 FAST-PAY"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
@@ -729,3 +732,77 @@ with t6:
 
     if st.button("CLEAR CONSOLE 🔄", use_container_width=True):
         st.rerun()
+
+
+#    Digital Toll Gate
+
+with t7:
+    st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>FAST-PAY DIGITAL GATEWAY 💳</h3>", unsafe_allow_html=True)
+    
+    # 1. THE PAYMENT INTERFACE
+    with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            amount_aed = st.number_input("Transaction Amount (AED):", min_value=0, step=10, key="pay_amt")
+            v_plate = st.text_input("Vehicle Plate Number:", placeholder="e.g. DXB 12345").upper()
+        
+        with col2:
+            p_type = st.selectbox("Payment Category:", ["Gate Entry Fee", "Overtime Parking", "Customs Fine", "Documentation Fee"])
+            method = st.radio("Method:", ["QR Code / Online", "Cash at Desk"], horizontal=True)
+
+    st.divider()
+
+    # 2. GENERATION & LOGGING
+    if st.button("🚀 EXECUTE PAYMENT & GENERATE RECEIPT", use_container_width=True):
+        if v_plate and amount_aed > 0:
+            with st.spinner("Falcon Secure Processing..."):
+                # Unique Transaction ID
+                tx_id = f"FAL-{datetime.now().strftime('%y%m%d')}-{random.randint(100, 999)}"
+                
+                # Payload for Google Sheets
+                # Format: [Date, TX_ID, Plate, Category, Amount, Method, Status]
+                pay_payload = [tx_id, v_plate, p_type, f"AED {amount_aed}", method, "SUCCESS"]
+                
+                if save_to_google_sheets(st.session_state.current_worker, pay_payload, sheet_name="PAYMENTS"):
+                    st.balloons()
+                    
+                    # 3. THE DIGITAL RECEIPT DISPLAY
+                    st.success(f"PAYMENT VERIFIED: {tx_id}")
+                    
+                    res_col1, res_col2 = st.columns([0.4, 0.6])
+                    with res_col1:
+                        # Generate a QR for the driver to show or keep
+                        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=VERIFIED_{tx_id}_{v_plate}"
+                        st.image(qr_url, caption="Driver's Digital Pass")
+                    
+                    with res_col2:
+                        st.markdown(f"""
+                        **OFFICIAL RECEIPT**
+                        - **ID:** {tx_id}
+                        - **PLATE:** {v_plate}
+                        - **TOTAL:** AED {amount_aed}
+                        - **STATUS:** COMPLETED
+                        - **AGENT:** {st.session_state.current_worker}
+                        """)
+                else:
+                    st.error("Sheet Error: Ensure a worksheet named 'PAYMENTS' exists in your database.")
+        else:
+            st.warning("Please enter a valid Plate Number and Amount.")
+
+    # 4. QUICK SEARCH FOR GUARD VERIFICATION
+    with st.expander("🔍 VERIFY PREVIOUS PAYMENTS"):
+        v_query = st.text_input("Search Plate or TX ID:")
+        if v_query:
+            found_pay, _ = search_logs(v_query, "PAYMENTS")
+            if found_pay:
+                st.info(f"Payment Found: {found_pay}")
+            else:
+                st.error("No record found for this vehicle.")
+
+
+
+
+
+
+
+
