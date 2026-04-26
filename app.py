@@ -353,7 +353,7 @@ with t3:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>OFFICIAL INCIDENT REPORTING 📋</h3>", unsafe_allow_html=True)
     
     # 1. INPUT AREA
-    raw_notes = st.text_area("Enter Rough Observations / Agent Notes:", height=150, placeholder="Example: Driver unauthorized entry at Gate 4...")
+    raw_notes = st.text_area("Enter Rough Observations / Agent Notes:", height=150, key="report_input")
     
     # 2. THE REWRITE ENGINE
     if st.button("🪄 GENERATE PROFESSIONAL REPORT") and raw_notes:
@@ -361,47 +361,46 @@ with t3:
             report_instruction = (
                 "You are a Senior Security Supervisor. Rewrite the following rough notes into a "
                 "formal, detailed, and objective Incident Report. Use standard security terminology. "
-                "Output ONLY the polished report text. Avoid markdown stars or bolding."
+                "Output ONLY the polished report text without any markdown stars or formatting."
             )
             
-            # Streaming the generation for speed
+            # Using the Global Brain for maximum intelligence
             polished_report = "".join([
                 chunk.choices[0].delta.content 
                 for chunk in falcon_query(f"{report_instruction}\n\nNOTES: {raw_notes}", "Global Knowledge") 
                 if chunk.choices[0].delta.content
             ])
             
-            st.session_state["current_polished_report"] = polished_report
+            st.session_state["active_report_text"] = polished_report
 
     # 3. DISPLAY & SAVE AREA
-    if "current_polished_report" in st.session_state:
+    if "active_report_text" in st.session_state:
         st.markdown("---")
         st.subheader("Standardized Security Report")
         
-        # Display the report in a professional box
-        st.info(st.session_state["current_polished_report"])
+        # Display the report in an easy-to-read box
+        st.success(st.session_state["active_report_text"])
         
-        # 4. GOOGLE SHEETS TRANSFER (Locked to 'LOG')
-        if st.button("🚀 AUTHORIZE & SEND TO LOG"):
-            final_report = st.session_state["current_polished_report"]
+        # 4. GOOGLE SHEETS TRANSFER (Locked to 'REPORT' Tab)
+        if st.button("🚀 AUTHORIZE & SEND TO REPORT STORAGE"):
+            final_report = st.session_state["active_report_text"]
             
-            # The 'payload' must be a list for your existing function logic
-            # Structure: [Report_Type, Content]
-            report_payload = ["OFFICIAL_REPORT", final_report] 
+            # Formatting as a list to match your existing save_to_google_sheets(worker, payload, sheet_name)
+            # This creates: [Date, "OFFICIAL_INCIDENT", Report_Body, Worker_Name] in your sheet
+            report_payload = ["OFFICIAL_INCIDENT", final_report] 
             
-            # Executing save to the 'LOG' worksheet specifically
-            if save_to_google_sheets(st.session_state.current_worker, report_payload, sheet_name="LOG"):
-                st.success("✅ Logged successfully in Falcon_Eye_Database.")
-                # Clear state to prevent double-posting
-                del st.session_state["current_polished_report"]
+            # TARGETING THE NEW 'REPORT' WORKSHEET
+            if save_to_google_sheets(st.session_state.current_worker, report_payload, sheet_name="REPORT"):
+                st.balloons() # Visual confirmation it worked
+                st.success("✅ Successfully archived in REPORT worksheet.")
+                del st.session_state["active_report_text"]
             else:
-                st.error("Connection active, but failed to write to 'LOG' worksheet.")
+                st.error("FAILED. Ensure you created a tab named 'REPORT' in your Google Sheet.")
 
-    if st.button("CLEAR CONSOLE 🔄"):
-        if "current_polished_report" in st.session_state:
-            del st.session_state["current_polished_report"]
+    if st.button("CLEAR LOG 🔄"):
+        if "active_report_text" in st.session_state:
+            del st.session_state["active_report_text"]
         st.rerun()
-
 
  # ====================== 1. STAFF AGENT: AUTO-FILL VOICE COMMANDS ======================
 
