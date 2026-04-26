@@ -263,27 +263,34 @@ with t1:
     query = st.chat_input("Ask Falcon...")
     final_query = voice_captured if voice_captured else query
 
-    # 3. EXECUTION ENGINE (Optimized for Speed)
+    # 3. EXECUTION ENGINE (Fixed join for ElevenLabs speed)
     if final_query and st.session_state.get("last_processed_query") != final_query:
         st.session_state.last_processed_query = final_query
         st.session_state.messages.append({"role": "user", "content": final_query})
         
-        # Get response instantly (non-streaming for faster state transition)
-        full_res = falcon_query(final_query, k_mode, st.session_state.messages[:-1], stream=False)
-        
-        # Immediate ElevenLabs Generation
-        audio_data = generate_human_voice(full_res)
-        if audio_data:
-            st.session_state["active_audio_bytes"] = audio_data
-            st.session_state["active_audio_text"] = full_res
+        try:
+            # Join the stream immediately to create the string for ElevenLabs
+            full_res = "".join([
+                chunk.choices[0].delta.content 
+                for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]) 
+                if chunk.choices[0].delta.content
+            ])
+            
+            # Immediate ElevenLabs Generation
+            audio_data = generate_human_voice(full_res)
+            if audio_data:
+                st.session_state["active_audio_bytes"] = audio_data
+                st.session_state["active_audio_text"] = full_res
 
-        st.session_state.messages.append({"role": "assistant", "content": full_res})
-        st.rerun()
+            st.session_state.messages.append({"role": "assistant", "content": full_res})
+            st.rerun()
+        except Exception as e:
+            st.error(f"Falcon Engine Error: {e}")
 
     # 4. INDEPENDENT PLAYER (Pinned below "Ask Falcon" bar)
     with st._bottom:
         if "active_audio_bytes" in st.session_state:
-            st.markdown("---") # Thin line separator
+            st.markdown("---") 
             col_icon, col_audio = st.columns([0.1, 0.9])
             with col_icon:
                 st.markdown("### 🔊")
