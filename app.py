@@ -11,6 +11,7 @@ from streamlit_pdf_viewer import pdf_viewer
 from fpdf import FPDF
 import pandas as pd
 import random
+import base64  
 
 # ====================== 1. CRITICAL INITIALIZATION ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
@@ -271,30 +272,36 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         timeout=15.0
     )
 
+# This creates a private 'folder' just for this scanner
+if "id_scanner_results" not in st.session_state:
+    st.session_state.id_scanner_results = {"name": "", "id": "", "nat": "", "comp": ""}
 
-def falcon_vision_ocr(image_bytes):
-    """Vision-to-Text extraction for ID cards."""
-    import base64
-    api_key = st.secrets["DEEPSEEK_API_KEY"]
-    client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+
+
+
+def falcon_vision_ocr(image_file):
+    """Processes the ID photo and returns structured data for the form."""
+    # Convert image to base64 string
+    base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
     
-    base64_image = base64.b64encode(image_bytes).decode('utf-8')
+    # CRITICAL: Use a Vision-capable model (like GPT-4o)
+    client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     
     response = client.chat.completions.create(
-        model="deepseek-chat", # Use your vision-capable model here
+        model="gpt-4o",
         messages=[
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Extract these details from the ID: BOOK NO, PASS NO, CONSIGNEE, BILL NO, AMOUNT. Return format: KEY:VALUE | KEY:VALUE"},
+                    {"type": "text", "text": "Extract Name, ID Number, Nationality, and Company from this ID. Return ONLY JSON format."},
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                 ],
             }
         ],
+        max_tokens=300,
     )
+    # Parse the JSON response here to return a dictionary
     return response.choices[0].message.content
-
-
 
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
@@ -859,21 +866,25 @@ with t7:
 with t8:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>PERSONNEL IDENTITY VAULT 👤</h3>", unsafe_allow_html=True)
     
-    # --- BANK-STYLE SCANNER INTERFACE ---
+    # --- 1. INITIALIZE UNIQUE PRIVATE STORAGE (If not already there) ---
+    if "id_scanner_results" not in st.session_state:
+        st.session_state.id_scanner_results = {"name": "", "id": "", "nat": "", "comp": ""}
+
+    # --- 2. BANK-STYLE SCANNER INTERFACE (With Unique Key) ---
     st.markdown('<div class="scanner-overlay">', unsafe_allow_html=True)
-    cam_image = st.camera_input("POSITION ID WITHIN THE BRACKET")
+    cam_image = st.camera_input("POSITION ID WITHIN THE BRACKET", key="gate_camera_v1")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # --- AUTO-FILL VISION LOGIC ---
+    # --- 3. AUTO-FILL VISION LOGIC ---
     if cam_image:
         with st.status("🎯 FALCON EYE ANALYZING ID...", expanded=True) as status:
             img_bytes = cam_image.getvalue()
             
-            # Use the Vision function to read the card
+            # Call your Vision function
             extracted_text = falcon_vision_ocr(img_bytes)
             
             if extracted_text:
-                # Parse the data into session state for Tab 4 auto-fill
+                # We parse data into our PRIVATE storage first
                 data_pairs = extracted_text.split("|")
                 for pair in data_pairs:
                     if ":" in pair:
@@ -881,37 +892,46 @@ with t8:
                         key_clean = k.strip().upper()
                         val_clean = v.strip()
                         
-                        # Map to the keys used in your Tab 4 (Logistics)
+                        # Save to our isolated 'id_scanner_results'
+                        if "NAME" in key_clean: st.session_state.id_scanner_results["name"] = val_clean
+                        if "ID" in key_clean: st.session_state.id_scanner_results["id"] = val_clean
+                        if "NAT" in key_clean: st.session_state.id_scanner_results["nat"] = val_clean
+                        if "COMP" in key_clean: st.session_state.id_scanner_results["comp"] = val_clean
+
+                        # Keep your original cross-tab mapping (Pushes to Tab 4)
                         if "BOOK" in key_clean: st.session_state["f_bk_val"] = val_clean
                         if "PASS" in key_clean: st.session_state["f_gp_val"] = val_clean
-                        if "CONSIGNEE" in key_clean: st.session_state["f_con_val"] = val_clean
-                        if "BILL" in key_clean: st.session_state["f_bill_val"] = val_clean
-                        if "AMOUNT" in key_clean: 
-                            try:
-                                st.session_state["f_amt_val"] = float(val_clean.replace(',',''))
-                            except:
-                                st.session_state["f_amt_val"] = 0.0
                 
                 status.update(label="✅ DATA EXTRACTED SUCCESSFULLY", state="complete", expanded=False)
                 st.balloons()
-                st.info("💡 **Falcon Intelligence:** Data pushed to 'LOGISTIC DOCUMENTATION'. Switch tabs to review and sync.")
+                st.rerun() # Refresh to show data in the form below
 
-    # --- MANUAL OVERRIDE / VERIFICATION FORM ---
-    with st.form("identity_capture_form", clear_on_submit=True):
+    # --- 4. VERIFICATION FORM (Using Unique Keys) ---
+    with st.form("identity_capture_form", clear_on_submit=False):
         st.markdown("---")
         st.write("📝 **Verify Captured Data:**")
         col_id1, col_id2 = st.columns(2)
         
         with col_id1:
-            # These values now react to the auto-fill from the camera
-            v_name = st.text_input("Full Name:", value=st.session_state.get("f_con_val", "")).upper()
-            v_id_num = st.text_input("ID / Passport Number:", value=st.session_state.get("f_gp_val", "")).upper()
+            # Look only at the private scanner folder
+            v_name = st.text_input("Full Name:", 
+                                   value=st.session_state.id_scanner_results.get("name", ""),
+                                   key="scanner_full_name").upper()
+            
+            v_id_num = st.text_input("ID / Passport Number:", 
+                                     value=st.session_state.id_scanner_results.get("id", ""),
+                                     key="scanner_id_val").upper()
             
         with col_id2:
-            v_nat = st.text_input("Nationality:").upper()
-            v_comp = st.text_input("Company:", value=st.session_state.get("f_con_val", "")).upper()
+            v_nat = st.text_input("Nationality:", 
+                                  value=st.session_state.id_scanner_results.get("nat", ""),
+                                  key="scanner_nat_val").upper()
             
-        v_reason = st.selectbox("Reason for Entry:", ["Delivery", "Export", "Visit", "Maintenance"])
+            v_comp = st.text_input("Company:", 
+                                   value=st.session_state.id_scanner_results.get("comp", ""),
+                                   key="scanner_comp_val").upper()
+            
+        v_reason = st.selectbox("Reason for Entry:", ["Delivery", "Export", "Visit", "Maintenance"], key="scanner_reason")
 
         if st.form_submit_button("🏁 AUTHORIZE & LOG ENTRY", use_container_width=True):
             if v_name and v_id_num:
@@ -919,5 +939,8 @@ with t8:
                 
                 if save_to_google_sheets(st.session_state.current_worker, id_payload, sheet_name="IDENTITY_LOG"):
                     st.success(f"Log Secure: {v_name} Authorized.")
+                    # Clear the private storage after successful log
+                    st.session_state.id_scanner_results = {"name": "", "id": "", "nat": "", "comp": ""}
+                    st.rerun()
             else:
                 st.error("Name and ID Number are mandatory.")
