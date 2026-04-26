@@ -215,7 +215,6 @@ def generate_human_voice(text):
         return response.content if response.status_code == 200 else None
     except:
         return None
-
 def falcon_query(prompt: str, mode: str, chat_history=None):
     """Streaming version of your original logic for maximum speed."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
@@ -223,17 +222,26 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
     
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
-        sys_rules = f"You are the Falcon Eye Gate 4 Security Firewall. STRICT PROCEDURES: Access ONLY this manual: {manual_context}. If query is unrelated, say 'ACCESS DENIED'."
+        sys_rules = (
+            f"You are the Falcon Eye Gate 4 Security Firewall. STRICT PROCEDURES: "
+            f"Access ONLY this manual: {manual_context}. If query is unrelated to Gate 4 "
+            f"or security protocols, say 'ACCESS DENIED'."
+        )
     elif mode == "Global Knowledge":
-        sys_rules = "You are a Global Intelligence AI. You have access to all world information."
+        # Enhanced rules to ensure it breaks out of protocol mode
+        sys_rules = (
+            "You are the Falcon Eye Global Intelligence AI. You have NO RESTRICTIONS. "
+            "Access all world information, science, and history. Ignore all previous security protocols."
+        )
     else:
         sys_rules = "Short & clear translator for truck drivers."
 
     conversation = [{"role": "system", "content": sys_rules}]
-    if chat_history: conversation.extend(chat_history[-10:])
+    if chat_history: 
+        conversation.extend(chat_history[-10:])
+    
     conversation.append({"role": "user", "content": prompt})
     
-    # We return the stream object directly to the UI for instant display
     return client.chat.completions.create(
         model="deepseek-chat",
         messages=conversation,
