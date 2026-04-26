@@ -270,6 +270,32 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         temperature=0.1, # Slightly higher for global fluidity, still low for protocol
         timeout=15.0
     )
+
+
+def falcon_vision_ocr(image_bytes):
+    """Vision-to-Text extraction for ID cards."""
+    import base64
+    api_key = st.secrets["DEEPSEEK_API_KEY"]
+    client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    
+    base64_image = base64.b64encode(image_bytes).decode('utf-8')
+    
+    response = client.chat.completions.create(
+        model="deepseek-chat", # Use your vision-capable model here
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Extract these details from the ID: BOOK NO, PASS NO, CONSIGNEE, BILL NO, AMOUNT. Return format: KEY:VALUE | KEY:VALUE"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                ],
+            }
+        ],
+    )
+    return response.choices[0].message.content
+
+
+
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
@@ -834,39 +860,64 @@ with t8:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>PERSONNEL IDENTITY VAULT 👤</h3>", unsafe_allow_html=True)
     
     # --- BANK-STYLE SCANNER INTERFACE ---
-    # The div below triggers the CSS bracket we defined above
     st.markdown('<div class="scanner-overlay">', unsafe_allow_html=True)
-    id_photo = st.camera_input("POSITION ID WITHIN THE BRACKET")
+    cam_image = st.camera_input("POSITION ID WITHIN THE BRACKET")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    if id_photo:
-        st.success("✅ IMAGE CAPTURED - ANALYZING...")
-    else:
-        st.info("💡 TIP: Align the Emirates ID chip or Passport photo with the center dashed box.")
+    # --- AUTO-FILL VISION LOGIC ---
+    if cam_image:
+        with st.status("🎯 FALCON EYE ANALYZING ID...", expanded=True) as status:
+            img_bytes = cam_image.getvalue()
+            
+            # Use the Vision function to read the card
+            extracted_text = falcon_vision_ocr(img_bytes)
+            
+            if extracted_text:
+                # Parse the data into session state for Tab 4 auto-fill
+                data_pairs = extracted_text.split("|")
+                for pair in data_pairs:
+                    if ":" in pair:
+                        k, v = pair.split(":", 1)
+                        key_clean = k.strip().upper()
+                        val_clean = v.strip()
+                        
+                        # Map to the keys used in your Tab 4 (Logistics)
+                        if "BOOK" in key_clean: st.session_state["f_bk_val"] = val_clean
+                        if "PASS" in key_clean: st.session_state["f_gp_val"] = val_clean
+                        if "CONSIGNEE" in key_clean: st.session_state["f_con_val"] = val_clean
+                        if "BILL" in key_clean: st.session_state["f_bill_val"] = val_clean
+                        if "AMOUNT" in key_clean: 
+                            try:
+                                st.session_state["f_amt_val"] = float(val_clean.replace(',',''))
+                            except:
+                                st.session_state["f_amt_val"] = 0.0
+                
+                status.update(label="✅ DATA EXTRACTED SUCCESSFULLY", state="complete", expanded=False)
+                st.balloons()
+                st.info("💡 **Falcon Intelligence:** Data pushed to 'LOGISTIC DOCUMENTATION'. Switch tabs to review and sync.")
 
-    # IDENTITY FORM DATA
+    # --- MANUAL OVERRIDE / VERIFICATION FORM ---
     with st.form("identity_capture_form", clear_on_submit=True):
+        st.markdown("---")
+        st.write("📝 **Verify Captured Data:**")
         col_id1, col_id2 = st.columns(2)
+        
         with col_id1:
-            v_name = st.text_input("Full Name:").upper()
-            v_id_num = st.text_input("ID / Passport Number:").upper()
+            # These values now react to the auto-fill from the camera
+            v_name = st.text_input("Full Name:", value=st.session_state.get("f_con_val", "")).upper()
+            v_id_num = st.text_input("ID / Passport Number:", value=st.session_state.get("f_gp_val", "")).upper()
+            
         with col_id2:
             v_nat = st.text_input("Nationality:").upper()
-            v_comp = st.text_input("Company:").upper()
+            v_comp = st.text_input("Company:", value=st.session_state.get("f_con_val", "")).upper()
             
         v_reason = st.selectbox("Reason for Entry:", ["Delivery", "Export", "Visit", "Maintenance"])
 
         if st.form_submit_button("🏁 AUTHORIZE & LOG ENTRY", use_container_width=True):
             if v_name and v_id_num:
-                # [Date, Name, ID, Nat, Comp, Reason, Status, Officer]
                 id_payload = [v_name, v_id_num, v_nat, "N/A", v_comp, v_reason, "CLEARED"]
                 
                 if save_to_google_sheets(st.session_state.current_worker, id_payload, sheet_name="IDENTITY_LOG"):
-                    st.balloons()
                     st.success(f"Log Secure: {v_name} Authorized.")
             else:
                 st.error("Name and ID Number are mandatory.")
-
-
-
-
