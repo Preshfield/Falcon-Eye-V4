@@ -353,19 +353,18 @@ with t3:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>OFFICIAL INCIDENT REPORTING 📋</h3>", unsafe_allow_html=True)
     
     # 1. INPUT AREA
-    raw_notes = st.text_area("Enter Rough Observations / Agent Notes:", height=150, placeholder="Example: driver was shouting at gate 4, truck plate 12345, refused to show ID...")
+    raw_notes = st.text_area("Enter Rough Observations / Agent Notes:", height=150, placeholder="Example: Driver unauthorized entry at Gate 4...")
     
     # 2. THE REWRITE ENGINE
     if st.button("🪄 GENERATE PROFESSIONAL REPORT") and raw_notes:
         with st.spinner("Falcon Intelligence rewriting to Standard Security Protocol..."):
-            # System instructions to force professional, standard office language
             report_instruction = (
                 "You are a Senior Security Supervisor. Rewrite the following rough notes into a "
                 "formal, detailed, and objective Incident Report. Use standard security terminology. "
-                "Correct all grammar and construction. Output ONLY the polished report text."
+                "Output ONLY the polished report text. Avoid markdown stars or bolding."
             )
             
-            # Use the Global Brain for the best writing quality
+            # Streaming the generation for speed
             polished_report = "".join([
                 chunk.choices[0].delta.content 
                 for chunk in falcon_query(f"{report_instruction}\n\nNOTES: {raw_notes}", "Global Knowledge") 
@@ -379,26 +378,29 @@ with t3:
         st.markdown("---")
         st.subheader("Standardized Security Report")
         
-        # Displaying in a clean, professional style for the UI
+        # Display the report in a professional box
         st.info(st.session_state["current_polished_report"])
         
-        # 4. GOOGLE SHEETS TRANSFER (Clean Text Only)
-        if st.button("🚀 AUTHORIZE & SEND TO GOOGLE SHEETS"):
-            final_text = st.session_state["current_polished_report"]
+        # 4. GOOGLE SHEETS TRANSFER (Locked to 'LOG')
+        if st.button("🚀 AUTHORIZE & SEND TO LOG"):
+            final_report = st.session_state["current_polished_report"]
             
-            # We pass the cleaned text. save_to_google_sheets should handle the row insertion.
-            if save_to_google_sheets(st.session_state.current_worker, final_text, "OFFICIAL_REPORT"):
-                st.success("✅ Report Synced to Google Sheets (Standard Office Format).")
-                # Clear the state after saving
+            # The 'payload' must be a list for your existing function logic
+            # Structure: [Report_Type, Content]
+            report_payload = ["OFFICIAL_REPORT", final_report] 
+            
+            # Executing save to the 'LOG' worksheet specifically
+            if save_to_google_sheets(st.session_state.current_worker, report_payload, sheet_name="LOG"):
+                st.success("✅ Logged successfully in Falcon_Eye_Database.")
+                # Clear state to prevent double-posting
                 del st.session_state["current_polished_report"]
             else:
-                st.error("Failed to sync with Google Sheets. Check connection.")
+                st.error("Connection active, but failed to write to 'LOG' worksheet.")
 
-    if st.button("CLEAR LOG 🔄"):
+    if st.button("CLEAR CONSOLE 🔄"):
         if "current_polished_report" in st.session_state:
             del st.session_state["current_polished_report"]
         st.rerun()
-
 
 
  # ====================== 1. STAFF AGENT: AUTO-FILL VOICE COMMANDS ======================
