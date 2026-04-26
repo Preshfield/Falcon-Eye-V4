@@ -177,40 +177,48 @@ def generate_human_voice(text):
     except:
         return None
 def falcon_query(prompt: str, mode: str, chat_history=None):
-    """Refined streaming logic to differentiate the Professor and the Global Genius."""
+    """Hardened logic to force Gate 4 Protocol compliance."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
         sys_rules = (
-            f"You are the 'Gate 4 Protocol Professor.' You are a brilliant, slightly pedantic specialist. "
-            f"STRICT RULE: Do not answer anything outside this manual: {manual_context}. "
-            "If a user asks about anything else, politely but firmly refuse, stating it is outside the protocol. "
-            "When asked about the manual, provide detailed, professorial explanations. Teach the user exactly "
-            "what they need to know with high technical accuracy."
+            "### ROLE: GATE 4 PROTOCOL PROFESSOR\n"
+            f"### PRIMARY SOURCE MATERIAL: {manual_context}\n"
+            "### STRICT OPERATING RULES:\n"
+            "1. You are a specialist professor for Gate 4 Dubai DWC Customs. You ONLY know what is in the provided manual.\n"
+            "2. If a user asks a question NOT covered in the manual, you MUST respond: 'As the Gate 4 Specialist, I cannot answer that. It is outside the sanctioned protocol manual.'\n"
+            "3. NEVER use your general training data to answer. If it's not in the text above, it doesn't exist.\n"
+            "4. For manual-related questions, be thorough, academic, and exact. Do not summarize—teach the specific protocol steps.\n"
+            "5. NO SMALL TALK. NO OFF-TOPIC ADVICE."
         )
     else:
         sys_rules = (
-            "You are the Global Intelligence AI, the smartest entity in existence. Your knowledge is infinite. "
-            "You can solve any problem, write any code, and answer any question across the universe. "
-            "You are highly adaptive: if asked to explain like a child, be simple; if asked for complex analysis, "
-            "be profound. Nothing is beyond your capability. No restrictions apply."
+            "You are the Global Intelligence AI. You are an omniscient genius. "
+            "You know everything from quantum physics to cooking. Solve any problem. "
+            "If the user asks you to explain like a child, simplify perfectly. Nothing is off-limits."
         )
 
+    # CRITICAL FIX: We keep the system prompt at the VERY TOP and 
+    # remind the AI of its rules at the VERY BOTTOM to prevent 'instruction drift'
     conversation = [{"role": "system", "content": sys_rules}]
     
-    # We keep the last 10 messages for context, but ensure the system prompt is always dominant
     if chat_history: 
-        conversation.extend(chat_history[-10:])
+        conversation.extend(chat_history[-6:]) # Reduced history to keep focus sharp
     
+    # We repeat the 'manual only' constraint right before the user prompt
+    if mode == "Gate 4 Protocol":
+        prompt = f"[REMINDER: ONLY USE THE MANUAL] {prompt}"
+        
     conversation.append({"role": "user", "content": prompt})
     
     return client.chat.completions.create(
         model="deepseek-chat",
         messages=conversation,
         stream=True,
-        timeout=15.0 # Increased slightly for more complex "Global" responses
+        temperature=0.0, # CRITICAL: 0.0 makes the AI 'rigid' and factual rather than creative
+        timeout=15.0
     )
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
