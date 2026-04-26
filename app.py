@@ -243,16 +243,25 @@ t1, t2, t3, t4, t5, t6 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "�
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
-    # 1. SCOPE & CHAT VIEW
+    # 1. SCOPE TOGGLE
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
+    # 2. CHAT CONTAINER
     chat_container = st.container(height=500)
     with chat_container:
+        # Display existing messages
         for message in st.session_state.messages:
             with st.chat_message(message["role"]): 
                 st.markdown(message["content"])
+        
+        # --- THE PLAYER LIVES HERE NOW ---
+        # This puts the player at the absolute end of the chat scroll
+        if "active_audio_bytes" in st.session_state:
+            with st.chat_message("assistant", avatar="🔊"):
+                st.audio(st.session_state["active_audio_bytes"], format="audio/mpeg", autoplay=True)
+                st.caption("Falcon Voice Feed: Active")
 
-    # 2. INPUT AREA (Orb Mic + Chat Input)
+    # 3. INPUT AREA
     st.divider()
     v_col, s_col = st.columns([0.2, 0.8])
     with v_col:
@@ -263,20 +272,20 @@ with t1:
     query = st.chat_input("Ask Falcon...")
     final_query = voice_captured if voice_captured else query
 
-    # 3. EXECUTION ENGINE (Fixed join for ElevenLabs speed)
+    # 4. EXECUTION ENGINE
     if final_query and st.session_state.get("last_processed_query") != final_query:
         st.session_state.last_processed_query = final_query
         st.session_state.messages.append({"role": "user", "content": final_query})
         
         try:
-            # Join the stream immediately to create the string for ElevenLabs
+            # Fast-join the stream
             full_res = "".join([
                 chunk.choices[0].delta.content 
                 for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]) 
                 if chunk.choices[0].delta.content
             ])
             
-            # Immediate ElevenLabs Generation
+            # Generate ElevenLabs Audio
             audio_data = generate_human_voice(full_res)
             if audio_data:
                 st.session_state["active_audio_bytes"] = audio_data
@@ -285,18 +294,7 @@ with t1:
             st.session_state.messages.append({"role": "assistant", "content": full_res})
             st.rerun()
         except Exception as e:
-            st.error(f"Falcon Engine Error: {e}")
-
-    # 4. INDEPENDENT PLAYER (Pinned below "Ask Falcon" bar)
-    with st._bottom:
-        if "active_audio_bytes" in st.session_state:
-            st.markdown("---") 
-            col_icon, col_audio = st.columns([0.1, 0.9])
-            with col_icon:
-                st.markdown("### 🔊")
-            with col_audio:
-                st.audio(st.session_state["active_audio_bytes"], format="audio/mpeg", autoplay=True)
-                st.caption("ElevenLabs High-Fidelity Feed")
+            st.error(f"Error: {e}")
    # protocol manual)
 
 with t2:
