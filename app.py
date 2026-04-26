@@ -215,7 +215,7 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         )
 
     # 2. THE BRAIN CLEANSER
-    
+    # If switching to Global, we ignore past "Gate 4" history to avoid conflicts
     conversation = [{"role": "system", "content": sys_rules}]
     
     if chat_history and mode == "Gate 4 Protocol": 
@@ -242,7 +242,6 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         temperature=0.1, # Slightly higher for global fluidity, still low for protocol
         timeout=15.0
     )
-    
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
 
