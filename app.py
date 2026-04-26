@@ -973,53 +973,48 @@ with t9:
     
     with col1:
         st.write("### Transaction Details")
-        qr_plate = st.text_input("Driver Plate Number:", key="qr_plate_in_final").upper()
-        driver_name = st.text_input("Driver Full Name:", placeholder="Enter Driver's Name", key="qr_driver_name_final")
-        
-        qr_amount = st.selectbox("Select Fixed Fee (AED):", [50, 100, 150, 200, 500])
+        qr_plate = st.text_input("Driver Plate Number:", key="qr_final_p").upper()
+        driver_name = st.text_input("Driver Full Name:", placeholder="Enter Driver's Name", key="qr_final_d")
+        qr_amount = st.selectbox("Select Fixed Fee (AED):", [50, 100, 150, 200, 500], key="qr_final_a")
         qr_service = st.radio("Service Type:", ["Entry Fee", "Customs Doc", "Parking"], horizontal=True)
         
     with col2:
         if qr_plate and driver_name:
+            import qrcode
+            from io import BytesIO
+            import urllib.parse
             import random
             import string
-            import urllib.parse
-            
-            # Generate unique ID for this specific scan
+
             session_id = f"QR-{''.join(random.choices(string.digits, k=6))}"
             
-            # --- DEMO FLOW: WHATSAPP LINK ---
-            # This makes the QR code open a real chat on the driver's phone
-            message = f"FALCON PAY: I am {driver_name} (Plate: {qr_plate}). Ready to pay {qr_amount} AED for {qr_service}. ID: {session_id}"
+            # THE LINK LOGIC
+            message = f"FALCON PAY: {driver_name} | Plate: {qr_plate} | {qr_amount} AED | ID: {session_id}"
             encoded_msg = urllib.parse.quote(message)
-            
-            # Replace 971500000000 with your real number to see the message arrive!
-            demo_link = f"https://wa.me/971500000000?text={encoded_msg}" 
-            
-            # Using Google Charts API (Most reliable for Dubai networks)
-            qr_api_url = f"https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl={urllib.parse.quote(demo_link)}"
-            
-            # Displaying using native Streamlit command for 100% visibility
-            st.image(qr_api_url, caption=f"SCAN TO PAY AED {qr_amount}", width=250)
-            
-            st.markdown(f"""
-                <div style="background: #075E54; color: white; padding: 10px; border-radius: 10px; text-align: center; font-size: 14px;">
-                    <b>WHATSAPP GATEWAY ACTIVE</b><br>
-                    ID: {session_id}
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ Enter details to generate QR")
+            whatsapp_link = f"https://wa.me/971500000000?text={encoded_msg}" 
 
-    # LOGGING LOGIC
+            # --- GENERATE QR INTERNALLY ---
+            qr = qrcode.QRCode(version=1, box_size=10, border=2)
+            qr.add_data(whatsapp_link)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convert to bytes so Streamlit can read it
+            buf = BytesIO()
+            img.save(buf, format="PNG")
+            byte_im = buf.getvalue()
+
+            # Display locally generated image
+            st.image(byte_im, caption=f"SCAN TO PAY AED {qr_amount}", width=250)
+            
+            st.success(f"ID: {session_id} Generated Locally")
+        else:
+            st.warning("⚠️ Waiting for Driver Details...")
+
     if st.button("MANUALLY VERIFY & LOG TO SHEET ✅"):
         if qr_plate and driver_name:
-            # Matches your sheet: [ID, PLATE, SERVICE, AMOUNT, STATUS]
             qr_payload = [session_id, qr_plate, qr_service, f"{qr_amount} AED", "QR-DEMO"]
-            
-            # Passes driver_name to the 'Officer' column
             if save_to_google_sheets(driver_name, qr_payload, sheet_name="PAYMENTS"):
                 st.balloons()
-                st.success(f"Verified! Payment for {driver_name} logged to PAYMENTS.")
-            else:
-                st.error("Sheet Sync Failed. Check worksheet name.")
+                st.success(f"Verified! Payment for {driver_name} logged.")
