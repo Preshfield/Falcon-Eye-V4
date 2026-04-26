@@ -27,12 +27,14 @@ if "current_worker" not in st.session_state:
     st.session_state.current_worker = "Guest"
 
 # ====================== 2. FULL RESTORED CSS ======================
+# ====================== 2. FULL RESTORED CSS ======================
 def local_css(file_name):
     if os.path.exists(file_name):
         with open(file_name) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-    st.markdown('''
-        <style>
+
+st.markdown('''
+    <style>
         .stApp { background: radial-gradient(circle at top right, #0f172a, #020617); color: #f8fafc; }
         .hero-container {
             background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px);
@@ -43,36 +45,40 @@ def local_css(file_name):
         .status-dot { color: #ADFF2F; font-weight: 800; text-shadow: 0 0 15px #ADFF2F; animation: pulse 2s infinite; }
         .hero-divider { height: 3px; width: 80px; background: linear-gradient(90deg, #ADFF2F, transparent); margin: 20px 0; }
         .hero-tagline { color: #ADFF2F !important; font-size: 14px !important; letter-spacing: 5px !important; font-weight: 700 !important; text-transform: uppercase; }
+        
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        
         .stTabs [data-baseweb="tab-list"] { background-color: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 12px; }
         .stTabs [aria-selected="true"] { color: #ADFF2F !important; background-color: rgba(173, 255, 47, 0.1) !important; }
         .driver-msg { background: rgba(173, 255, 47, 0.1); padding: 15px; border-radius: 10px; border-left: 5px solid #ADFF2F; margin: 10px 0; }
         .intercom-box { background: rgba(30, 41, 59, 0.4); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
         .custom-header { background: rgba(15, 23, 42, 0.9); padding: 10px 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #ADFF2F; }
-        </style>
-    ''', unsafe_allow_html=True)
-    /* SCANNER BRACKET EFFECT */
-.scanner-overlay {
-    position: relative;
-    border: 2px solid rgba(173, 255, 47, 0.3);
-    border-radius: 15px;
-    overflow: hidden;
-}
-.scanner-overlay::after {
-    content: "";
-    position: absolute;
-    top: 20%; left: 10%; right: 10%; bottom: 20%;
-    border: 2px dashed #ADFF2F;
-    box-shadow: 0 0 15px rgba(173, 255, 47, 0.5);
-    border-radius: 10px;
-    pointer-events: none;
-    animation: scan-flicker 2s infinite;
-}
-@keyframes scan-flicker {
-    0% { opacity: 0.8; }
-    50% { opacity: 0.4; }
-    100% { opacity: 0.8; }
-}
+
+        /* --- SCANNER BRACKET EFFECT (MOVED INSIDE) --- */
+        .scanner-overlay {
+            position: relative;
+            border: 2px solid rgba(173, 255, 47, 0.3);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .scanner-overlay::after {
+            content: "";
+            position: absolute;
+            top: 20%; left: 10%; right: 10%; bottom: 20%;
+            border: 2px dashed #ADFF2F;
+            box-shadow: 0 0 15px rgba(173, 255, 47, 0.5);
+            border-radius: 10px;
+            pointer-events: none;
+            animation: scan-flicker 2s infinite;
+            z-index: 99;
+        }
+        @keyframes scan-flicker {
+            0% { opacity: 0.8; }
+            50% { opacity: 0.4; }
+            100% { opacity: 0.8; }
+        }
+    </style>
+''', unsafe_allow_html=True)
 
 local_css("css/style.css")
 
