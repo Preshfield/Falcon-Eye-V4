@@ -969,12 +969,12 @@ with t8:
 with t9:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>DRIVER SCAN-TO-PAY 📲</h3>", unsafe_allow_html=True)
     
-    col1, col2 = st.columns([1, 1.2]) # Made col2 slightly wider for the QR
+    col1, col2 = st.columns([1, 1])
     
     with col1:
         st.write("### Transaction Details")
-        qr_plate = st.text_input("Driver Plate Number:", key="qr_plate_in").upper()
-        driver_name = st.text_input("Driver Full Name:", placeholder="Enter Driver's Name", key="qr_driver_name")
+        qr_plate = st.text_input("Driver Plate Number:", key="qr_plate_in_final").upper()
+        driver_name = st.text_input("Driver Full Name:", placeholder="Enter Driver's Name", key="qr_driver_name_final")
         
         qr_amount = st.selectbox("Select Fixed Fee (AED):", [50, 100, 150, 200, 500])
         qr_service = st.radio("Service Type:", ["Entry Fee", "Customs Doc", "Parking"], horizontal=True)
@@ -985,33 +985,23 @@ with t9:
             import string
             session_id = f"QR-{''.join(random.choices(string.digits, k=6))}"
             
-            # This is the data the driver's phone will read
+            # The info for the driver
             payment_info = f"PLATE:{qr_plate}|AMT:{qr_amount}|ID:{session_id}"
             
-            # Using a very reliable Google Chart API for the QR code
-            qr_api_url = f"https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl={payment_info}"
+            # Using a different reliable API
+            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={payment_info}"
             
-            st.markdown(f"""
-                <div style="background: white; padding: 15px; border-radius: 15px; text-align: center; border: 4px solid #ADFF2F;">
-                    <img src="{qr_api_url}" style="width: 100%; max-width: 250px;">
-                    <p style="color: black; font-weight: bold; margin-top: 5px; font-size: 18px;">SCAN TO PAY AED {qr_amount}</p>
-                    <p style="color: #666; font-size: 12px;">ID: {session_id}</p>
-                </div>
-            """, unsafe_allow_html=True)
+            # --- THE FIX: USE NATIVE STREAMLIT IMAGE ---
+            st.image(qr_api_url, caption=f"SCAN TO PAY AED {qr_amount}", width=250)
             
-            # Backup link in case the image still doesn't show
-            st.caption(f"If QR is not visible: [Click for Driver Link]({qr_api_url})")
-            st.info(f"Awaiting Payment for {driver_name}...")
+            st.code(f"Session ID: {session_id}", language=None)
+            st.info(f"Driver: {driver_name}")
         else:
-            st.warning("⚠️ Enter Plate & Driver Name to generate the QR code.")
+            st.warning("⚠️ Enter details to generate QR")
 
     if st.button("MANUALLY VERIFY & LOG TO SHEET ✅"):
         if qr_plate and driver_name:
-            # Matches your PAYMENTS sheet columns: [ID, PLATE, SERVICE, AMOUNT, STATUS]
             qr_payload = [session_id, qr_plate, qr_service, f"{qr_amount} AED", "QR-ONLINE"]
-            
             if save_to_google_sheets(driver_name, qr_payload, sheet_name="PAYMENTS"):
                 st.balloons()
-                st.success(f"Verified! Payment for {driver_name} logged to PAYMENTS.")
-            else:
-                st.error("Sheet Sync Failed.")
+                st.success(f"Verified! Payment for {driver_name} logged.")
