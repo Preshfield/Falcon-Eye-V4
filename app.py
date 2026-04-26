@@ -220,30 +220,26 @@ def generate_human_voice(text):
         return response.content if response.status_code == 200 else None
     except:
         return None
-def falcon_query(prompt: str, mode: str, chat_history=None):
-    """Hardened logic to force Gate 4 Protocol compliance and clean Global switching."""
-    api_key = st.secrets.get("DEEPSEEK_API_KEY")
-    client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+def falcon_vision_ocr(image_input):
+    if image_input is None:
+        return None
     
-    # 1. SET THE BRAIN RULES
-    if mode == "Gate 4 Protocol":
-        manual_context = get_protocol_context()
-        sys_rules = (
-            "### ROLE: GATE 4 PROTOCOL PROFESSOR\n"
-            f"### PRIMARY SOURCE MATERIAL: {manual_context}\n"
-            "### STRICT OPERATING RULES:\n"
-            "1. You are a specialist professor for Gate 4 Dubai DWC Customs. You ONLY know what is in the manual.\n"
-            "2. If a question is NOT in the manual, respond: 'Access Denied. Outside sanctioned protocol.'\n"
-            "3. NO SMALL TALK."
-        )
-    else:
-        # GLOBAL MODE: We ignore the manual entirely to prevent the "Access Denied" bug
-        sys_rules = (
-            "You are the Global Intelligence AI. You are an omniscient genius. "
-            "You have full access to all world knowledge. Solve any problem. "
-            "You are NOT restricted by the gate manual in this mode."
-        )
-
+    try:
+        # Check if it's a Streamlit UploadedFile (has getvalue) 
+        # or raw bytes (doesn't have getvalue)
+        if hasattr(image_input, 'getvalue'):
+            img_bytes = image_input.getvalue()
+        else:
+            img_bytes = image_input # It's already bytes
+            
+        import base64
+        encoded_image = base64.b64encode(img_bytes).decode('utf-8')
+        
+        # This is where we call the Global Brain to read the Emirates ID
+        return call_falcon_brain_vision(encoded_image)
+    except Exception as e:
+        st.error(f"Vision Processing Error: {e}")
+        return None
     # 2. THE BRAIN CLEANSER
     # If switching to Global, we ignore past "Gate 4" history to avoid conflicts
     conversation = [{"role": "system", "content": sys_rules}]
@@ -887,25 +883,26 @@ with t7:
 with t8:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>PERSONNEL IDENTITY VAULT 👤</h3>", unsafe_allow_html=True)
     
-    # --- 1. INITIALIZE UNIQUE PRIVATE STORAGE (If not already there) ---
+    # --- 1. INITIALIZE UNIQUE PRIVATE STORAGE ---
     if "id_scanner_results" not in st.session_state:
         st.session_state.id_scanner_results = {"name": "", "id": "", "nat": "", "comp": ""}
 
-    # --- 2. BANK-STYLE SCANNER INTERFACE (With Unique Key) ---
-    st.markdown('<div class="scanner-overlay">', unsafe_allow_html=True)
-    cam_image = st.camera_input("POSITION ID WITHIN THE BRACKET", key="gate_camera_v1")
-    st.markdown('</div>', unsafe_allow_html=True)
+    # --- 2. BANK-STYLE SCANNER INTERFACE ---
+    st.info("💡 Position the Emirates ID or Passport clearly in the center of the frame.")
+    cam_image = st.camera_input("SCAN ID CARD", key="gate_camera_v1")
     
     # --- 3. AUTO-FILL VISION LOGIC ---
     if cam_image:
+        # Prevent re-processing if image hasn't changed
         with st.status("🎯 FALCON EYE ANALYZING ID...", expanded=True) as status:
+            # Important: Get the raw bytes from the camera
             img_bytes = cam_image.getvalue()
             
-            # Call your Vision function
+            # Call the Vision function defined above
             extracted_text = falcon_vision_ocr(img_bytes)
             
             if extracted_text:
-                # We parse data into our PRIVATE storage first
+                # Parse data into our PRIVATE storage (Format: NAME: X | ID: Y)
                 data_pairs = extracted_text.split("|")
                 for pair in data_pairs:
                     if ":" in pair:
@@ -913,55 +910,57 @@ with t8:
                         key_clean = k.strip().upper()
                         val_clean = v.strip()
                         
-                        # Save to our isolated 'id_scanner_results'
+                        # Save to our isolated memory for this tab
                         if "NAME" in key_clean: st.session_state.id_scanner_results["name"] = val_clean
                         if "ID" in key_clean: st.session_state.id_scanner_results["id"] = val_clean
                         if "NAT" in key_clean: st.session_state.id_scanner_results["nat"] = val_clean
                         if "COMP" in key_clean: st.session_state.id_scanner_results["comp"] = val_clean
 
-                        # Keep your original cross-tab mapping (Pushes to Tab 4)
+                        # Cross-tab mapping (Pushes data to your Manual Pass Tab 4 if needed)
                         if "BOOK" in key_clean: st.session_state["f_bk_val"] = val_clean
                         if "PASS" in key_clean: st.session_state["f_gp_val"] = val_clean
                 
                 status.update(label="✅ DATA EXTRACTED SUCCESSFULLY", state="complete", expanded=False)
                 st.balloons()
-                st.rerun() # Refresh to show data in the form below
+                st.rerun() # This refresh fills the boxes below instantly
 
-    # --- 4. VERIFICATION FORM (Using Unique Keys) ---
+    # --- 4. VERIFICATION FORM ---
     with st.form("identity_capture_form", clear_on_submit=False):
         st.markdown("---")
         st.write("📝 **Verify Captured Data:**")
         col_id1, col_id2 = st.columns(2)
         
         with col_id1:
-            # Look only at the private scanner folder
             v_name = st.text_input("Full Name:", 
                                    value=st.session_state.id_scanner_results.get("name", ""),
-                                   key="scanner_full_name").upper()
+                                   key="scanner_full_name")
             
             v_id_num = st.text_input("ID / Passport Number:", 
                                      value=st.session_state.id_scanner_results.get("id", ""),
-                                     key="scanner_id_val").upper()
+                                     key="scanner_id_val")
             
         with col_id2:
             v_nat = st.text_input("Nationality:", 
                                   value=st.session_state.id_scanner_results.get("nat", ""),
-                                  key="scanner_nat_val").upper()
+                                  key="scanner_nat_val")
             
             v_comp = st.text_input("Company:", 
                                    value=st.session_state.id_scanner_results.get("comp", ""),
-                                   key="scanner_comp_val").upper()
+                                   key="scanner_comp_val")
             
         v_reason = st.selectbox("Reason for Entry:", ["Delivery", "Export", "Visit", "Maintenance"], key="scanner_reason")
 
         if st.form_submit_button("🏁 AUTHORIZE & LOG ENTRY", use_container_width=True):
             if v_name and v_id_num:
+                # Prepare payload for the Google Sheet
+                # Note: your save_to_google_sheets function will automatically force uppercase for logs
                 id_payload = [v_name, v_id_num, v_nat, "N/A", v_comp, v_reason, "CLEARED"]
                 
+                # Using your existing SHEET_NAME: IDENTITY_LOG
                 if save_to_google_sheets(st.session_state.current_worker, id_payload, sheet_name="IDENTITY_LOG"):
                     st.success(f"Log Secure: {v_name} Authorized.")
-                    # Clear the private storage after successful log
+                    # Clear the private storage so the next driver starts fresh
                     st.session_state.id_scanner_results = {"name": "", "id": "", "nat": "", "comp": ""}
                     st.rerun()
             else:
-                st.error("Name and ID Number are mandatory.")
+                st.error("Name and ID Number are mandatory for security authorization.")
