@@ -202,17 +202,12 @@ def generate_human_voice(text):
     """ElevenLabs high-fidelity voice engine."""
     try:
         api_key = st.secrets["ELEVENLABS_API_KEY"]
-        # 'pNInz6obpgDQGcFmaJgB' is the ID for Adam (Professional/Deep)
-        voice_id = "pNInz6obpgDQGcFmaJgB" 
+        voice_id = "pNInz6obpgDQGcFmaJgB" # Adam - Professional & Clear
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         
-        headers = {
-            "Accept": "audio/mpeg", 
-            "Content-Type": "application/json", 
-            "xi-api-key": api_key
-        }
+        headers = {"Accept": "audio/mpeg", "Content-Type": "application/json", "xi-api-key": api_key}
         data = {
-            "text": text[:1000], # Stability limit
+            "text": text[:1000], # ElevenLabs limit per request for stability
             "model_id": "eleven_monolingual_v1",
             "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
         }
@@ -220,6 +215,30 @@ def generate_human_voice(text):
         return response.content if response.status_code == 200 else None
     except:
         return None
+
+def falcon_query(prompt: str, mode: str, chat_history=None):
+    """Streaming version of your original logic for maximum speed."""
+    api_key = st.secrets.get("DEEPSEEK_API_KEY")
+    client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    
+    if mode == "Gate 4 Protocol":
+        manual_context = get_protocol_context()
+        sys_rules = f"You are the Falcon Eye Gate 4 Security Firewall. STRICT PROCEDURES: Access ONLY this manual: {manual_context}. If query is unrelated, say 'ACCESS DENIED'."
+    elif mode == "Global Knowledge":
+        sys_rules = "You are a Global Intelligence AI. You have access to all world information."
+    else:
+        sys_rules = "Short & clear translator for truck drivers."
+
+    conversation = [{"role": "system", "content": sys_rules}]
+    if chat_history: conversation.extend(chat_history[-10:])
+    conversation.append({"role": "user", "content": prompt})
+    
+    # We return the stream object directly to the UI for instant display
+    return client.chat.completions.create(
+        model="deepseek-chat",
+        messages=conversation,
+        stream=True
+    )
 def falcon_vision_ocr(image_input):
     if image_input is None:
         return None
