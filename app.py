@@ -359,7 +359,7 @@ st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.curre
 st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
 # TABS
-t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT", "🌐 TRANSLATOR", "💳 FAST-PAY", "👤 IDENTITY"])
+t1, t2, t3, t4, t5, t6, t7, t8 , t9 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT", "🌐 TRANSLATOR", "💳 FAST-PAY", "👤 IDENTITY" ," PAYMENT QR"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
@@ -964,3 +964,58 @@ with t8:
                     st.rerun()
             else:
                 st.error("Name and ID Number are mandatory for security authorization.")
+
+
+with t9:
+    st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>DRIVER SCAN-TO-PAY 📲</h3>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.write("### Transaction Details")
+        qr_plate = st.text_input("Driver Plate Number:", key="qr_plate_in").upper()
+        # NEW: Field for Driver's Name to be sent to the 'Officer' column
+        driver_name = st.text_input("Driver Full Name:", placeholder="Enter Driver's Name", key="qr_driver_name")
+        
+        qr_amount = st.selectbox("Select Fixed Fee (AED):", [50, 100, 150, 200, 500])
+        qr_service = st.radio("Service Type:", ["Entry Fee", "Customs Doc", "Parking"], horizontal=True)
+        
+    with col2:
+        if qr_plate and driver_name:
+            import random
+            import string
+            session_id = f"QR-{''.join(random.choices(string.digits, k=6))}"
+            
+            # This generates the QR code for the driver to scan
+            # (Link logic remains the same as before)
+            payment_link = f"https://your-payment-gateway.com/pay?amount={qr_amount}&plate={qr_plate}&id={session_id}"
+            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={payment_link}"
+            
+            st.markdown(f"""
+                <div style="background: white; padding: 20px; border-radius: 15px; text-align: center;">
+                    <img src="{qr_api_url}" width="200">
+                    <p style="color: black; font-weight: bold; margin-top: 10px;">SCAN TO PAY AED {qr_amount}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.info(f"Awaiting Payment for {driver_name}...")
+        else:
+            st.warning("Enter Plate Number AND Driver Name to generate QR")
+
+    # The Logic to Sync to the Sheet
+    if st.button("MANUALLY VERIFY & LOG TO SHEET ✅"):
+        if qr_plate and driver_name:
+            # PACKAGE: [TXN_ID, PLATE, SERVICE, AMOUNT]
+            qr_payload = [session_id, qr_plate, qr_service, f"{qr_amount} (QR-ONLINE)"]
+            
+            # --- THE TRICK ---
+            # Instead of sending st.session_state.current_worker, 
+            # we send 'driver_name'. Your function will put it in the last column.
+            if save_to_google_sheets(driver_name, qr_payload, sheet_name="PAYMENTS"):
+                st.balloons()
+                st.success(f"Verified! Payment for {driver_name} logged to PAYMENTS.")
+            else:
+                st.error("Sheet Sync Failed.")
+        else:
+            st.error("Please ensure Plate and Driver Name are filled before verifying.")
+
