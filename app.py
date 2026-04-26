@@ -428,8 +428,6 @@ with t1:
         st.rerun()
 
 
-
-
    # protocol manual)
 
 with t2:
