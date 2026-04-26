@@ -801,36 +801,59 @@ with t7:
                 st.error("No record found for this vehicle.")
 
 
+# ====================== TAB 8: IDENTITY VAULT ======================
 with t8:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>PERSONNEL IDENTITY VAULT 👤</h3>", unsafe_allow_html=True)
     
-    with st.expander("📸 CAPTURE VISITOR ID", expanded=True):
-        # Camera input for ID document
-        id_photo = st.camera_input("Scan Emirates ID / Passport")
-        
+    # 1. DOCUMENT CAPTURE SECTION
+    with st.expander("📸 SCAN EMIRATES ID / PASSPORT", expanded=True):
+        id_photo = st.camera_input("Capture ID Document")
+        if id_photo:
+            st.info("Image captured. Ensure text is clear for the audit trail.")
+
+    # 2. IDENTITY FORM
+    with st.form("identity_form", clear_on_submit=True):
         col_id1, col_id2 = st.columns(2)
+        
         with col_id1:
             v_name = st.text_input("Full Name:").upper()
             v_id_num = st.text_input("ID / Passport Number:").upper()
+            v_nat = st.text_input("Nationality:").upper()
         
         with col_id2:
             v_phone = st.text_input("Mobile Number:")
-            v_comp = st.text_input("Company Name:").upper()
-            
-        v_reason = st.selectbox("Reason for Entry:", ["Delivery", "Export Pick-up", "Site Visit", "Contractor"])
+            v_comp = st.text_input("Representing Company:").upper()
+            v_reason = st.selectbox("Purpose of Entry:", [
+                "Cargo Delivery", "Export Pick-up", "Courier Service", 
+                "Facility Maintenance", "Management Visit", "Security Inspection"
+            ])
 
-    if st.button("🏁 AUTHORIZE ENTRY & LOG IDENTITY", use_container_width=True):
-        if v_name and v_id_num:
-            # Create Identity Payload
-            # Format: [Name, ID_Num, Phone, Company, Reason, Status]
-            id_payload = [v_name, v_id_num, v_phone, v_comp, v_reason, "CLEARED"]
-            
-            if save_to_google_sheets(st.session_state.current_worker, id_payload, sheet_name="IDENTITY_LOG"):
-                st.success(f"ACCESS GRANTED: {v_name} has been logged.")
-                st.toast(f"Identity {v_id_num} archived.")
-        else:
-            st.error("Missing critical identity data!")
+        st.divider()
+        
+        # 3. SYNC TO DATABASE
+        if st.form_submit_button("🏁 AUTHORIZE ENTRY & LOG IDENTITY", use_container_width=True):
+            if v_name and v_id_num:
+                # Payload: [Name, ID_Number, Nationality, Phone, Company, Reason, Status]
+                id_payload = [v_name, v_id_num, v_nat, v_phone, v_comp, v_reason, "CLEARED"]
+                
+                # Targets the 'IDENTITY_LOG' worksheet in your Google Sheet
+                if save_to_google_sheets(st.session_state.current_worker, id_payload, sheet_name="IDENTITY_LOG"):
+                    st.success(f"ACCESS GRANTED: {v_name} logged at Gate 4.")
+                    st.balloons()
+                else:
+                    st.error("Sheet Error: Create a tab named 'IDENTITY_LOG' in your Google Sheet.")
+            else:
+                st.warning("MANDATORY: Name and ID Number are required for entry.")
 
+    # 4. IDENTITY SEARCH
+    with st.expander("🔍 VISITOR HISTORY SEARCH"):
+        search_id = st.text_input("Enter ID Number to Verify:")
+        if search_id:
+            record, _ = search_logs(search_id, "IDENTITY_LOG")
+            if record:
+                st.info(f"Identity Verified: {record}")
+            else:
+                st.error("No previous entry record found for this ID.")
 
 
 
