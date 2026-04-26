@@ -983,25 +983,43 @@ with t9:
         if qr_plate and driver_name:
             import random
             import string
+            import urllib.parse
+            
+            # Generate unique ID for this specific scan
             session_id = f"QR-{''.join(random.choices(string.digits, k=6))}"
             
-            # The info for the driver
-            payment_info = f"PLATE:{qr_plate}|AMT:{qr_amount}|ID:{session_id}"
+            # --- DEMO FLOW: WHATSAPP LINK ---
+            # This makes the QR code open a real chat on the driver's phone
+            message = f"FALCON PAY: I am {driver_name} (Plate: {qr_plate}). Ready to pay {qr_amount} AED for {qr_service}. ID: {session_id}"
+            encoded_msg = urllib.parse.quote(message)
             
-            # Using a different reliable API
-            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={payment_info}"
+            # Replace 971500000000 with your real number to see the message arrive!
+            demo_link = f"https://wa.me/971500000000?text={encoded_msg}" 
             
-            # --- THE FIX: USE NATIVE STREAMLIT IMAGE ---
+            # Using Google Charts API (Most reliable for Dubai networks)
+            qr_api_url = f"https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl={urllib.parse.quote(demo_link)}"
+            
+            # Displaying using native Streamlit command for 100% visibility
             st.image(qr_api_url, caption=f"SCAN TO PAY AED {qr_amount}", width=250)
             
-            st.code(f"Session ID: {session_id}", language=None)
-            st.info(f"Driver: {driver_name}")
+            st.markdown(f"""
+                <div style="background: #075E54; color: white; padding: 10px; border-radius: 10px; text-align: center; font-size: 14px;">
+                    <b>WHATSAPP GATEWAY ACTIVE</b><br>
+                    ID: {session_id}
+                </div>
+            """, unsafe_allow_html=True)
         else:
             st.warning("⚠️ Enter details to generate QR")
 
+    # LOGGING LOGIC
     if st.button("MANUALLY VERIFY & LOG TO SHEET ✅"):
         if qr_plate and driver_name:
-            qr_payload = [session_id, qr_plate, qr_service, f"{qr_amount} AED", "QR-ONLINE"]
+            # Matches your sheet: [ID, PLATE, SERVICE, AMOUNT, STATUS]
+            qr_payload = [session_id, qr_plate, qr_service, f"{qr_amount} AED", "QR-DEMO"]
+            
+            # Passes driver_name to the 'Officer' column
             if save_to_google_sheets(driver_name, qr_payload, sheet_name="PAYMENTS"):
                 st.balloons()
-                st.success(f"Verified! Payment for {driver_name} logged.")
+                st.success(f"Verified! Payment for {driver_name} logged to PAYMENTS.")
+            else:
+                st.error("Sheet Sync Failed. Check worksheet name.")
