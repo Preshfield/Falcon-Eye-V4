@@ -364,22 +364,25 @@ t1, t2, t3, t4, t5, t6, t7, t8 , t9 = st.tabs(["🛰️ INTELLIGENCE", "📖 PRO
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
-    # --- VOICE EXECUTION HUB ---
+    # --- FIXED VOICE EXECUTION HUB ---
     falcon_responses = [m["content"] for m in st.session_state.messages if m["role"] == "assistant"]
+    
     if falcon_responses:
         last_msg = falcon_responses[-1]
         
-        # This prevents the AI from re-speaking the same thing if you just switch tabs
+        # 1. GENERATION: Only run if the last message hasn't been voiced yet
         if st.session_state.get("last_voiced_msg") != last_msg:
             with st.spinner("🛰️ Synthesizing Tactical Audio..."):
                 audio_bytes = generate_human_voice(last_msg) 
                 if audio_bytes:
                     st.session_state["falcon_audio_cache"] = audio_bytes
                     st.session_state["last_voiced_msg"] = last_msg
-            
-            # THE SECRET FOR AUTOPLAY:
-            # We use base64 to embed the audio so it plays the moment it's ready
-            b64 = base64.b64encode(st.session_state["falcon_audio_cache"]).decode()
+
+        # 2. PLAYBACK: Use .get() to safely check if cache exists before encoding
+        # This prevents the KeyError crash
+        cached_audio = st.session_state.get("falcon_audio_cache")
+        if cached_audio:
+            b64 = base64.b64encode(cached_audio).decode()
             audio_html = f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">'
             st.markdown(audio_html, unsafe_allow_html=True)
 
@@ -414,6 +417,7 @@ with t1:
         with st.chat_message("assistant"):
             res_placeholder = st.empty()
             full_res = ""
+            # Stream the AI response
             for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]):
                 if chunk.choices[0].delta.content:
                     full_res += chunk.choices[0].delta.content
@@ -421,8 +425,11 @@ with t1:
             res_placeholder.markdown(full_res)
 
         st.session_state.messages.append({"role": "assistant", "content": full_res})
-        # THIS IS KEY: Save history before rerun
+        
+        # Save session history to memory
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+        
+        # Rerun triggers the page to start from the top and catch the new message for voice synthesis
         st.rerun()
 
    # protocol manual)
