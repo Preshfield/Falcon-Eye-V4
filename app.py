@@ -63,6 +63,7 @@ def save_to_google_sheets(worker, payload, sheet_name="LOG", custom_date=None):
     try:
         client = get_gsheet_client()
         sheet = client.open("Falcon_Eye_Database").worksheet(sheet_name)
+        
         # Use custom_date if provided, otherwise use Dubai current date
         if custom_date:
             date_s = custom_date
@@ -70,11 +71,23 @@ def save_to_google_sheets(worker, payload, sheet_name="LOG", custom_date=None):
             now = datetime.now(timezone(timedelta(hours=4)))
             date_s = now.strftime("%d-%m-%Y")
         
-        if sheet_name == "MANUAL PASS":
-            # SL NO, DATE, BOOK NO, GP NO...
-            row_data = [payload[0], date_s, payload[1], payload[2], payload[3], payload[4], payload[5], payload[6], payload[7], worker, payload[8], payload[9]]
+        # --- THE SMART "IF" LOGIC ---
+        if sheet_name == "REPORT":
+            # Keeps the Professor's professional casing (Lower + Upper)
+            row_data = [date_s] + [str(i) for i in payload] + [worker]
+            
+        elif sheet_name == "MANUAL PASS":
+            # Structured transfer for Gate passes - forced to UPPER
+            row_data = [
+                str(payload[0]).upper(), date_s, str(payload[1]).upper(), 
+                str(payload[2]).upper(), str(payload[3]).upper(), str(payload[4]).upper(), 
+                str(payload[5]).upper(), str(payload[6]).upper(), str(payload[7]).upper(), 
+                worker.upper(), str(payload[8]).upper(), str(payload[9]).upper()
+            ]
+            
         else:
-            row_data = [date_s] + [str(i).upper() for i in payload] + [worker]
+            # Default logic: Forces ALL CAPS for LOG and other logistics data
+            row_data = [date_s] + [str(i).upper() for i in payload] + [worker.upper()]
             
         sheet.append_row(row_data)
         return True
