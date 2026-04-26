@@ -364,10 +364,31 @@ t1, t2, t3, t4, t5, t6, t7, t8 , t9 = st.tabs(["🛰️ INTELLIGENCE", "📖 PRO
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
+    # --- NEW: VOICE PLAYER MOVED TO TOP OF TAB (STAYS HIDDEN UNTIL NEEDED) ---
+    voice_placeholder = st.container() 
+    with voice_placeholder:
+        falcon_responses = [m["content"] for m in st.session_state.messages if m["role"] == "assistant"]
+        if falcon_responses:
+            last_msg = falcon_responses[-1]
+            
+            # Check if we need to generate new audio
+            if st.session_state.get("last_voiced_msg") != last_msg:
+                audio_bytes = generate_human_voice(last_msg) 
+                if audio_bytes:
+                    st.session_state["falcon_audio_cache"] = audio_bytes
+                    st.session_state["last_voiced_msg"] = last_msg
+            
+            # Display the player if cache exists
+            if "falcon_audio_cache" in st.session_state:
+                c1, c2 = st.columns([0.1, 0.9])
+                c1.markdown("### 🔊")
+                c2.audio(st.session_state["falcon_audio_cache"], format="audio/mpeg", autoplay=True)
+                st.divider() # Separates player from the chat history
+
     # 1. SCOPE TOGGLE
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
-    # 2. CHAT CONTAINER (History)
+    # 2. CHAT CONTAINER
     chat_container = st.container(height=500)
     with chat_container:
         for message in st.session_state.messages:
@@ -376,7 +397,7 @@ with t1:
 
     st.divider()
     
-    # 3. 🛰️ FALCON LIVE INTERFACE (Mic & Input)
+    # 3. 🛰️ FALCON LIVE INTERFACE
     col_vibe, col_status = st.columns([0.2, 0.8])
     with col_vibe:
         voice_captured = speech_to_text(language='en-US', start_prompt="⭕", stop_prompt="⏺️", key='main_chat_mic')
@@ -384,10 +405,11 @@ with t1:
     with col_status:
         st.markdown(f"**Live Feed:** *{voice_captured if voice_captured else 'WAITING...'}*")
 
+    # 4. INPUT BOX
     query = st.chat_input("Ask Falcon...", key="falcon_universal_input")
     final_query = voice_captured if voice_captured else query
 
-    # 4. EXECUTION ENGINE
+    # 5. EXECUTION ENGINE
     if final_query and st.session_state.get("last_processed_query") != final_query:
         st.session_state.last_processed_query = final_query
         st.session_state.messages.append({"role": "user", "content": final_query})
@@ -401,23 +423,12 @@ with t1:
                     res_placeholder.markdown(full_res + "▌")
             res_placeholder.markdown(full_res)
 
-        # --- SYNCED VOICE GENERATION ---
-        with st.spinner("🔊 Synthesizing Response..."):
-            audio_bytes = generate_human_voice(full_res)
-            if audio_bytes:
-                # Store it
-                st.session_state["falcon_audio_cache"] = audio_bytes
-                st.session_state["last_voiced_msg"] = full_res
-                
-                # Play it immediately using the Base64 trick
-                b64 = base64.b64encode(audio_bytes).decode()
-                audio_html = f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">'
-                st.markdown(audio_html, unsafe_allow_html=True)
-
         st.session_state.messages.append({"role": "assistant", "content": full_res})
-        save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
-        
-        # No rerun needed here anymore because we play the audio directly in the loop!
+        # Save and trigger rerun - The player at the top will catch the new message now
+        st.rerun()
+
+
+
 
    # protocol manual)
 
