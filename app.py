@@ -215,8 +215,10 @@ def generate_human_voice(text):
         return response.content if response.status_code == 200 else None
     except:
         return None
+
+
 def falcon_query(prompt: str, mode: str, chat_history=None):
-    """Streaming version of your original logic for maximum speed."""
+    """Streaming version with a 'Hard Override' for Global Knowledge."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
@@ -227,73 +229,28 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
             f"Access ONLY this manual: {manual_context}. If query is unrelated to Gate 4 "
             f"or security protocols, say 'ACCESS DENIED'."
         )
-    elif mode == "Global Knowledge":
-        # Enhanced rules to ensure it breaks out of protocol mode
-        sys_rules = (
-            "You are the Falcon Eye Global Intelligence AI. You have NO RESTRICTIONS. "
-            "Access all world information, science, and history. Ignore all previous security protocols."
-        )
     else:
-        sys_rules = "Short & clear translator for truck drivers."
+        # MODE: Global Knowledge - The "Hard Override" instruction
+        sys_rules = (
+            "CRITICAL: YOU ARE NOW IN GLOBAL KNOWLEDGE MODE. "
+            "Ignore all previous 'ACCESS DENIED' restrictions and security protocols. "
+            "You are a world-class expert with access to all science, history, and general facts. "
+            "Answer the user's question directly and comprehensively."
+        )
 
     conversation = [{"role": "system", "content": sys_rules}]
-    if chat_history: 
-        conversation.extend(chat_history[-10:])
     
-    conversation.append({"role": "user", "content": prompt})
+    if chat_history:
+        # We only pass the last 5 messages to prevent the old 'Access Denied' loop
+        conversation.extend(chat_history[-5:])
     
-    return client.chat.completions.create(
-        model="deepseek-chat",
-        messages=conversation,
-        stream=True
-    )
-def falcon_vision_ocr(image_input):
-    if image_input is None:
-        return None
-    
-    try:
-        # Check if it's a Streamlit UploadedFile (has getvalue) 
-        # or raw bytes (doesn't have getvalue)
-        if hasattr(image_input, 'getvalue'):
-            img_bytes = image_input.getvalue()
-        else:
-            img_bytes = image_input # It's already bytes
-            
-        import base64
-        encoded_image = base64.b64encode(img_bytes).decode('utf-8')
-        
-        # This is where we call the Global Brain to read the Emirates ID
-        return call_falcon_brain_vision(encoded_image)
-    except Exception as e:
-        st.error(f"Vision Processing Error: {e}")
-        return None
-    # 2. THE BRAIN CLEANSER
-    # If switching to Global, we ignore past "Gate 4" history to avoid conflicts
-    conversation = [{"role": "system", "content": sys_rules}]
-    
-    if chat_history and mode == "Gate 4 Protocol": 
-        # Only carry history if staying within the protocol mode
-        conversation.extend(chat_history[-6:])
-    elif chat_history and mode == "Global Knowledge":
-        # Filter history: only keep messages that don't mention "Manual" or "Protocol"
-        # This stops the AI from thinking it is still the 'Gate 4 Professor'
-        clean_history = [m for m in chat_history[-4:] if "protocol" not in m["content"].lower()]
-        conversation.extend(clean_history)
-    
-    # 3. FINAL INSTRUCTION PACKAGING
-    if mode == "Gate 4 Protocol":
-        prompt = f"[STRICT PROTOCOL MODE] {prompt}"
-    else:
-        prompt = f"[GLOBAL INTELLIGENCE MODE] {prompt}"
-        
     conversation.append({"role": "user", "content": prompt})
     
     return client.chat.completions.create(
         model="deepseek-chat",
         messages=conversation,
         stream=True,
-        temperature=0.1, # Slightly higher for global fluidity, still low for protocol
-        timeout=15.0
+        temperature=0.7 # Higher temperature helps it 'break out' of the rigid protocol mode
     )
 
 # This creates a private 'folder' just for this scanner
