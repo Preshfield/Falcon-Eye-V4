@@ -974,7 +974,7 @@ with t9:
     with col1:
         st.write("### Transaction Details")
         qr_plate = st.text_input("Driver Plate Number:", key="qr_plate_in").upper()
-        # NEW: Field for Driver's Name to be sent to the 'Officer' column
+        # Captures driver name for the 'Officer' column
         driver_name = st.text_input("Driver Full Name:", placeholder="Enter Driver's Name", key="qr_driver_name")
         
         qr_amount = st.selectbox("Select Fixed Fee (AED):", [50, 100, 150, 200, 500])
@@ -986,14 +986,15 @@ with t9:
             import string
             session_id = f"QR-{''.join(random.choices(string.digits, k=6))}"
             
-            # This generates the QR code for the driver to scan
-            # (Link logic remains the same as before)
+            # Link logic for the driver's phone
             payment_link = f"https://your-payment-gateway.com/pay?amount={qr_amount}&plate={qr_plate}&id={session_id}"
-            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={payment_link}"
+            
+            # Larger QR size (300x300) for easier scanning through truck windows
+            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={payment_link}"
             
             st.markdown(f"""
                 <div style="background: white; padding: 20px; border-radius: 15px; text-align: center;">
-                    <img src="{qr_api_url}" width="200">
+                    <img src="{qr_api_url}" width="220">
                     <p style="color: black; font-weight: bold; margin-top: 10px;">SCAN TO PAY AED {qr_amount}</p>
                 </div>
             """, unsafe_allow_html=True)
@@ -1002,20 +1003,24 @@ with t9:
         else:
             st.warning("Enter Plate Number AND Driver Name to generate QR")
 
-    # The Logic to Sync to the Sheet
+    # The Logic to Sync to the Sheet with Correct Column Order
     if st.button("MANUALLY VERIFY & LOG TO SHEET ✅"):
         if qr_plate and driver_name:
-            # PACKAGE: [TXN_ID, PLATE, SERVICE, AMOUNT]
-            qr_payload = [session_id, qr_plate, qr_service, f"{qr_amount} (QR-ONLINE)"]
+            # UPDATED PAYLOAD: Separating Amount and Status for your sheet columns
+            # Order: [TXN_ID, PLATE, SERVICE, AMOUNT, STATUS]
+            qr_payload = [
+                session_id, 
+                qr_plate, 
+                qr_service, 
+                f"{qr_amount} AED", 
+                "QR-ONLINE"  # This now hits your 'Status' column correctly
+            ]
             
-            # --- THE TRICK ---
-            # Instead of sending st.session_state.current_worker, 
-            # we send 'driver_name'. Your function will put it in the last column.
+            # Send 'driver_name' as the first argument so it populates the 'Officer' column
             if save_to_google_sheets(driver_name, qr_payload, sheet_name="PAYMENTS"):
                 st.balloons()
                 st.success(f"Verified! Payment for {driver_name} logged to PAYMENTS.")
             else:
-                st.error("Sheet Sync Failed.")
+                st.error("Sheet Sync Failed. Please check tab name.")
         else:
             st.error("Please ensure Plate and Driver Name are filled before verifying.")
-
