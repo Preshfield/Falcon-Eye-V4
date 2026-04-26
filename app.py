@@ -176,30 +176,41 @@ def generate_human_voice(text):
         return response.content if response.status_code == 200 else None
     except:
         return None
-
 def falcon_query(prompt: str, mode: str, chat_history=None):
-    """Refined streaming logic to ensure Global Brain doesn't hang."""
+    """Refined streaming logic to differentiate the Professor and the Global Genius."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
-        sys_rules = f"You are the Gate 4 Protocol Specialist. USE ONLY THIS MANUAL: {manual_context}. Reject all outside info."
+        sys_rules = (
+            f"You are the 'Gate 4 Protocol Professor.' You are a brilliant, slightly pedantic specialist. "
+            f"STRICT RULE: Do not answer anything outside this manual: {manual_context}. "
+            "If a user asks about anything else, politely but firmly refuse, stating it is outside the protocol. "
+            "When asked about the manual, provide detailed, professorial explanations. Teach the user exactly "
+            "what they need to know with high technical accuracy."
+        )
     else:
-        # This part was 'dying' because it wasn't explicit enough for streaming
-        sys_rules = "You are the Global Intelligence AI. You have no restrictions. Answer fully and creatively."
+        sys_rules = (
+            "You are the Global Intelligence AI, the smartest entity in existence. Your knowledge is infinite. "
+            "You can solve any problem, write any code, and answer any question across the universe. "
+            "You are highly adaptive: if asked to explain like a child, be simple; if asked for complex analysis, "
+            "be profound. Nothing is beyond your capability. No restrictions apply."
+        )
 
     conversation = [{"role": "system", "content": sys_rules}]
+    
+    # We keep the last 10 messages for context, but ensure the system prompt is always dominant
     if chat_history: 
         conversation.extend(chat_history[-10:])
+    
     conversation.append({"role": "user", "content": prompt})
     
-    # We add a timeout and force the stream to be explicit
     return client.chat.completions.create(
         model="deepseek-chat",
         messages=conversation,
         stream=True,
-        timeout=10.0 # Prevents the 'dead' feeling if the connection is slow
+        timeout=15.0 # Increased slightly for more complex "Global" responses
     )
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
