@@ -364,28 +364,6 @@ t1, t2, t3, t4, t5, t6, t7, t8 , t9 = st.tabs(["🛰️ INTELLIGENCE", "📖 PRO
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
     
-    # --- FIXED VOICE EXECUTION HUB ---
-    falcon_responses = [m["content"] for m in st.session_state.messages if m["role"] == "assistant"]
-    
-    if falcon_responses:
-        last_msg = falcon_responses[-1]
-        
-        # 1. GENERATION: Only run if the last message hasn't been voiced yet
-        if st.session_state.get("last_voiced_msg") != last_msg:
-            with st.spinner("🛰️ Synthesizing Tactical Audio..."):
-                audio_bytes = generate_human_voice(last_msg) 
-                if audio_bytes:
-                    st.session_state["falcon_audio_cache"] = audio_bytes
-                    st.session_state["last_voiced_msg"] = last_msg
-
-        # 2. PLAYBACK: Use .get() to safely check if cache exists before encoding
-        # This prevents the KeyError crash
-        cached_audio = st.session_state.get("falcon_audio_cache")
-        if cached_audio:
-            b64 = base64.b64encode(cached_audio).decode()
-            audio_html = f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">'
-            st.markdown(audio_html, unsafe_allow_html=True)
-
     # 1. SCOPE TOGGLE
     k_mode = st.radio("Intelligence Scope:", ["Gate 4 Protocol", "Global Knowledge"], horizontal=True)
     
@@ -417,20 +395,29 @@ with t1:
         with st.chat_message("assistant"):
             res_placeholder = st.empty()
             full_res = ""
-            # Stream the AI response
             for chunk in falcon_query(final_query, k_mode, st.session_state.messages[:-1]):
                 if chunk.choices[0].delta.content:
                     full_res += chunk.choices[0].delta.content
                     res_placeholder.markdown(full_res + "▌")
             res_placeholder.markdown(full_res)
 
+        # --- SYNCED VOICE GENERATION ---
+        with st.spinner("🔊 Synthesizing Response..."):
+            audio_bytes = generate_human_voice(full_res)
+            if audio_bytes:
+                # Store it
+                st.session_state["falcon_audio_cache"] = audio_bytes
+                st.session_state["last_voiced_msg"] = full_res
+                
+                # Play it immediately using the Base64 trick
+                b64 = base64.b64encode(audio_bytes).decode()
+                audio_html = f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">'
+                st.markdown(audio_html, unsafe_allow_html=True)
+
         st.session_state.messages.append({"role": "assistant", "content": full_res})
-        
-        # Save session history to memory
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         
-        # Rerun triggers the page to start from the top and catch the new message for voice synthesis
-        st.rerun()
+        # No rerun needed here anymore because we play the audio directly in the loop!
 
    # protocol manual)
 
