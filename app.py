@@ -588,78 +588,74 @@ with t5:
 with t6:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>COMMAND INTERPRETER ⚡</h3>", unsafe_allow_html=True)
 
-    # 1. THE COMPLETE LOGISTICS LANGUAGE LIBRARY
+    # 1. THE COMPLETE LOGISTICS LANGUAGE LIBRARY (Now correctly indented)
     languages = {
-    "Arabic": "ar", "Urdu": "ur", "Hindi": "hi", "Mandarin": "zh-CN",
-    "Russian": "ru", "Tagalog": "tl", "Farsi": "fa", "Bengali": "bn",
-    "Pashto": "ps", "Malayalam": "ml", "Punjabi": "pa", "Turkish": "tr",
-    "French": "fr", "Spanish": "es", "German": "de", "Italian": "it"
-}
+        "Arabic": "ar", "Urdu": "ur", "Hindi": "hi", "Mandarin": "zh-CN",
+        "Russian": "ru", "Tagalog": "tl", "Farsi": "fa", "Bengali": "bn",
+        "Pashto": "ps", "Malayalam": "ml", "Punjabi": "pa", "Turkish": "tr",
+        "French": "fr", "Spanish": "es", "German": "de", "Italian": "it"
+    }
 
-# 2. INTERFACE MODE TOGGLE
-mode = st.radio("Direction:", ["Driver ➡️ Operator", "Operator ➡️ Driver"], horizontal=True)
+    # 2. INTERFACE MODE TOGGLE
+    mode = st.radio("Direction:", ["Driver ➡️ Operator", "Operator ➡️ Driver"], horizontal=True)
 
-target_lang = st.selectbox("Guest Language:", sorted(languages.keys()), index=sorted(languages.keys()).index("Arabic"))
-guest_code = languages[target_lang]
+    target_lang = st.selectbox("Guest Language:", sorted(languages.keys()), index=sorted(languages.keys()).index("Arabic"))
+    guest_code = languages[target_lang]
 
-st.divider()
+    st.divider()
 
-# 3. DYNAMIC CAPTURE BASED ON MODE
-if mode == "Driver ➡️ Operator":
-    st.info(f"Falcon is listening for {target_lang}...")
-    voice_in = speech_to_text(language=guest_code, start_prompt=f"🎤 DRIVER SPEAK ({target_lang})", key="driver_mic")
-    src_label, trg_label = target_lang, "English (Operator)"
-    system_instruction = (
-        f"You are a translation bridge. The user is a driver speaking {target_lang}. "
-        "Translate their words into clear, tactical English for a Customs Officer. "
-        "Fix grammar and noise artifacts. Output ONLY the English translation."
-    )
-else:
-    st.success("Falcon is listening for your Command...")
-    voice_in = speech_to_text(language='en-US', start_prompt="🎤 OPERATOR SPEAK (English)", key="op_mic")
-    src_label, trg_label = "English (Operator)", target_lang
-    system_instruction = (
-        f"Translate the following English command into {target_lang}. "
-        "Tone: Professional and clear. Context: Logistics/Customs. Output ONLY the translation."
-    )
+    # 3. DYNAMIC CAPTURE BASED ON MODE
+    if mode == "Driver ➡️ Operator":
+        st.info(f"Falcon is listening for {target_lang}...")
+        voice_in = speech_to_text(language=guest_code, start_prompt=f"🎤 DRIVER SPEAK ({target_lang})", key="driver_mic")
+        src_label, trg_label = target_lang, "English (Operator)"
+        system_instruction = (
+            f"You are a translation bridge. The user is a driver speaking {target_lang}. "
+            "Translate their words into clear, tactical English for a Customs Officer. "
+            "Fix grammar and noise artifacts. Output ONLY the English translation."
+        )
+    else:
+        st.success("Falcon is listening for your Command...")
+        voice_in = speech_to_text(language='en-US', start_prompt="🎤 OPERATOR SPEAK (English)", key="op_mic")
+        src_label, trg_label = "English (Operator)", target_lang
+        system_instruction = (
+            f"Translate the following English command into {target_lang}. "
+            "Tone: Professional and clear. Context: Logistics/Customs. Output ONLY the translation."
+        )
 
-text_in = st.text_input("OR TYPE MESSAGE:", key="two_way_text")
-raw_input = voice_in if voice_in else text_in
+    text_in = st.text_input("OR TYPE MESSAGE:", key="two_way_text")
+    raw_input = voice_in if voice_in else text_in
 
-# 4. TWO-WAY EXECUTION
-if raw_input:
-    # Use the 'join' fix from earlier to make it lightning fast
-    try:
-        full_res = "".join([
-            chunk.choices[0].delta.content 
-            for chunk in falcon_query(f"{system_instruction}\n\nINPUT: {raw_input}", "Global Knowledge") 
-            if chunk.choices[0].delta.content
-        ])
-        
-        # --- DISPLAY BOX ---
-        st.markdown(f"""
-            <div style="background: #1e293b; padding: 25px; border-radius: 15px; border-left: 5px solid #ADFF2F; margin-top: 20px;">
-                <p style="color: #888; font-size: 12px; margin-bottom: 5px;">FROM: {src_label} | TO: {trg_label}</p>
-                <h1 style="color: #ADFF2F; margin: 0; font-size: 32px; font-weight: bold;">{full_res}</h1>
-            </div>
-        """, unsafe_allow_html=True)
+    # 4. TWO-WAY EXECUTION
+    if raw_input:
+        try:
+            full_res = "".join([
+                chunk.choices[0].delta.content 
+                for chunk in falcon_query(f"{system_instruction}\n\nINPUT: {raw_input}", "Global Knowledge") 
+                if chunk.choices[0].delta.content
+            ])
+            
+            # --- DISPLAY BOX ---
+            st.markdown(f"""
+                <div style="background: #1e293b; padding: 25px; border-radius: 15px; border-left: 5px solid #ADFF2F; margin-top: 20px;">
+                    <p style="color: #888; font-size: 12px; margin-bottom: 5px;">FROM: {src_label} | TO: {trg_label}</p>
+                    <h1 style="color: #ADFF2F; margin: 0; font-size: 32px; font-weight: bold;">{full_res}</h1>
+                </div>
+            """, unsafe_allow_html=True)
 
-        # --- AUDIO OUTPUT (Only for the Driver) ---
-        if mode == "Operator ➡️ Driver":
-            from gtts import gTTS
-            import io
-            tts = gTTS(text=full_res, lang=guest_code)
-            fp = io.BytesIO()
-            tts.write_to_fp(fp)
-            st.audio(fp.getvalue(), format="audio/mpeg", autoplay=True)
-        else:
-            st.toast("Direct Translation Received")
+            # --- AUDIO OUTPUT ---
+            if mode == "Operator ➡️ Driver":
+                from gtts import gTTS
+                import io
+                tts = gTTS(text=full_res, lang=guest_code)
+                fp = io.BytesIO()
+                tts.write_to_fp(fp)
+                st.audio(fp.getvalue(), format="audio/mpeg", autoplay=True)
+            else:
+                st.toast("Direct Translation Received")
 
-    except Exception as e:
-        st.error(f"Translation Error: {e}")
+        except Exception as e:
+            st.error(f"Translation Error: {e}")
 
-if st.button("CLEAR CONSOLE 🔄", use_container_width=True):
-    st.rerun()
-  
-
-   
+    if st.button("CLEAR CONSOLE 🔄", use_container_width=True):
+        st.rerun()
