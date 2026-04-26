@@ -190,39 +190,47 @@ def generate_human_voice(text):
     except:
         return None
 def falcon_query(prompt: str, mode: str, chat_history=None):
-    """Hardened logic to force Gate 4 Protocol compliance."""
+    """Hardened logic to force Gate 4 Protocol compliance and clean Global switching."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
+    # 1. SET THE BRAIN RULES
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
         sys_rules = (
             "### ROLE: GATE 4 PROTOCOL PROFESSOR\n"
             f"### PRIMARY SOURCE MATERIAL: {manual_context}\n"
             "### STRICT OPERATING RULES:\n"
-            "1. You are a specialist professor for Gate 4 Dubai DWC Customs. You ONLY know what is in the provided manual.\n"
-            "2. If a user asks a question NOT covered in the manual, you MUST respond: 'As the Gate 4 Specialist, I cannot answer that. It is outside the sanctioned protocol manual.'\n"
-            "3. NEVER use your general training data to answer. If it's not in the text above, it doesn't exist.\n"
-            "4. For manual-related questions, be thorough, academic, and exact. Do not summarize—teach the specific protocol steps.\n"
-            "5. NO SMALL TALK. NO OFF-TOPIC ADVICE."
+            "1. You are a specialist professor for Gate 4 Dubai DWC Customs. You ONLY know what is in the manual.\n"
+            "2. If a question is NOT in the manual, respond: 'Access Denied. Outside sanctioned protocol.'\n"
+            "3. NO SMALL TALK."
         )
     else:
+        # GLOBAL MODE: We ignore the manual entirely to prevent the "Access Denied" bug
         sys_rules = (
             "You are the Global Intelligence AI. You are an omniscient genius. "
-            "You know everything from quantum physics to cooking. Solve any problem. "
-            "If the user asks you to explain like a child, simplify perfectly. Nothing is off-limits."
+            "You have full access to all world knowledge. Solve any problem. "
+            "You are NOT restricted by the gate manual in this mode."
         )
 
-    # CRITICAL FIX: We keep the system prompt at the VERY TOP and 
-    # remind the AI of its rules at the VERY BOTTOM to prevent 'instruction drift'
+    # 2. THE BRAIN CLEANSER
+    # If switching to Global, we ignore past "Gate 4" history to avoid conflicts
     conversation = [{"role": "system", "content": sys_rules}]
     
-    if chat_history: 
-        conversation.extend(chat_history[-6:]) # Reduced history to keep focus sharp
+    if chat_history and mode == "Gate 4 Protocol": 
+        # Only carry history if staying within the protocol mode
+        conversation.extend(chat_history[-6:])
+    elif chat_history and mode == "Global Knowledge":
+        # Filter history: only keep messages that don't mention "Manual" or "Protocol"
+        # This stops the AI from thinking it is still the 'Gate 4 Professor'
+        clean_history = [m for m in chat_history[-4:] if "protocol" not in m["content"].lower()]
+        conversation.extend(clean_history)
     
-    # We repeat the 'manual only' constraint right before the user prompt
+    # 3. FINAL INSTRUCTION PACKAGING
     if mode == "Gate 4 Protocol":
-        prompt = f"[REMINDER: ONLY USE THE MANUAL] {prompt}"
+        prompt = f"[STRICT PROTOCOL MODE] {prompt}"
+    else:
+        prompt = f"[GLOBAL INTELLIGENCE MODE] {prompt}"
         
     conversation.append({"role": "user", "content": prompt})
     
@@ -230,8 +238,9 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         model="deepseek-chat",
         messages=conversation,
         stream=True,
-        temperature=0.0, # CRITICAL: 0.0 makes the AI 'rigid' and factual rather than creative
+        temperature=0.1, # Slightly higher for global fluidity, still low for protocol
         timeout=15.0
+    )
     )
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
