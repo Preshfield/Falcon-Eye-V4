@@ -281,7 +281,7 @@ st.markdown(f'<div class="custom-header"><b>Station:</b> {st.session_state.curre
 st.markdown('<div class="hero-container"><h1 class="hero-title">FALCON EYE</h1><h2>GATE 4 <span class="status-dot">● ONLINE</span></h2><div class="hero-divider"></div><p class="hero-tagline">Tactical AI & Protocol Management</p></div>', unsafe_allow_html=True)
 
 # TABS
-t1, t2, t3, t4, t5, t6, t7 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT", "🌐 TRANSLATOR", "💳 FAST-PAY"])
+t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs(["🛰️ INTELLIGENCE", "📖 PROTOCOLS", "📝 LOGS", "📟 LOGISTIC DOCUMENTATION", "🕵️ AUDIT", "🌐 TRANSLATOR", "💳 FAST-PAY", "👤 IDENTITY"])
 
 with t1:
     st.subheader(f"🔍 {st.session_state.current_chat_id}")
@@ -800,6 +800,36 @@ with t7:
             else:
                 st.error("No record found for this vehicle.")
 
+
+with t8:
+    st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>PERSONNEL IDENTITY VAULT 👤</h3>", unsafe_allow_html=True)
+    
+    with st.expander("📸 CAPTURE VISITOR ID", expanded=True):
+        # Camera input for ID document
+        id_photo = st.camera_input("Scan Emirates ID / Passport")
+        
+        col_id1, col_id2 = st.columns(2)
+        with col_id1:
+            v_name = st.text_input("Full Name:").upper()
+            v_id_num = st.text_input("ID / Passport Number:").upper()
+        
+        with col_id2:
+            v_phone = st.text_input("Mobile Number:")
+            v_comp = st.text_input("Company Name:").upper()
+            
+        v_reason = st.selectbox("Reason for Entry:", ["Delivery", "Export Pick-up", "Site Visit", "Contractor"])
+
+    if st.button("🏁 AUTHORIZE ENTRY & LOG IDENTITY", use_container_width=True):
+        if v_name and v_id_num:
+            # Create Identity Payload
+            # Format: [Name, ID_Num, Phone, Company, Reason, Status]
+            id_payload = [v_name, v_id_num, v_phone, v_comp, v_reason, "CLEARED"]
+            
+            if save_to_google_sheets(st.session_state.current_worker, id_payload, sheet_name="IDENTITY_LOG"):
+                st.success(f"ACCESS GRANTED: {v_name} has been logged.")
+                st.toast(f"Identity {v_id_num} archived.")
+        else:
+            st.error("Missing critical identity data!")
 
 
 
