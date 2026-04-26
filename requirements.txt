@@ -16,3 +16,5 @@ easyocr
 opencv-python-headless
 deepgram-sdk
 elevenlabs
+qrcode
+pillow
