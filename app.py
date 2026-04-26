@@ -12,6 +12,7 @@ from fpdf import FPDF
 import pandas as pd
 import random
 import base64  
+import re
 
 # ====================== 1. CRITICAL INITIALIZATION ======================
 st.set_page_config(page_title="Falcon Eye Gate4", layout="wide", page_icon="🦅")
@@ -279,29 +280,49 @@ if "id_scanner_results" not in st.session_state:
 
 
 
+
+
 def falcon_vision_ocr(image_file):
     """Processes the ID photo and returns structured data for the form."""
-    # Convert image to base64 string
-    base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
-    
-    # CRITICAL: Use a Vision-capable model (like GPT-4o)
-    client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-    
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extract Name, ID Number, Nationality, and Company from this ID. Return ONLY JSON format."},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ],
-            }
-        ],
-        max_tokens=300,
-    )
-    # Parse the JSON response here to return a dictionary
-    return response.choices[0].message.content
+    # 1. SAFETY CHECK: If no image, exit early to prevent AttributeError
+    if image_file is None:
+        return None
+
+    try:
+        # 2. Convert image to base64
+        base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
+        
+        client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        
+        # 3. Vision API Call
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text", 
+                            "text": "Extract Name, ID Number, Nationality, and Company from this ID. Return ONLY a raw JSON object. Use keys: 'name', 'id_num', 'nationality', 'company'."
+                        },
+                        {
+                            "type": "image_url", 
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                        }
+                    ],
+                }
+            ],
+            max_tokens=300,
+            response_format={ "type": "json_object" } # Forces the model to speak JSON
+        )
+        
+        # 4. CLEAN & PARSE: Remove any markdown markers if the model adds them
+        raw_content = response.choices[0].message.content
+        return json.loads(raw_content)
+
+    except Exception as e:
+        st.error(f"Falcon Vision Error: {e}")
+        return None
 
 # ====================== 5. AUTHENTICATION ======================
 WORKER_DB = {"Precious Akpezi Ojah": "Falcon01", "Bambi": "Nancy", "Mr_Ali": "Ali"}
