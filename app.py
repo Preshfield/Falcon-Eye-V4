@@ -51,6 +51,28 @@ def local_css(file_name):
         .custom-header { background: rgba(15, 23, 42, 0.9); padding: 10px 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #ADFF2F; }
         </style>
     ''', unsafe_allow_html=True)
+    /* SCANNER BRACKET EFFECT */
+.scanner-overlay {
+    position: relative;
+    border: 2px solid rgba(173, 255, 47, 0.3);
+    border-radius: 15px;
+    overflow: hidden;
+}
+.scanner-overlay::after {
+    content: "";
+    position: absolute;
+    top: 20%; left: 10%; right: 10%; bottom: 20%;
+    border: 2px dashed #ADFF2F;
+    box-shadow: 0 0 15px rgba(173, 255, 47, 0.5);
+    border-radius: 10px;
+    pointer-events: none;
+    animation: scan-flicker 2s infinite;
+}
+@keyframes scan-flicker {
+    0% { opacity: 0.8; }
+    50% { opacity: 0.4; }
+    100% { opacity: 0.8; }
+}
 
 local_css("css/style.css")
 
@@ -805,57 +827,39 @@ with t7:
 with t8:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>PERSONNEL IDENTITY VAULT 👤</h3>", unsafe_allow_html=True)
     
-    # 1. DOCUMENT CAPTURE SECTION
-    with st.expander("📸 SCAN EMIRATES ID / PASSPORT", expanded=True):
-        id_photo = st.camera_input("Capture ID Document")
-        if id_photo:
-            st.info("Image captured. Ensure text is clear for the audit trail.")
+    # --- BANK-STYLE SCANNER INTERFACE ---
+    # The div below triggers the CSS bracket we defined above
+    st.markdown('<div class="scanner-overlay">', unsafe_allow_html=True)
+    id_photo = st.camera_input("POSITION ID WITHIN THE BRACKET")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    if id_photo:
+        st.success("✅ IMAGE CAPTURED - ANALYZING...")
+    else:
+        st.info("💡 TIP: Align the Emirates ID chip or Passport photo with the center dashed box.")
 
-    # 2. IDENTITY FORM
-    with st.form("identity_form", clear_on_submit=True):
+    # IDENTITY FORM DATA
+    with st.form("identity_capture_form", clear_on_submit=True):
         col_id1, col_id2 = st.columns(2)
-        
         with col_id1:
             v_name = st.text_input("Full Name:").upper()
             v_id_num = st.text_input("ID / Passport Number:").upper()
-            v_nat = st.text_input("Nationality:").upper()
-        
         with col_id2:
-            v_phone = st.text_input("Mobile Number:")
-            v_comp = st.text_input("Representing Company:").upper()
-            v_reason = st.selectbox("Purpose of Entry:", [
-                "Cargo Delivery", "Export Pick-up", "Courier Service", 
-                "Facility Maintenance", "Management Visit", "Security Inspection"
-            ])
+            v_nat = st.text_input("Nationality:").upper()
+            v_comp = st.text_input("Company:").upper()
+            
+        v_reason = st.selectbox("Reason for Entry:", ["Delivery", "Export", "Visit", "Maintenance"])
 
-        st.divider()
-        
-        # 3. SYNC TO DATABASE
-        if st.form_submit_button("🏁 AUTHORIZE ENTRY & LOG IDENTITY", use_container_width=True):
+        if st.form_submit_button("🏁 AUTHORIZE & LOG ENTRY", use_container_width=True):
             if v_name and v_id_num:
-                # Payload: [Name, ID_Number, Nationality, Phone, Company, Reason, Status]
-                id_payload = [v_name, v_id_num, v_nat, v_phone, v_comp, v_reason, "CLEARED"]
+                # [Date, Name, ID, Nat, Comp, Reason, Status, Officer]
+                id_payload = [v_name, v_id_num, v_nat, "N/A", v_comp, v_reason, "CLEARED"]
                 
-                # Targets the 'IDENTITY_LOG' worksheet in your Google Sheet
                 if save_to_google_sheets(st.session_state.current_worker, id_payload, sheet_name="IDENTITY_LOG"):
-                    st.success(f"ACCESS GRANTED: {v_name} logged at Gate 4.")
                     st.balloons()
-                else:
-                    st.error("Sheet Error: Create a tab named 'IDENTITY_LOG' in your Google Sheet.")
+                    st.success(f"Log Secure: {v_name} Authorized.")
             else:
-                st.warning("MANDATORY: Name and ID Number are required for entry.")
-
-    # 4. IDENTITY SEARCH
-    with st.expander("🔍 VISITOR HISTORY SEARCH"):
-        search_id = st.text_input("Enter ID Number to Verify:")
-        if search_id:
-            record, _ = search_logs(search_id, "IDENTITY_LOG")
-            if record:
-                st.info(f"Identity Verified: {record}")
-            else:
-                st.error("No previous entry record found for this ID.")
-
-
+                st.error("Name and ID Number are mandatory.")
 
 
 
