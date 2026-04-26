@@ -969,12 +969,11 @@ with t8:
 with t9:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>DRIVER SCAN-TO-PAY 📲</h3>", unsafe_allow_html=True)
     
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns([1, 1.2]) # Made col2 slightly wider for the QR
     
     with col1:
         st.write("### Transaction Details")
         qr_plate = st.text_input("Driver Plate Number:", key="qr_plate_in").upper()
-        # Captures driver name for the 'Officer' column
         driver_name = st.text_input("Driver Full Name:", placeholder="Enter Driver's Name", key="qr_driver_name")
         
         qr_amount = st.selectbox("Select Fixed Fee (AED):", [50, 100, 150, 200, 500])
@@ -986,41 +985,33 @@ with t9:
             import string
             session_id = f"QR-{''.join(random.choices(string.digits, k=6))}"
             
-            # Link logic for the driver's phone
-            payment_link = f"https://your-payment-gateway.com/pay?amount={qr_amount}&plate={qr_plate}&id={session_id}"
+            # This is the data the driver's phone will read
+            payment_info = f"PLATE:{qr_plate}|AMT:{qr_amount}|ID:{session_id}"
             
-            # Larger QR size (300x300) for easier scanning through truck windows
-            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={payment_link}"
+            # Using a very reliable Google Chart API for the QR code
+            qr_api_url = f"https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl={payment_info}"
             
             st.markdown(f"""
-                <div style="background: white; padding: 20px; border-radius: 15px; text-align: center;">
-                    <img src="{qr_api_url}" width="220">
-                    <p style="color: black; font-weight: bold; margin-top: 10px;">SCAN TO PAY AED {qr_amount}</p>
+                <div style="background: white; padding: 15px; border-radius: 15px; text-align: center; border: 4px solid #ADFF2F;">
+                    <img src="{qr_api_url}" style="width: 100%; max-width: 250px;">
+                    <p style="color: black; font-weight: bold; margin-top: 5px; font-size: 18px;">SCAN TO PAY AED {qr_amount}</p>
+                    <p style="color: #666; font-size: 12px;">ID: {session_id}</p>
                 </div>
             """, unsafe_allow_html=True)
             
+            # Backup link in case the image still doesn't show
+            st.caption(f"If QR is not visible: [Click for Driver Link]({qr_api_url})")
             st.info(f"Awaiting Payment for {driver_name}...")
         else:
-            st.warning("Enter Plate Number AND Driver Name to generate QR")
+            st.warning("⚠️ Enter Plate & Driver Name to generate the QR code.")
 
-    # The Logic to Sync to the Sheet with Correct Column Order
     if st.button("MANUALLY VERIFY & LOG TO SHEET ✅"):
         if qr_plate and driver_name:
-            # UPDATED PAYLOAD: Separating Amount and Status for your sheet columns
-            # Order: [TXN_ID, PLATE, SERVICE, AMOUNT, STATUS]
-            qr_payload = [
-                session_id, 
-                qr_plate, 
-                qr_service, 
-                f"{qr_amount} AED", 
-                "QR-ONLINE"  # This now hits your 'Status' column correctly
-            ]
+            # Matches your PAYMENTS sheet columns: [ID, PLATE, SERVICE, AMOUNT, STATUS]
+            qr_payload = [session_id, qr_plate, qr_service, f"{qr_amount} AED", "QR-ONLINE"]
             
-            # Send 'driver_name' as the first argument so it populates the 'Officer' column
             if save_to_google_sheets(driver_name, qr_payload, sheet_name="PAYMENTS"):
                 st.balloons()
                 st.success(f"Verified! Payment for {driver_name} logged to PAYMENTS.")
             else:
-                st.error("Sheet Sync Failed. Please check tab name.")
-        else:
-            st.error("Please ensure Plate and Driver Name are filled before verifying.")
+                st.error("Sheet Sync Failed.")
