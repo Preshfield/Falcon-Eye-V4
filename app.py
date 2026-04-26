@@ -349,6 +349,8 @@ with t1:
         st.session_state.messages.append({"role": "assistant", "content": full_res})
         # Save and trigger rerun - The player at the top will catch the new message now
         st.rerun()
+
+
    # protocol manual)
 
 with t2:
@@ -431,7 +433,7 @@ with t3:
 
 
 with t4:
-    # ====================== 1. STAFF AGENT: AUTO-FILL VOICE COMMANDS ======================
+    
     with st.expander("👨‍💼 STAFF AGENT (VOICE-TO-FORM)", expanded=True):
         st.markdown("<p style='color: #ADFF2F;'>Tell the agent what to write, and he will fill the form below.</p>", unsafe_allow_html=True)
         
@@ -467,7 +469,7 @@ with t4:
 
     st.divider()
 
-    # ====================== 2. ORIGINAL COMMAND CENTER (PRESERVED) ======================
+    # ====================== 2.  COMMAND CENTER  ======================
     st.subheader("📟 Logistics Command Center")
     
     # 1. EXPRESS ENTRY LOGIC
