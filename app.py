@@ -347,10 +347,57 @@ with t2:
         pdf_viewer("gate_manual.pdf", height=800)
     else:
         st.error("Manual not found. Please ensure 'gate_manual.pdf' is in the repository.")
+
+ # ======================LOG AND REPORT ======================
 with t3:
-    notes = st.text_area("Observations:")
-    if st.button("🚀 SAVE LOG") and notes:
-        if save_to_google_sheets(st.session_state.current_worker, notes, "LOG"): st.success("✅ Logged.")
+    st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>OFFICIAL INCIDENT REPORTING 📋</h3>", unsafe_allow_html=True)
+    
+    # 1. INPUT AREA
+    raw_notes = st.text_area("Enter Rough Observations / Agent Notes:", height=150, placeholder="Example: driver was shouting at gate 4, truck plate 12345, refused to show ID...")
+    
+    # 2. THE REWRITE ENGINE
+    if st.button("🪄 GENERATE PROFESSIONAL REPORT") and raw_notes:
+        with st.spinner("Falcon Intelligence rewriting to Standard Security Protocol..."):
+            # System instructions to force professional, standard office language
+            report_instruction = (
+                "You are a Senior Security Supervisor. Rewrite the following rough notes into a "
+                "formal, detailed, and objective Incident Report. Use standard security terminology. "
+                "Correct all grammar and construction. Output ONLY the polished report text."
+            )
+            
+            # Use the Global Brain for the best writing quality
+            polished_report = "".join([
+                chunk.choices[0].delta.content 
+                for chunk in falcon_query(f"{report_instruction}\n\nNOTES: {raw_notes}", "Global Knowledge") 
+                if chunk.choices[0].delta.content
+            ])
+            
+            st.session_state["current_polished_report"] = polished_report
+
+    # 3. DISPLAY & SAVE AREA
+    if "current_polished_report" in st.session_state:
+        st.markdown("---")
+        st.subheader("Standardized Security Report")
+        
+        # Displaying in a clean, professional style for the UI
+        st.info(st.session_state["current_polished_report"])
+        
+        # 4. GOOGLE SHEETS TRANSFER (Clean Text Only)
+        if st.button("🚀 AUTHORIZE & SEND TO GOOGLE SHEETS"):
+            final_text = st.session_state["current_polished_report"]
+            
+            # We pass the cleaned text. save_to_google_sheets should handle the row insertion.
+            if save_to_google_sheets(st.session_state.current_worker, final_text, "OFFICIAL_REPORT"):
+                st.success("✅ Report Synced to Google Sheets (Standard Office Format).")
+                # Clear the state after saving
+                del st.session_state["current_polished_report"]
+            else:
+                st.error("Failed to sync with Google Sheets. Check connection.")
+
+    if st.button("CLEAR LOG 🔄"):
+        if "current_polished_report" in st.session_state:
+            del st.session_state["current_polished_report"]
+        st.rerun()
 
 
 
