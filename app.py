@@ -692,46 +692,41 @@ with t4:
 with t5:
     st.markdown("### 🕵️‍♂️ CIA Universal Intelligence Search")
     
-    # 1. SELECT THE DOCUMENTATION SOURCE
-    # Using the exact name you specified: "PAYMENTS"
     doc_source = st.selectbox(
         "Select Documentation Category:", 
-        ["LOG", "MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT", "PAYMENTS"]
+        ["LOG", "REPORT", "PAYMENTS", "IDENTITY_LOG", "MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"]
     )
     
-    # 2. FETCH DATA FROM SELECTED SOURCE
     try:
         client_audit = get_gsheet_client()
-        # .strip() ensures we don't fail due to accidental leading/trailing spaces
-        audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet(doc_source.strip())
+        audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet(doc_source)
         
-        raw_data = audit_sheet.get_all_values()
+        # Fetch everything
+        all_rows = audit_sheet.get_all_values()
         
-        if len(raw_data) > 1: # Must have at least a header and one row of data
-            header_row = raw_data[0]
-            body_data = raw_data[1:]
+        # --- NEW LOGIC: FIND THE REAL HEADER ---
+        # We skip empty rows at the top to find where your 'DATE', 'TX_ID' etc. actually start
+        real_data = [row for row in all_rows if any(cell.strip() for cell in row)]
+        
+        if len(real_data) > 1:
+            header_row = real_data[0] # This will now correctly grab 'DATE', 'TX_ID', etc.
+            body_data = real_data[1:] # This grabs the actual transactions
             
-            # Create DataFrame
             audit_df = pd.DataFrame(body_data, columns=header_row)
-            # Remove empty columns to keep the UI clean
+            # Clean up empty columns
             audit_df = audit_df.loc[:, audit_df.columns != '']
-        elif len(raw_data) == 1:
-            audit_df = None
-            st.info(f"🛰️ {doc_source} initialized with headers, but no records found yet.")
         else:
             audit_df = None
-            st.warning(f"⚠️ The {doc_source} sheet is completely empty (Missing Headers).")
+            st.warning(f"🛰️ {doc_source} contains no mission records yet.")
             
     except Exception as e:
-        st.error(f"❌ CIA Access Error for {doc_source}: {e}")
+        st.error(f"❌ CIA Access Error: {e}")
         audit_df = None
 
-    # 3. MANAGER COMMAND INTERFACE
     st.divider()
-    audit_query = st.text_input(f"Interrogate {doc_source}:", placeholder="Search Plates, IDs, or Status...")
+    audit_query = st.text_input(f"Interrogate {doc_source}:", placeholder="Search Plates (e.g. DXB 33879)...")
 
     if audit_query and audit_df is not None:
-        # Search across all columns
         mask = audit_df.apply(lambda row: row.astype(str).str.contains(audit_query, case=False).any(), axis=1)
         found = audit_df[mask]
 
@@ -739,20 +734,13 @@ with t5:
             st.success(f"Audit Result: {len(found)} records identified.")
             st.dataframe(found, use_container_width=True)
             
-            # Tactical Export
             csv = found.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label=f"📂 Export {doc_source} Report",
-                data=csv,
-                file_name=f"FalconEye_{doc_source}_{audit_query}.csv",
-                mime='text/csv',
-            )
+            st.download_button(label="📂 Export Audit", data=csv, file_name=f"Falcon_{doc_source}.csv")
         else:
-            st.info(f"Zero records matching '{audit_query}' in {doc_source} archives.")
+            st.info(f"No records found for '{audit_query}'.")
     
     elif audit_df is not None:
-        st.write(f"Latest {doc_source} Activity:")
-        # Display the most recent 10 entries
+        st.write(f"Latest {doc_source} Archives:")
         st.table(audit_df.tail(10))
 with t6:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>COMMAND INTERPRETER ⚡</h3>", unsafe_allow_html=True)
