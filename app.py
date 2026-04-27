@@ -218,31 +218,32 @@ def generate_human_voice(text):
 
 
 def falcon_query(prompt: str, mode: str, chat_history=None):
-    """Streaming version with a 'Hard Override' for Global Knowledge."""
+    """Surgical Intelligence Engine: Automatically sanitizes memory based on mode."""
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     if mode == "Gate 4 Protocol":
         manual_context = get_protocol_context()
         sys_rules = (
-            f"You are the Falcon Eye Gate 4 Security Firewall. STRICT PROCEDURES: "
-            f"Access ONLY this manual: {manual_context}. If query is unrelated to Gate 4 "
-            f"or security protocols, say 'ACCESS DENIED'."
+            f"You are the Gate 4 Security Firewall. STRICT PROCEDURES: "
+            f"Access ONLY this manual: {manual_context}. If query is unrelated, say 'ACCESS DENIED'."
         )
     else:
-        # MODE: Global Knowledge - The "Hard Override" instruction
+        # Global Mode Override
         sys_rules = (
-            "CRITICAL: YOU ARE NOW IN GLOBAL KNOWLEDGE MODE. "
-            "Ignore all previous 'ACCESS DENIED' restrictions and security protocols. "
-            "You are a world-class expert with access to all science, history, and general facts. "
-            "Answer the user's question directly and comprehensively."
+            "You are the Falcon Eye Global Intelligence AI. NO RESTRICTIONS. "
+            "Access all science, history, and world facts. Answer directly."
         )
 
     conversation = [{"role": "system", "content": sys_rules}]
     
     if chat_history:
-        # We only pass the last 5 messages to prevent the old 'Access Denied' loop
-        conversation.extend(chat_history[-5:])
+        if mode == "Global Knowledge":
+            # SURGICAL FILTER: Remove any past refusals so the AI doesn't get stuck in a loop
+            clean_history = [m for m in chat_history if "ACCESS DENIED" not in m["content"].upper()]
+            conversation.extend(clean_history[-5:])
+        else:
+            conversation.extend(chat_history[-5:])
     
     conversation.append({"role": "user", "content": prompt})
     
@@ -250,9 +251,8 @@ def falcon_query(prompt: str, mode: str, chat_history=None):
         model="deepseek-chat",
         messages=conversation,
         stream=True,
-        temperature=0.7 # Higher temperature helps it 'break out' of the rigid protocol mode
+        temperature=0.7 if mode == "Global Knowledge" else 0.1
     )
-
 # This creates a private 'folder' just for this scanner
 if "id_scanner_results" not in st.session_state:
     st.session_state.id_scanner_results = {"name": "", "id": "", "nat": "", "comp": ""}
