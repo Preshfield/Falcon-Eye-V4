@@ -325,15 +325,40 @@ dubai_time = datetime.now(timezone(timedelta(hours=4))).strftime("%H:%M")
 with st.sidebar:
     st.title("🦅 MISSION LOGS")
     chat_list = list(st.session_state.all_sessions.keys())
+    
+    # 1. Start New Chat
     if st.button("➕ START NEW CHAT", use_container_width=True):
         new_id = f"Session {len(chat_list) + 1} ({dubai_time})"
         st.session_state.all_sessions[new_id] = []
         st.session_state.current_chat_id = new_id
         st.rerun()
+    
     st.divider()
-    selected_chat = st.radio("History:", chat_list)
-    st.session_state.current_chat_id = selected_chat
-    st.session_state.messages = st.session_state.all_sessions.get(selected_chat, [])
+
+    # 2. Select and Clear Chat
+    if chat_list:
+        selected_chat = st.radio("History:", chat_list)
+        st.session_state.current_chat_id = selected_chat
+        st.session_state.messages = st.session_state.all_sessions.get(selected_chat, [])
+
+        # --- NEW: CLEAR CHAT BUTTON ---
+        if st.button("🗑️ CLEAR THIS MISSION", use_container_width=True):
+            if selected_chat in st.session_state.all_sessions:
+                # Delete from the dictionary
+                del st.session_state.all_sessions[selected_chat]
+                # Save the updated dictionary back to your database/Sheets
+                save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
+                
+                # Reset to a fresh state
+                st.session_state.messages = []
+                st.session_state.current_chat_id = None
+                st.rerun()
+    else:
+        st.info("No active mission logs.")
+
+    st.divider()
+
+    # 3. Logout
     if st.button("🔒 LOGOUT", use_container_width=True):
         save_all_sessions(st.session_state.current_worker, st.session_state.all_sessions)
         st.session_state.auth = False
