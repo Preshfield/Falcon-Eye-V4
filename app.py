@@ -701,9 +701,9 @@ with t5:
             "MANUAL PASS", 
             "LABOUR CHARGE", 
             "OFFICIAL REPORT",
-            "FAST-PAY",        # New: Payment transactions
-            "IDENTITY",        # New: Driver/Worker ID records
-            "PAYMENT QR"       # New: QR Code generation logs
+            "PAYMENTS"       
+                   
+                  
         ]
     )
     
