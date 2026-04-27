@@ -688,19 +688,29 @@ with t4:
                 st.rerun()
             else:
                 st.error(f"❌ ID '{recall_id}' not found in {sheet_target}.")
+# --- AUDIT (T5) ---
 with t5:
     st.markdown("### 🕵️‍♂️ CIA Universal Intelligence Search")
     
     # 1. SELECT THE DOCUMENTATION SOURCE
-    # The manager can now choose which "corridor" of the warehouse to audit
+    # Added FAST-PAY, IDENTITY, and PAYMENT QR to the warehouse corridors
     doc_source = st.selectbox(
         "Select Documentation Category:", 
-        ["LOG", "MANUAL PASS", "LABOUR CHARGE", "OFFICIAL REPORT"]
+        [
+            "LOG", 
+            "MANUAL PASS", 
+            "LABOUR CHARGE", 
+            "OFFICIAL REPORT",
+            "FAST-PAY",        # New: Payment transactions
+            "IDENTITY",        # New: Driver/Worker ID records
+            "PAYMENT QR"       # New: QR Code generation logs
+        ]
     )
     
     # 2. FETCH DATA FROM SELECTED SOURCE
     try:
         client_audit = get_gsheet_client()
+        # This will now dynamically open the new sheets you added
         audit_sheet = client_audit.open("Falcon_Eye_Database").worksheet(doc_source)
         
         raw_data = audit_sheet.get_all_values()
@@ -730,6 +740,7 @@ with t5:
 
         if not found.empty:
             st.success(f"Audit Result: {len(found)} records found in {doc_source}.")
+            # Professional view for the manager
             st.dataframe(found, use_container_width=True)
             
             # Export for the Manager
@@ -745,6 +756,7 @@ with t5:
     
     elif audit_df is not None:
         st.write(f"Latest {doc_source} Entries:")
+        # Show top 10 for quick review
         st.table(audit_df.tail(10))
 with t6:
     st.markdown("<h3 style='text-align: center; color: #ADFF2F;'>COMMAND INTERPRETER ⚡</h3>", unsafe_allow_html=True)
